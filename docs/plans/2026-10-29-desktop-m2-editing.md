@@ -574,7 +574,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decision 10 asks each time before removing; Decision 7 edits details; Decision 8 edits lyrics. One dialog shell keeps focus and Esc behaviour identical across them.
 
 ### Task 16: Queue editing in Up next [design]
-- [ ] status
+- [x] status
 **Objective:** Up next rows can be dragged to reorder within their group, moved with arrow keys, and removed with ✕.
 **Write-scope:**
 `web/src/player/NowPlayingSheet.tsx`
@@ -669,7 +669,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decision 10 (manual art, artist images, hide artist), Decision 8 (lyric edits, stale `.lrc`), Decision 15 (server-side sort).
 
 ### Task 19: Settings: crossfade, duplicates, hidden artists, removed songs [design]
-- [ ] status
+- [x] status
 **Objective:** Settings has Playback, Duplicates, Hidden artists and Removed songs sections that work end to end.
 **Write-scope:**
 `web/src/views/Settings.tsx`

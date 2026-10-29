@@ -11,4 +11,15 @@
 .folder-add { max-width: 720px; display: grid; gap: 16px; }
 .folder-add .error { margin: 8px 0 0; }
 .folder-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.set-range { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; max-width: 720px; margin-bottom: 8px; }
+.set-range label { color: var(--text); }
+.set-range output { color: var(--text-2); font-feature-settings: "tnum" 1; }
+.set-range .range { grid-column: 1 / -1; }
+.set-gap { margin-bottom: 16px; }
+.dup-group { margin: 0 0 24px; padding: 0; border: 0; min-width: 0; max-width: 720px; border-top: 1px solid var(--hairline); }
+.dup-group legend { float: left; width: 100%; padding: 12px 0; color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.dup-group legend + * { clear: both; }
+.dup-copy { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 0; border-top: 1px solid var(--hairline); cursor: pointer; }
+.dup-copy input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+.dup-remove { margin-top: 12px; min-height: 44px; }
 .folder-scan { min-height: 1.45em; margin: 16px 0 0; color: var(--text-2); font-size: var(--t-s); }

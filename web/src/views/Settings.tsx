@@ -1,18 +1,26 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 
-import { getSettings, putMusicFolders, startScan, type Settings as SettingsData } from "../api";
+import {
+  getDuplicates,
+  getHiddenArtists,
+  getRemovedTracks,
+  getSettings,
+  putMusicFolders,
+  restoreTracks,
+  setArtistHidden,
+  startScan,
+  type Settings as SettingsData,
+  type Track,
+} from "../api";
+import { RemoveDialog } from "../components/RemoveDialog";
 import { Screen } from "../components/Screen";
 import { useJobs } from "../jobs/JobsContext";
-
-/* Music folders as a mount table: path, live state, one action per row. */
+import { getCrossfadeSeconds, setCrossfadeSeconds } from "../player/crossfade";
 
 export function Settings() {
-  const { job, libraryVersion } = useJobs();
+  const { libraryVersion } = useJobs();
   const [data, setData] = useState<SettingsData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [path, setPath] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   // Reload on a finished scan so the song counts catch up.
   useEffect(() => {
@@ -26,6 +34,35 @@ export function Settings() {
       });
     return () => abort.abort();
   }, [libraryVersion]);
+
+  return (
+    <Screen title="Settings" error={loadError} loading={!data}>
+      {data && (
+        <>
+          <MusicFolders data={data} setData={setData} />
+          <Playback />
+          <Duplicates />
+          <HiddenArtists />
+          <RemovedSongs />
+        </>
+      )}
+    </Screen>
+  );
+}
+
+/* Music folders as a mount table: path, live state, one action per row. */
+
+function MusicFolders({
+  data,
+  setData,
+}: {
+  data: SettingsData;
+  setData: (next: SettingsData) => void;
+}) {
+  const { job } = useJobs();
+  const [path, setPath] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const save = async (folders: string[]) => {
     setBusy(true);
@@ -71,8 +108,6 @@ export function Settings() {
       : (scan.message ?? "");
 
   return (
-    <Screen title="Settings" error={loadError} loading={!data}>
-      {data && (
         <section className="section" aria-labelledby="folders-h">
           <div className="section-head">
             <h2 id="folders-h">Music folders</h2>
@@ -142,7 +177,204 @@ export function Settings() {
             {status}
           </p>
         </section>
+  );
+}
+
+function Playback() {
+  const [secs, setSecs] = useState(getCrossfadeSeconds);
+  return (
+    <section className="section" aria-labelledby="playback-h">
+      <div className="section-head">
+        <h2 id="playback-h">Playback</h2>
+      </div>
+      <div className="set-range">
+        <label htmlFor="crossfade">Crossfade</label>
+        <output htmlFor="crossfade">{secs === 0 ? "Off" : `${secs} s`}</output>
+        <input
+          id="crossfade"
+          className="range"
+          type="range"
+          min={0}
+          max={12}
+          step={1}
+          value={secs}
+          style={{ "--p": `${(secs / 12) * 100}%` } as CSSProperties}
+          onChange={(event) => {
+            const n = Number(event.target.value);
+            setSecs(n);
+            setCrossfadeSeconds(n);
+          }}
+        />
+      </div>
+      <p className="page-sub settings-help">
+        Songs blend into each other. Off plays them back to back with no gap.
+      </p>
+    </section>
+  );
+}
+
+/* Loads a list on mount, on library change and on demand. */
+function useList<T>(load: (signal: AbortSignal) => Promise<T>, enabled = true) {
+  const { libraryVersion } = useJobs();
+  const [items, setItems] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const abort = new AbortController();
+    load(abort.signal)
+      .then((next) => {
+        if (abort.signal.aborted) return;
+        setItems(next);
+        setError(null);
+      })
+      .catch((cause: unknown) => {
+        if (!abort.signal.aborted) setError(cause instanceof Error ? cause.message : String(cause));
+      });
+    return () => abort.abort();
+    // load is a stable api function
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryVersion, tick, enabled]);
+  return { items, error, setError, reload: () => setTick((t) => t + 1) };
+}
+
+const fmtTime = (ms: number | null) => {
+  if (ms == null) return "?";
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+function Duplicates() {
+  const [asked, setAsked] = useState(false);
+  const { items, error, reload } = useList(getDuplicates, asked);
+  const [keep, setKeep] = useState<Record<number, number>>({});
+  const [removing, setRemoving] = useState<Track[] | null>(null);
+  const groups = items?.groups ?? null;
+
+  return (
+    <section className="section" aria-labelledby="dups-h">
+      <div className="section-head">
+        <h2 id="dups-h">Duplicates</h2>
+      </div>
+      <div className="folder-actions set-gap">
+        <button type="button" className="btn" onClick={() => (asked ? reload() : setAsked(true))}>
+          Find duplicates
+        </button>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      {groups && groups.length === 0 && <p className="muted settings-empty">No duplicates found.</p>}
+      {groups?.map((group) => {
+        const first = group.find((t) => t.playable) ?? group[0];
+        const kept = keep[group[0].track_rowid] ?? first.track_rowid;
+        return (
+          <fieldset key={group[0].track_rowid} className="dup-group">
+            <legend>
+              {group[0].track_name} · {group[0].artist_name}
+            </legend>
+            {group.map((t) => (
+              <label key={t.track_rowid} className="dup-copy">
+                <input
+                  type="radio"
+                  name={`dup-${group[0].track_rowid}`}
+                  checked={kept === t.track_rowid}
+                  onChange={() => setKeep({ ...keep, [group[0].track_rowid]: t.track_rowid })}
+                />
+                <span className="folder-info">
+                  <span className="folder-path">
+                    {t.album_name} · {t.format ? t.format.toUpperCase() : "?"} · {fmtTime(t.duration_ms)}
+                  </span>
+                  <span className="folder-state">Keep</span>
+                </span>
+              </label>
+            ))}
+            <button
+              type="button"
+              className="btn dup-remove"
+              onClick={() => setRemoving(group.filter((t) => t.track_rowid !== kept))}
+            >
+              Remove the other copies
+            </button>
+          </fieldset>
+        );
+      })}
+      {removing && (
+        <RemoveDialog tracks={removing} onClose={() => setRemoving(null)} onRemoved={reload} />
       )}
-    </Screen>
+    </section>
+  );
+}
+
+function HiddenArtists() {
+  const { items, error, setError, reload } = useList(getHiddenArtists);
+  return (
+    <section className="section" aria-labelledby="hidden-h">
+      <div className="section-head">
+        <h2 id="hidden-h">Hidden artists</h2>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      {items && items.length === 0 && <p className="muted settings-empty">No hidden artists.</p>}
+      {items && items.length > 0 && (
+        <ul className="folder-list">
+          {items.map((a) => (
+            <li key={a.artist_name} className="folder-row">
+              <div className="folder-info">
+                <span className="folder-path">{a.artist_name}</span>
+              </div>
+              <button
+                type="button"
+                className="folder-remove"
+                aria-label={`Unhide ${a.artist_name}`}
+                onClick={() =>
+                  setArtistHidden(a.artist_name, false).then(reload, (c: unknown) =>
+                    setError(c instanceof Error ? c.message : String(c)),
+                  )
+                }
+              >
+                Unhide
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function RemovedSongs() {
+  const { items, error, setError, reload } = useList(getRemovedTracks);
+  return (
+    <section className="section" aria-labelledby="removed-h">
+      <div className="section-head">
+        <h2 id="removed-h">Removed songs</h2>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      {items && items.length === 0 && <p className="muted settings-empty">Nothing removed.</p>}
+      {items && items.length > 0 && (
+        <ul className="folder-list">
+          {items.map((t) => (
+            <li key={t.track_rowid} className="folder-row">
+              <div className="folder-info">
+                <span className="folder-path">{t.track_name}</span>
+                <span className="folder-state">
+                  {t.artist_name} · {t.album_name}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="folder-remove"
+                aria-label={`Restore ${t.track_name}`}
+                onClick={() =>
+                  restoreTracks([t.track_rowid]).then(reload, (c: unknown) =>
+                    setError(c instanceof Error ? c.message : String(c)),
+                  )
+                }
+              >
+                Restore
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
