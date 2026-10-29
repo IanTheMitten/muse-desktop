@@ -1,10 +1,10 @@
 """Library-wide lyric tagging: `python -m muse.lyric_tag_batch`.
 
-`docs/specs/2026-10-12-lyric-tag-store.md` D4-D6. Standalone -- a systemd
-oneshot (`deploy/muse-lyric-tag.*`), never inside the API process -- with
-job-row bookkeeping and an advisory lock. Each pending track's lyrics are
-segmented and asked against taxonomy v3 (`muse/lyric_tags.py`) on hosted Jev
-through `muse.systemone`; the raw probabilities go to
+`docs/specs/2026-10-12-lyric-tag-store.md` D4-D6. Standalone -- a oneshot,
+never inside the API process -- with job-row bookkeeping and an advisory
+lock. Each pending track's lyrics are segmented and asked against taxonomy v3
+(`muse/lyric_tags.py`); tags come from Laya in the ML worker
+(`muse/worker.py`), and the raw probabilities go to
 `lyric_tag_sets`/`lyric_tags`.
 
 Before tagging, sets tagged from prefetched lyrics whose audio has since
@@ -33,17 +33,15 @@ from .config import Config
 from .library import jobs as job_rows
 from .library import lyric_tags as store
 from .lyrics import read_lyrics
+from .worker import LAYA_MODEL, WorkerClient, worker_ask, worker_command
 
 log = logging.getLogger("muse.lyric_tag_batch")
 
 LYRIC_TAG = "lyric_tag"
-LOCK_HELD_EXIT = 3  # another batch holds the lock; systemd treats it as success
+LOCK_HELD_EXIT = 3  # another batch holds the lock
 # One bad song is logged and retried next run; this many in a row is an
-# outage (no key, Jev down), and the run stops rather than burn the queue.
+# outage (worker down), and the run stops rather than burn the queue.
 MAX_CONSECUTIVE_FAILURES = 10
-# Tagging requests carry a whole verse; the curator's 8 s budget was set for
-# a listener waiting on a block, not for a nightly batch.
-TIMEOUT_MS = 60_000
 
 
 def lock_path(library_db: Path) -> Path:
@@ -219,21 +217,10 @@ def import_dir(conn, directory: Path, model: str = "jev-latest") -> dict:
     return {"imported": imported, "skipped": skipped, **link_pending(conn)}
 
 
-def backend_ask(backend):
-    """Adapt `HttpSystemOneBackend.system_one` to the `ask(state, groups)`
-    shape `muse.lyric_tags.tag_song` takes: one `choice` question per group."""
-    def ask(state, groups):
-        questions = {g: {"type": "choice", "instructions": instructions, "criteria": labels}
-                     for g, (instructions, labels) in groups.items()}
-        answers = backend.system_one(state, questions)
-        return {g: answers[g]["probabilities"] for g in groups}
-    return ask
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Library-wide lyric tagging (taxonomy v3)")
     parser.add_argument("--import", dest="import_dir", type=Path, metavar="DIR",
-                        help="load prototype tag files instead of asking Jev")
+                        help="load prototype tag files instead of asking the worker")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)-7s %(name)s  %(message)s",
@@ -253,19 +240,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(counts))
         return 0
 
-    if not (os.environ.get("JEV_API_KEY") or os.environ.get("TYPESAFE_API_KEY")):
-        log.error("No JEV_API_KEY/TYPESAFE_API_KEY set; nothing asked")
-        return 1
-    from .systemone import jev_backend
     with exclusive(config.library_db) as acquired:
         if not acquired:
             return LOCK_HELD_EXIT
-        backend = jev_backend(config)
-        backend.timeout_ms = max(backend.timeout_ms, TIMEOUT_MS)
         conn = library.connect(config.library_db)
+        client = WorkerClient(worker_command(config.models_dir, config.worker_cmd))
         try:
-            job = run(conn, backend_ask(backend), backend.model)
+            job = run(conn, worker_ask(client), LAYA_MODEL)
         finally:
+            client.stop()
             conn.close()
     return 0 if job["state"] == job_rows.DONE else 2
 

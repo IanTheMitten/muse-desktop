@@ -411,7 +411,7 @@ Negative result is a valid outcome.
 **Why:** Decision 4 and the spec Data flow: install, then a library-wide embedding batch; every leg degrades to missing until then.
 
 ### Task 11: Retire universal_reco, systemone and the Jev path
-- [ ] status
+- [x] status
 **Objective:** `universal_reco/`, `muse/systemone.py` and the subprocess MERT embedder are gone; the standalone batches run through the worker; tests follow.
 **Write-scope:**
 `universal_reco/`

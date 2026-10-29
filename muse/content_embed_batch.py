@@ -1,13 +1,14 @@
 """Library-wide MERT content embed: `python -m muse.content_embed_batch`.
 
 Standalone, like `muse.taste_retrain`: run it with
-`uv run python -m muse.content_embed_batch`. It opens its own connection with `library.connect`, the same one the API does, and goes
-through the same `library.jobs` bookkeeping every other job kind uses, so
+`uv run python -m muse.content_embed_batch`. MERT runs in the ML worker. It
+opens its own connection with `library.connect`, the same one the API does,
+and goes through the same `library.jobs` bookkeeping every other job kind uses, so
 `/api/health` and `/api/jobs` see this run the same way they see any other.
 
 There is no live SSE progress for it, for the same reason the taste retrain
 has none: `muse.jobs.JobBus` only exists inside the long-lived API process,
-and a batch invoked from a timer has no browser attached to publish to. The
+and a standalone batch has no browser attached to publish to. The
 jobs table is the uniform surface; the bus is not.
 
 Run it directly: `python -m muse.content_embed_batch`.
@@ -29,16 +30,16 @@ from .config import Config
 from .content import (
     CONTENT_EMBED,
     ContentEmbedder,
-    SubprocessContentEmbedder,
     run_content_batch,
 )
 from .library import content as library_content
 from .library import jobs as job_rows
+from .worker import WorkerClient, WorkerContentEmbedder, worker_command
 
 log = logging.getLogger("muse.content_embed_batch")
 
 # Distinct from the "the batch ran and errored" exit (2) below, so a script
-# -- or a human reading `systemctl status` -- can tell "nothing happened
+# -- or a human reading the exit code -- can tell "nothing happened
 # because a prior run is still going" apart from "a run happened and
 # failed".
 LOCK_HELD_EXIT = 3
@@ -74,7 +75,7 @@ def _try_acquire_lock(path: Path) -> int | None:
     silently no-ops every subsequent call against that now-terminal row, so
     the real outcome of the hours-long run is never recorded; and both
     processes would read `library_content.pending()` with no claim between
-    them and dispatch overlapping subprocesses -- two writers against
+    them and dispatch overlapping embedders -- two writers against
     `library.sqlite3`, which this codebase is built around having exactly
     one of.
 
@@ -147,7 +148,7 @@ def _progress_log_interval(total: int) -> int:
     return max(50, total // 100)
 
 
-def run(conn, embedder: ContentEmbedder | None = None) -> dict:
+def run(conn, embedder: ContentEmbedder) -> dict:
     """Run one content-embed batch and record it as a `content_embed` job.
 
     Reaps any `content_embed` job left `running` or `queued` by a process
@@ -170,7 +171,7 @@ def run(conn, embedder: ContentEmbedder | None = None) -> dict:
     )
 
     # Read by the `except` branch below if the batch dies mid-run -- without
-    # it, a subprocess that died at track 9,000 of 10,000 and one that died
+    # it, a worker that died at track 9,000 of 10,000 and one that died
     # before doing anything look identical in the job's error message.
     last_progress = {"done": 0, "total": len(pending)}
 
@@ -189,7 +190,7 @@ def run(conn, embedder: ContentEmbedder | None = None) -> dict:
 
     try:
         result = run_content_batch(
-            conn, embedder or SubprocessContentEmbedder(), on_progress=on_progress
+            conn, embedder, on_progress=on_progress
         )
     except Exception as error:
         log.exception("Content embed batch failed")
@@ -233,13 +234,15 @@ def main(argv: list[str] | None = None) -> int:
             # a job that, in fact, is still alive.
             return LOCK_HELD_EXIT
         conn = library.connect(config.library_db)
+        client = WorkerClient(worker_command(config.models_dir, config.worker_cmd))
         try:
-            result = run(conn)
+            result = run(conn, WorkerContentEmbedder(client))
         finally:
+            client.stop()
             conn.close()
 
-    # A batch that errored is worth a non-zero exit so `systemctl status`
-    # shows it, the same convention `muse.taste_retrain` already uses.
+    # A batch that errored is worth a non-zero exit so a caller
+    # sees it, the same convention `muse.taste_retrain` already uses.
     return 0 if result["state"] == job_rows.DONE else 2
 
 

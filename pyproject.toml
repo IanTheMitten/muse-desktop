@@ -65,5 +65,5 @@ testpaths = ["tests"]
 addopts = "-q -m 'not slow'"
 asyncio_mode = "auto"
 markers = [
-    "slow: needs the real CLAP/MiniLM encoders (the `embed` extra), the real ALS trainer (the `taste` extra), or universal_reco's own virtualenv (`uv sync --project universal_reco`); run explicitly with -m slow",
+    "slow: needs the real CLAP/MiniLM encoders (the `embed` extra), the real ALS trainer (the `taste` extra), or the real MERT worker (all in the `embed` extra); run explicitly with -m slow",
 ]
