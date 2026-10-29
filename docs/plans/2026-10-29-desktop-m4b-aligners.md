@@ -180,7 +180,7 @@ Round note: Task 2 commits a red test. Tasks 4, 5 and 6 verify with their own te
 **Why:** One place decides which lines get timed, which aligner runs, and what counts as usable.
 
 ### Task 4: Add the numpy CTC forced aligner
-- [ ] status
+- [x] status
 **Objective:** `muse/ctc_align.py` finds the best CTC path for a target sequence and returns each target's first frame, proven against brute force.
 **Write-scope:** `muse/ctc_align.py` (new)
 `tests/test_ctc_align.py` (new)
