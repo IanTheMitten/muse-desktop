@@ -4,58 +4,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Muse Player — a self-hosted, single-user music player and recommender served
-from one FastAPI process, reached over a Tailscale tailnet (phone, laptop,
-the server itself), never the public internet. It plays a local library,
-recommends what to play next from audio/lyrics/emotion/taste, shows and
-repairs lyrics, and grows the library without an interactive terminal script.
+Muse desktop — a local music player and recommender for your own music
+folders, with no account and no server. One FastAPI process serves the
+React UI and the API on loopback; a Tauri shell (later milestones) wraps it
+in a native window. It plays the folders you point it at, recommends what to
+play next from audio/lyrics/emotion/taste, shows and repairs lyrics, and
+fetches cover art. This repo is the public fork of the owner's private
+server build; the spec is `docs/specs/2026-10-29-desktop-app-fork.md`.
 
-Read `PRODUCT.md` for the product register/voice, `docs/prds/2026-08-06-muse-player.md`
-for the full spec, and `docs/adrs/*.md` before touching `plays`, the
-manifest/library split, or the recommender's legs — each documents a
+Read `PRODUCT.md` for the product register/voice and `docs/adrs/*.md`
+before touching `plays` or the recommender's legs — each documents a
 deliberate rejection of the obvious alternative design.
 
 ## Commands
 
-Backend (from repo root, Python 3.14, managed with `uv`):
+Backend (from repo root, Python 3.12, managed with `uv`):
 ```sh
 uv sync                       # install deps (core only; see extras below)
 uv run pytest                 # run the test suite (skips slow/model tests by default)
 uv run pytest tests/test_reco.py            # single file
 uv run pytest tests/test_reco.py::test_name # single test
-uv run pytest -m slow                       # the real CLAP/MiniLM/ALS tests (needs embed/taste extras)
-uv run python -m muse         # start the server (binds tailnet addresses only, see muse/net.py)
-uv run python -m muse.taste_retrain  # standalone nightly taste-embedding retrain
+uv run pytest -m slow                       # the real CLAP/MiniLM/ALS tests (needs the embed extra)
+uv run python -m muse         # start the server on 127.0.0.1 and print the launch URL
+uv run python -m muse.taste_retrain  # standalone taste-embedding retrain
 uv run python -m muse.reco_eval      # offline recommender harness, read-only (~4 min)
 uv run python -m muse.arc_eval       # offline arc harness, read-only
-uv sync --project universal_reco     # the content leg's own venv (separate deps)
+uv sync --project universal_reco     # the content leg's own venv (retired in M4)
 uv run python -m muse.content_embed_batch  # library-wide MERT content-embed batch
 ```
 
 `universal_reco/` is a decoupled sibling project with its own `pyproject.toml`,
-lockfile, and virtualenv — it needs `torchaudio` and `torchcodec`, which the
-`embed` extra does not have, and targets `>=3.10` against muse's `>=3.14`.
-`muse` never imports it; `muse/content.py` shells out to
-`python -m content_embed.batch` over a stdin/stdout JSON line protocol. The
-default test run never touches it.
-Optional dependency groups (`embed`, `taste`, `ingest`) pull in
-torch/transformers/sentence-transformers, implicit/scipy, and
-yt-dlp/mutagen/lyricsgenius respectively. The default test run and the app
-itself never import the first two unless `config.embed_batch` is on or
+lockfile, and virtualenv; `muse` never imports it. `muse/content.py` shells out
+to `python -m content_embed.batch` over a stdin/stdout JSON line protocol. It is
+retired in M4, when the ML worker replaces it. The default test run never
+touches it.
+Optional dependency groups: `embed` (torch/transformers/sentence-transformers)
+and `ingest` (yt-dlp/mutagen/lyricsgenius). The default test run and the app
+itself never import torch unless `config.embed_batch` is on or
 `ImplicitAlsTrainer` is explicitly constructed — everything else runs against
 deterministic stub encoders/trainers.
 
-**On the deployed machine, sync with `uv sync --all-extras`, never
-`uv sync --extra <one>`.** `uv sync` is exact: syncing for one group
-uninstalls the others, and nothing announces it. This machine spent a day
-holding `ingest` and not `embed` — every embed job died on `No module named
-'torch'` while `/api/health` still reported the library fully embedded from
-before. The systemd units in `deploy/` all run `uv run --all-extras` for the
-same reason; a bare `uv sync` typed by hand is what undoes that.
-
-Frontend (from `web/`, Node/npm):
+Frontend (from `web/`, Node 22/npm):
 ```sh
-npm install
+npm ci
 npm run dev       # vite dev server
 npm run build     # tsc -b && vite build -> web/dist, served by the FastAPI app
 npm run preview
@@ -66,61 +57,60 @@ config present) — don't invent one unasked.
 ## Architecture
 
 **One process, one writer.** `muse/api.py:create_app` builds the whole
-FastAPI app; `muse/__main__.py` is the only entrypoint that binds sockets and
-runs it (tailnet addresses only — no `0.0.0.0` fallback, see `muse/net.py`).
-At startup the lifespan: migrates `library.sqlite3`, imports
-`download_manifest.json`, syncs the Spotify audio-features mirror, reaps any
-job left `running` by a killed process, and kicks off background art
-backfill (default on) and embed backfill (default off, `MUSE_EMBED_BATCH=1`)
-as `asyncio` tasks — never inside a request handler.
+FastAPI app; `muse/__main__.py` (`main()`) is the only entrypoint that binds
+sockets and runs it: `127.0.0.1` only, on a free port unless `MUSE_PORT` is
+set. It prints `MUSE_LISTENING <port>` to stdout and logs
+`Open http://127.0.0.1:<port>/?t=<token>`. The token is generated per launch
+(or taken from `MUSE_TOKEN`) and every `/api` request must carry it.
+At startup the lifespan migrates `library.sqlite3`, reaps any job left
+`running` by a killed process, and starts the **launch chain** and the folder
+watcher as `asyncio` tasks — never inside a request handler.
 
-**Three SQLite stores with different lifecycles**, wired through
-`muse/config.py` (`Config.from_env`, every path env-overridable):
-- `library.sqlite3` — the one writable, backed-up store. Tracks, plays,
-  ratings, player state, jobs, embeddings, taste embeddings. Migrated by a
-  plain append-only ladder in `muse/library/schema.py` (never edit a shipped
+**The launch chain** (`run_chain` in `muse/api.py`) runs the folder scan,
+the lyrics sync backfill, the art backfill, and (launch only, if the last
+retrain is over a day old) a taste retrain, one after another under a single
+`asyncio.Lock`, because the shared connection cannot hold two transactions.
+The watcher (`muse/watch.py`) and `POST /api/scan` take the same lock by
+calling the same chain. `muse/scanner.py` reads tags (`muse/tags.py`, mutagen,
+read-only) and upserts tracks; a file that disappears gets `status = 'missing_file'`
+rather than a deleted row, and a row with `removed_at` set is never revived.
+
+**One data dir.** `muse/config.py` (`Config.from_env`) puts every path under
+`MUSE_DATA_DIR` (default `./data`), each overridable on its own:
+- `library.sqlite3` (`MUSE_LIBRARY_DB`) — the one writable store. Tracks,
+  plays, ratings, player state, jobs, embeddings, taste embeddings. Migrated by
+  a plain append-only ladder in `muse/library/schema.py` (never edit a shipped
   migration).
-- `spotify_clean.sqlite3` / `spotify_clean_audio_features.sqlite3` — read-only
-  17.8 GB / 29 GB catalog mirrors (`muse/catalog.py`, `muse/features.py`).
-  Optional at startup: missing mirrors degrade quality (no duration/ISRC, no
-  mood surfaces), never availability (`EmptyCatalog`/`EmptyFeatures`). The
-  mirror is a static scrape frozen at 2025-11-13 (`Config.catalog_freeze`), so
-  anything released after has no row in it at all. `muse/discover.py` is the
-  only browse path (artist search, release groups by `kind`, tracklist), and
-  the one MusicBrainz path that runs inline with a request rather than as a
-  background job, because a person is typing and waiting. The mirror is read
-  by key, never searched: at job build only, by ISRC through
-  `track_id_for_isrc`, to stamp `track_id`. `POST /api/jobs` takes `"mb"` for
-  one track, whose facts are already on the request because the browse screen
-  rendered them, `"mb_release"` for a whole record, resolved server-side in
-  two more MusicBrainz calls, or `"url"` for an explicit source. The two
-  MusicBrainz kinds fan out to per-track `download` jobs carrying every
-  resolved fact, because the MusicBrainz client has no disk cache and
-  re-resolving at download time would re-ask for
-  one release once per track. A post-freeze track gets both a local
-  `track_rowid` and a local `album_rowid`, allocated above the same 1e9 floor
-  that keeps them out of the mirror's own id space, so every track of one
-  release still lands in one album.
-- `download_manifest.json` — owned by `music_downloader.py`, not the app;
-  imported into `library.sqlite3` at every startup. See ADR 0002 for why this
-  is a permanent split, not a one-time cutover.
+- `lyrics/`, `art/`, `downloads/` (`MUSE_LYRICS_ROOT`, `MUSE_ART_ROOT`,
+  `MUSE_MUSIC_ROOT`) and `settings.json` (`MUSE_SETTINGS`, the music folder
+  list).
+
+The user's music folders are configured at runtime, not by env: `GET
+/api/settings`, `PUT /api/settings/music_folders`, and `POST /api/scan`. They
+are never written to. The fork has no catalog or audio-features mirror;
+`muse/catalog.py` and `muse/features.py` keep only `EmptyCatalog` and
+`EmptyFeatures` (lookups return nothing, so there are no duration/ISRC or
+mood-surface facts from a mirror). `muse/discover.py` is the MusicBrainz
+browse path, run inline with a request because a person is typing and waiting.
+`POST /api/jobs` takes `"mb"` for one track or `"mb_release"` for a whole
+record; both fan out to per-track `download` jobs carrying every resolved fact.
 
 **`muse/library/`** is the DB access layer — one module per concern
 (`plays.py`, `ratings.py`, `jobs.py`, `taste.py`, `embeddings.py`,
-`insights.py`, `queries.py`, `importer.py`, `state.py`, `art.py`,
-`features.py`) — imported as `from . import library` in `api.py`, which then
+`insights.py`, `queries.py`, `state.py`, `art.py`, `features.py`,
+`tracks.py`, `lyrics_state.py`, `playlists.py`) — imported as `from . import library` in `api.py`, which then
 calls `library.<name>` or the submodule directly (`library_taste`,
 `job_rows`, etc.). `muse/library/db.py` and `schema.py` own the connection
 and migrations; nothing else opens a raw `sqlite3.connect`.
 
 **The recommender (slice 2)** fuses per-track similarity "legs" —
-audio (CLAP **and** MERT content, sharing one weight per ADR 0004), Spotify
-features, lyrics (MiniLM), emotion (valence-arousal), and a learned taste
+audio (CLAP **and** MERT content, sharing one weight per ADR 0004), Spotify-style
+features (null in the fork, which has no feature mirror), lyrics (MiniLM), emotion (valence-arousal), and a learned taste
 embedding — into one `rank()` score. Each leg's similarity is first mapped
 through its own empirical CDF over random track pairs (ADR 0008), so a
 missing leg does not move the score. Measure any scoring change with
-`python -m muse.reco_eval` against the baseline in
-`docs/notes/2026-10-09-reco-calibration-eval.md` before shipping it.
+`uv run python -m muse.reco_eval` before and after, and compare the two runs
+(the owner's baseline note is not in this fork).
 
 **The seam is split in two on purpose.** `muse/reco.py` is pure — the
 per-leg math plus `rank()` itself, importing only `math`, with a test
@@ -157,12 +147,12 @@ stubs. This is the only module that imports torch, and only inside a real
 encoder's `__init__`.
 
 **Jobs** (`muse/jobs.py`, `muse/library/jobs.py`) are the one mechanism for
-long-running background work — `download`, `art_backfill`, `embed`,
+long-running background work — `download`, `scan`, `art_backfill`, `embed`,
 `taste_retrain` — all recorded as rows in the `jobs` table so `/api/health`
 and `/api/jobs` see every kind uniformly, whether it ran inside the API
-process or as a separate systemd-timer invocation (`muse.taste_retrain`).
+process or as a standalone `python -m muse.taste_retrain` run.
 `JobBus` is an in-process SSE fan-out (`/api/jobs/stream`) and only exists
-inside the long-lived API process — the nightly retrain has no live progress
+inside the long-lived API process — the standalone retrain has no live progress
 bar for this reason.
 
 **`plays` stores physical fact, never interpretation** (ADR 0001):
@@ -180,41 +170,16 @@ directly by the FastAPI app as a mounted SPA (`muse/api.py`, catch-all
 route); if `web/dist` doesn't exist, `/` serves a placeholder page instead of
 failing.
 
-**Deployment** (`deploy/`, see `deploy/README.md`): systemd **user** units
-(not system — they need this user's `uv` and home directory), enabled via
-`loginctl enable-linger`. `muse.service` runs the app; `muse-backup.timer`
-(04:00 nightly) does a `VACUUM INTO` snapshot plus `rsync` push to a second
-machine; `muse-taste-retrain.timer` (03:00 nightly, before backup) runs
-`python -m muse.taste_retrain`. Both timers are `Persistent=true` so a
-missed night (machine asleep) catches up rather than silently skipping.
-
-## The Cadence contract
-
-Cadence (the home voice system) calls a pinned subset of `/api`, listed in
-`docs/contracts/cadence.md`. A change to it lands Muse-first, in one commit:
-the code, `CONTRACT_VERSION` in `muse/contract.py`,
-`uv run python -m muse.contract --write`, and the doc. Then Cadence syncs.
-`tests/test_contract.py` and `tests/test_contract_shapes.py` fail until they
-agree. Cadence does not use `/api/player/state`. A Cadence span must send a
-heartbeat at least every 30 s while open, paused included, or the sweeper
-closes it as `lost`. See ADR 0007.
-
-**Leave what is in sync with Cadence alone.** Future work should not touch the
-Cadence surface: the 8 operations in `CADENCE_SURFACE`, their params, request
-bodies, status codes, the response fields pinned in
-`tests/test_contract_shapes.py`, the six `ended_reason` values, or the
-sweeper's heartbeat timing. Build around them. If a task seems to need such a
-change, stop and ask the owner first — it is a contract bump that needs a
-Cadence-side change, not a routine edit. Never "fix" a failing contract test
-by editing the snapshot, the test, or the version to match.
-
 ## Testing conventions
 
 `tests/conftest.py` provides a real (temp-file, migrated) `library.sqlite3`
 connection rather than a mock — SQLite in a temp dir is fast and most
 behavior worth testing is database behavior a mock wouldn't exercise.
-`FakeCatalog`/`FakeFeatures` stand in for the multi-GB mirrors. Tests marked
-`slow` (needing real CLAP/MiniLM/ALS via the `embed`/`taste` extras) are
+`make_config(tmp_path, **overrides)` in `tests/conftest.py` builds a `Config`
+with every path under `tmp_path` and every background task off; pass overrides
+to turn one on.
+`FakeCatalog`/`FakeFeatures` stand in for catalog and feature lookups. Tests marked
+`slow` (needing real CLAP/MiniLM/ALS via the `embed` extra) are
 excluded by default (`addopts = "-q -m 'not slow'"` in `pyproject.toml`); run
 them explicitly with `-m slow` when changing encoder or trainer internals.
 

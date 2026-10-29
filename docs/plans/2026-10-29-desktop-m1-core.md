@@ -743,7 +743,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Decision 12: no silent failure on an unsupported format. The label is decided once at launch per format.
 
 ### Task 15: Rewrite README, CLAUDE.md and CONTEXT.md for the desktop fork [docs]
-- [ ] status
+- [x] status
 **Objective:** The fork's README, CLAUDE.md and CONTEXT.md describe the desktop app as it stands after M1, with no tailnet, Cadence, mirror or manifest instructions left.
 **Write-scope:**
 `README.md`

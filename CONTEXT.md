@@ -1,15 +1,48 @@
 # Muse
 
-A single-user music player and recommender over a local library, a Spotify
-catalog mirror, and the owner's own listening history. See
-`docs/prds/2026-08-06-muse-player.md` for the full product spec.
+A local music player and recommender over the music folders you point it at
+and your own listening history. See
+`docs/specs/2026-10-29-desktop-app-fork.md` for the desktop spec.
 
 ## Language
+
+**Data dir**:
+The one directory (`MUSE_DATA_DIR`, default `./data`) under which Muse keeps
+everything it writes: `library.sqlite3`, `lyrics/`, `art/`, `downloads/`,
+`settings.json`. Each path can be overridden singly. Music folders are not in
+it; they stay where the user keeps them and are never written.
+_Avoid_: Library (that is the tracks table, not the directory).
+
+**Music folder**:
+A directory the user adds in settings (`PUT /api/settings/music_folders`) to be
+scanned and watched. Stored in `settings.json`. Must be absolute, must exist,
+and may not sit inside another music folder. Read-only to the app.
+_Avoid_: Library root (`Config.music_root` is the `downloads/` dir Add writes to).
+
+**Scan job**:
+The `jobs.kind = 'scan'` run (`muse/scanner.py`, started by `run_scan_job`)
+that walks every music folder, reads tags with mutagen, and upserts tracks. One
+at a time: it is skipped if a scan is already active. Triggered by launch, by
+the folder watcher, and by `POST /api/scan`.
+
+**Tombstone (`removed_at`)**:
+`tracks.removed_at`, a timestamp marking a track the user removed on purpose.
+The scanner skips a tombstoned row even if its file is still on disk, so a
+rescan does not bring it back, and listings filter `removed_at IS NULL`. The
+row is kept so plays and ratings survive. Distinct from `status =
+'missing_file'`, which a scan sets when a file merely vanishes.
+
+**Launch chain**:
+The sequence `run_chain` in `muse/api.py` runs at startup and again after every
+watcher event, folder change or `POST /api/scan`: scan, lyrics sync, art
+backfill, and (launch only, when the last retrain is over a day old) a taste
+retrain. One `asyncio.Lock` serializes it because the shared connection cannot
+hold two transactions.
 
 **Leg**:
 One term in the recommender's `rank()` fusion sum — a similarity score
 between a query track and a candidate track, computed from one signal source
-(CLAP audio, Spotify features, lyrics, emotion, taste, MERT content) and
+(CLAP audio, Spotify-style features, lyrics, emotion, taste, MERT content) and
 weighted before summing. The two audio-content legs — CLAP `audio_vec` and
 MERT `content_vec` — share one weight in the sum rather than holding one
 each (ADR 0004).
@@ -165,8 +198,7 @@ server-side session object and no server-side queue — "the session" is
 off) plus the client's rolling exclusion set. The seed is stored rather than
 a bare on/off flag because it is the one thing a listener asks about a
 session an hour in, and it sits in `player_state` beside `shuffle` and
-`repeat_mode` so radio follows the listener between the phone and the laptop
-like the other two modes do.
+`repeat_mode` so radio survives a restart like the other two modes do.
 _Avoid_: Radio mode, radio queue (the queue is *the* queue — radio appends to
 it and owns nothing separate).
 
@@ -210,18 +242,8 @@ It is what makes a bad recommendation diagnosable — it names the weight that
 caused the pick instead of inviting a blind nudge (story 37) — and the client
 renders it through copy maps rather than showing the raw keys.
 
-**Post-freeze**:
-A track, release, or artist that does not exist in the catalog mirror because
-it appeared after the scrape's 2025-11-13 cutoff (`Config.catalog_freeze`).
-Carries `origin='local'` and identifiers allocated locally above the
-1,000,000,000 floor rather than taken from the mirror, and its metadata comes
-from MusicBrainz rather than the catalog — for these tracks MusicBrainz is the
-primary source, not the corrector it is for everything else.
-_Avoid_: Local track (that names where the *file* came from; a post-freeze
-track is one the mirror never described, which is a different fact).
-
 **Discovery**:
-The MusicBrainz-backed browse path (`muse/discover.py`) for all music — artist,
+The MusicBrainz-backed browse path (`muse/discover.py`) — artist,
 release groups, tracklist — and the only one. It hands `POST /api/jobs` one of
 two kinds to queue: `"mb"` for a single track (facts already on the request) or
 `"mb_release"` for a whole record (resolved server-side), both of which fan out
@@ -229,8 +251,7 @@ to ordinary `download` job rows. Distinct from library search, which reads what
 is already downloaded. It is the one MusicBrainz path that runs inline with a
 request rather than as a background job, because it is a person typing and
 waiting.
-_Avoid_: Catalog search (retired 2026-10-28; the mirror is read by key, never
-searched).
+_Avoid_: Catalog search (the fork has no catalog mirror to search).
 
 **Owned-track identity**:
 Whether the library already holds a recording: its MusicBrainz recording id,
@@ -246,8 +267,8 @@ slug, never reused or renumbered, so the question set can gain new questions
 without invalidating anything that points at the old ones. Each archetype
 pairs a seed set with a drift (`hold` or `lead`) and, for `lead`, a
 `target_id` naming the archetype its query point travels toward. Stored in
-`archetypes` (migration `_m014_archetypes`), read and written by
-`muse/library/archetypes.py` (ADR 0005).
+`archetypes` (migration `_m014_archetypes`; the module that read it is gone)
+(ADR 0005).
 _Avoid_: Playlist (an archetype generates query points at request time; it
 isn't a stored, ordered list of tracks — the seed set is the closer analogue,
 and even that isn't one).
@@ -257,7 +278,7 @@ _Retired by ADR 0009 (2026-10-17); kept for history._
 The tracks a listener names as their answer to an archetype's question
 (`archetype_seeds`, `source = 'user'`), plus any they accepted from a
 suggestion (`source = 'suggested'`). A song may sit in more than one
-archetype's seed set. `scripts/archetype_recall.py` holds back `user`-sourced
+archetype's seed set. The removed recall script held back `user`-sourced
 seeds only when measuring recall — grading against `suggested` seeds would
 have the model grade its own homework.
 _Avoid_: Training set (seeds aren't fit to anything; they're averaged into a
@@ -370,7 +391,7 @@ One locally generated sentence (`lyric_themes.theme`) saying what a song is
 about, written by a quantized instruct model's own batch job so nothing
 leaves the machine (D10) — the curator's `score` questions have no room for
 full lyrics, and a hosted model to summarize them would widen the boundary
-`docs/specs/2026-09-21-curator.md`'s S2 set. Invalidated the same way the
+the retired curator spec's S2 set. Invalidated the same way the
 lyrics leg is: a stored `lyrics_hash` that no longer matches
 `embeddings.lyrics_hash` means a repaired lyric, and the theme goes back on
 the work queue.
@@ -499,15 +520,3 @@ What makes two tracks the same song for session dedupe: the same
 `title_key` (title with live/remaster/version/edit/acoustic/demo/mono/feat
 markers stripped) with a shared artist, or the same lyric `text_hash`
 whoever sings it (`arc.same_version()`).
-
-**Cadence surface**:
-The operations Cadence calls, listed in `muse/contract.py:CADENCE_SURFACE`
-and described in `docs/contracts/cadence.md`. Only these are under contract;
-every other route may change without a version bump.
-_Avoid_: Public API (Muse has none — it is tailnet-only).
-
-**Contract version**:
-The `MAJOR.MINOR` string served at `GET /api/contract`, held in
-`CONTRACT_VERSION` in `muse/contract.py`. A minor bump is additive; a major
-bump is a rename, removal, type change, or change of meaning (ADR 0007).
-_Avoid_: API version (only the Cadence surface is versioned).
