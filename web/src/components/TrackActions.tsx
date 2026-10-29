@@ -3,12 +3,13 @@ import type { Track } from "../api";
 import { playableOnly } from "../player/formats";
 import { usePlayer } from "../player/PlayerContext";
 import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
+import { AlignDialog } from "./AlignDialog";
 import { EditDetailsDialog } from "./EditDetailsDialog";
 import { LyricsEditDialog } from "./LyricsEditDialog";
 import { RemoveDialog } from "./RemoveDialog";
 import type { TrackAction } from "./TrackMenu";
 
-type Open = { action: "playlist" | "details" | "lyrics" | "remove"; tracks: Track[] } | null;
+type Open = { action: "playlist" | "details" | "lyrics" | "align" | "remove"; tracks: Track[] } | null;
 
 export function useTrackActions(onChanged: () => void): {
   run: (action: TrackAction, tracks: Track[]) => void;
@@ -31,6 +32,8 @@ export function useTrackActions(onChanged: () => void): {
     dialogs = <EditDetailsDialog tracks={open.tracks} onClose={close} onSaved={() => { onChanged(); close(); }} />;
   } else if (open?.action === "lyrics") {
     dialogs = <LyricsEditDialog track={open.tracks[0]} onClose={close} onSaved={() => {}} />;
+  } else if (open?.action === "align") {
+    dialogs = <AlignDialog tracks={open.tracks} onClose={close} />;
   } else if (open?.action === "remove") {
     dialogs = <RemoveDialog tracks={open.tracks} onClose={close} onRemoved={onChanged} />;
   }

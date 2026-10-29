@@ -22,7 +22,14 @@ export type Job = {
   state: "queued" | "running" | "done" | "error" | "cancelled" | "idle";
   progress: number;
   message: string | null;
-  payload?: { albums?: number; done?: number; total?: number };
+  payload?: {
+    albums?: number;
+    done?: number;
+    total?: number;
+    track_rowids?: number[];
+    failed?: number[];
+    aligned?: number[];
+  };
 };
 
 type JobsApi = {

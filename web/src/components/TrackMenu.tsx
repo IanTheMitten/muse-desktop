@@ -3,7 +3,7 @@ import type { Track } from "../api";
 import { MoreIcon } from "./Icons";
 import "../styles/actions.css";
 
-export type TrackAction = "next" | "queue" | "playlist" | "details" | "lyrics" | "remove";
+export type TrackAction = "next" | "queue" | "playlist" | "details" | "lyrics" | "align" | "remove";
 
 const ITEMS: { action: TrackAction; label: string }[] = [
   { action: "next", label: "Play next" },
@@ -11,6 +11,7 @@ const ITEMS: { action: TrackAction; label: string }[] = [
   { action: "playlist", label: "Add to playlist…" },
   { action: "details", label: "Edit details" },
   { action: "lyrics", label: "Edit lyrics" },
+  { action: "align", label: "Auto-align lyrics" },
   { action: "remove", label: "Remove from library…" },
 ];
 
@@ -79,7 +80,7 @@ export function TrackMenu({ track, onAction }: { track: Track; onAction: (action
       </button>
       {open && (
         <div className={`more-menu${up ? " up" : ""}`} role="menu" aria-label={`Actions for ${track.track_name}`} ref={menu}>
-          {ITEMS.map(({ action, label }) => (
+          {ITEMS.filter((i) => i.action !== "align" || track.has_lyrics).map(({ action, label }) => (
             <button
               key={action}
               type="button"

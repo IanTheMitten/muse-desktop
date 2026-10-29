@@ -283,7 +283,8 @@ function SmartFeatures() {
       </ul>
       <p className="smart-licence">
         Uses MERT and an audio emotion model that are free for non-commercial use only, plus CLAP,
-        MiniLM, an English emotion model and Laya.
+        MiniLM, an English emotion model, Laya, and lyric aligners (MMS-FA, free for
+        non-commercial use only, and schufo).
       </p>
     </section>
   );
