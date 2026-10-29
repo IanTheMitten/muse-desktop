@@ -159,7 +159,7 @@ Round note: Task 2 commits a red test. Tasks 4, 5 and 6 verify with their own te
 **Why:** These helpers are the contract the worker, the job and the UI share; test-first pins the gate rules before anyone tunes them.
 
 ### Task 3: Implement muse/align_text.py
-- [ ] status
+- [x] status
 **Objective:** The pure helpers exist and `tests/test_align_text.py` passes.
 **Write-scope:** `muse/align_text.py` (new)
 **Read-context:** `tests/test_align_text.py` (from Task 2), `muse/lyrics_lrclib.py:122-139`, `muse/lrc.py:34-40`
