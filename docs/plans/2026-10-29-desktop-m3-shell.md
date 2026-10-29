@@ -240,7 +240,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Every Rust task verifies through these scripts as single plain commands (worktree sessions refuse compound commands). The shared target dir keeps a ~3 GB build from multiplying across worktrees on a 96%-full disk.
 
 ### Task 4: App icon, tray glyph and boot page [design]
-- [ ] status
+- [x] status
 **Objective:** `src-tauri/icons/icon.svg`, `src-tauri/icons/tray-template.svg` and `src-tauri/boot/index.html` exist per their Design sections.
 **Write-scope:**
 `src-tauri/icons/icon.svg` (new)

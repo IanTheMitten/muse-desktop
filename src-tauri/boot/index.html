@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Muse</title>
+<style>
+  :root {
+    --bg: #121117;
+    --raised: #1c1b22;
+    --text: #f5f3f0;
+    --text-2: #dcd9d4;
+    --hairline: rgb(255 255 255 / 0.08);
+    color-scheme: dark light;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f3f6;
+      --raised: #ffffff;
+      --text: #141218;
+      --text-2: #35313b;
+      --hairline: rgb(20 18 24 / 0.09);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  main { width: 100%; max-width: 480px; }
+  h1 { margin: 0 0 12px; font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
+  p { margin: 0 0 12px; color: var(--text-2); }
+  [hidden] { display: none; }
+  .path {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    font: 13px/1.5 ui-monospace, monospace;
+    color: var(--text);
+    background: var(--raised);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+  .log {
+    margin: 0 0 12px;
+    padding: 12px;
+    max-height: 50vh;
+    overflow: auto;
+    font: 12px/1.5 ui-monospace, monospace;
+    color: var(--text-2);
+    background: var(--raised);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
+  .log:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <section id="starting" role="status"><h1>Starting Muse</h1></section>
+  <section id="failed" role="alert" hidden>
+    <h1>Muse couldn't start</h1>
+    <p>These are the last lines from its log. The full log is at:</p>
+    <div class="path" id="log-path"></div>
+    <pre class="log" id="log-lines" tabindex="0"></pre>
+    <p>Close this window to quit.</p>
+  </section>
+</main>
+<script>
+(function () {
+  var tauri = window.__TAURI__;
+  if (!tauri) return;
+  var timer = setInterval(poll, 500);
+  var busy = false;
+  function poll() {
+    if (busy) return;
+    busy = true;
+    tauri.core.invoke("boot_status").then(function (s) {
+      busy = false;
+      if (!s || s.state !== "failed") return;
+      clearInterval(timer);
+      document.getElementById("log-path").textContent = s.log_path || "";
+      document.getElementById("log-lines").textContent = (s.lines || []).join("\n");
+      document.getElementById("starting").hidden = true;
+      document.getElementById("failed").hidden = false;
+    }, function () { busy = false; });
+  }
+  poll();
+})();
+</script>
+</body>
+</html>
