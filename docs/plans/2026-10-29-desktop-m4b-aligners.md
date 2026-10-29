@@ -197,7 +197,7 @@ Round note: Task 2 commits a red test. Tasks 4, 5 and 6 verify with their own te
 **Why:** Replaces the C++ extension of a package we cannot install; small enough to own and test.
 
 ### Task 5: Add the offline g2p
-- [ ] status
+- [x] status
 **Objective:** `muse/g2p.py` turns an English word into stress-free ARPAbet phonemes from the CMU dict, falling back to g2p_en's GRU for unknown words.
 **Write-scope:** `muse/g2p.py` (new)
 `tests/test_g2p.py` (new)
@@ -215,7 +215,7 @@ Round note: Task 2 commits a red test. Tasks 4, 5 and 6 verify with their own te
 **Why:** schufo needs phonemes and the README's manual CMU web step cannot run inside an app.
 
 ### Task 6: Add the tap-along state logic
-- [ ] status
+- [x] status
 **Objective:** `web/src/player/tapAlong.ts` holds the tap-along state as pure functions with vitest coverage.
 **Write-scope:** `web/src/player/tapAlong.ts` (new)
 `web/src/player/tapAlong.test.ts` (new)
