@@ -18,6 +18,11 @@ export function MiniWindow() {
   const mesh = useCardMesh(track?.track_rowid ?? null, track?.has_art ?? false);
 
   useEffect(() => {
+    document.documentElement.classList.add("mini-window");
+    return () => document.documentElement.classList.remove("mini-window");
+  }, []);
+
+  useEffect(() => {
     if (!shell) return;
     let off: (() => void) | undefined;
     let live = true;

@@ -140,7 +140,7 @@ CONSTRAINTS: Banner never modal, never blocks playback; rendered inside <main> a
 ## Phase 1 - M3 fixes and the worker preflight
 
 ### Task 1: App scrolls again; dropping a parent folder works
-- [ ] status
+- [x] status
 **Objective:** The main app scrolls (the mini window's overflow rule no longer leaks into the global CSS), and dropping a folder that contains listed folders or files replaces them instead of failing.
 **Write-scope:**
 `web/src/styles/mini.css`

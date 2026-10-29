@@ -792,6 +792,8 @@ def create_app(
         cfg = app.state.config
         saved = settings.load(cfg.settings_path)
         saved["music_folders"] = [str(f) for f in folders]
+        saved["music_files"] = [s for s in saved["music_files"]
+                                if not any(Path(s).is_relative_to(f) for f in folders)]
         settings.save(cfg.settings_path, saved)
         app.state.start_watcher()
         app.state.spawn_chain()
@@ -814,6 +816,7 @@ def create_app(
                 if listed:
                     already += 1
                 else:
+                    folders = [f for f in folders if not f.is_relative_to(p)]
                     folders.append(p)
                     folders_added += 1
             elif p.is_file() and p.suffix.lower() in AUDIO_EXTENSIONS:
@@ -826,7 +829,9 @@ def create_app(
                 ignored += 1
         if folders_added:
             _check_folders(folders)
-        if folders_added or songs_added:
+        kept = [s for s in files if not any(Path(s).is_relative_to(f) for f in folders)]
+        if folders_added or songs_added or len(kept) != len(files):
+            files = kept
             saved["music_folders"] = [str(f) for f in folders]
             saved["music_files"] = files
             settings.save(cfg.settings_path, saved)
