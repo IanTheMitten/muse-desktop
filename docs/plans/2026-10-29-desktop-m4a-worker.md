@@ -250,7 +250,7 @@ Negative result is a valid outcome.
 **Why:** The frozen worker has no ffmpeg on PATH (M3 carry-in) and must load weights from the installer's dirs, not the HF hub.
 
 ### Task 5: Worker JSON-line server
-- [ ] status
+- [x] status
 **Objective:** `python -m muse.worker_main --weights DIR` serves the protocol in Assumptions, loading each model lazily from `DIR/<key>`.
 **Write-scope:**
 `muse/worker_main.py` (new)
@@ -314,6 +314,24 @@ Negative result is a valid outcome.
 **Forbidden:** no torch/laya/av import; don't edit the tests (committed test wins); no new dependency.
 **Depends:** Task 6
 **Why:** The sidecar's only door to the models; the crash rule and idle stop are spec Data flow ("started lazily, stopped when idle and at quit").
+
+### Task 7a: worker_ask unwraps the real laya reply
+- [ ] status
+**Objective:** `worker_ask` accepts the real worker reply shape `{"model", "answers": {group: {...}}, "usage"}` as well as the flat `{group: {...}}` the fake worker returns.
+**Write-scope:**
+`muse/worker.py`
+`tests/test_worker_client.py`
+**Read-context:** `muse/worker.py:201-208`, `tests/test_worker_client.py` (laya case), `tests/test_worker_main_slow.py:25-35`
+**Anchors:**
+`def worker_ask(client: WorkerClient):` @ `muse/worker.py`
+**Steps:**
+1. In `worker_ask`, `reply = client.request("laya", ...)`; `answers = reply.get("answers", reply)`; return `{g: answers[g]["probabilities"] for g in groups}`.
+2. Add a test next to the existing `worker_ask` case: a fake-worker variant (or monkeypatched `client.request`) returning the wrapped shape `{"model": "m", "answers": {"g": {"probabilities": {"a": 0.7, "b": 0.3}}}, "usage": {}}` gives `{"g": {"a": 0.7, "b": 0.3}}`.
+**New symbols:** none
+**Verify:** `uv run pytest -p no:cacheprovider tests/test_worker_client.py`. Expected: all pass.
+**Forbidden:** no change to `worker_main.py` or the protocol; keep the existing flat-shape test passing.
+**Depends:** Task 7
+**Why:** Task 5 report: real `system_one` nests answers under `"answers"`; Task 7 indexed flat, so production lyric tagging would KeyError on every song.
 
 ## Phase 3 - Installer and wiring
 
