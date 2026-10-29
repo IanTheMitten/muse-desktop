@@ -273,7 +273,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** The aligner for every non-English song, including ko and ja.
 
 ### Task 9: Add the worker's align op
-- [ ] status
+- [x] status
 **Objective:** The worker answers `align {path, lines}` with the route it chose, the detected language and the per-line starts.
 **Write-scope:** `muse/worker_main.py`
 `tests/test_worker_main.py`
