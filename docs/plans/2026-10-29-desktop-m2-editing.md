@@ -696,7 +696,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 ## Phase 6 - Docs
 
 ### Task 20: Document M2 in the fork docs [docs]
-- [ ] status
+- [x] status
 **Objective:** README, CLAUDE.md, CONTEXT.md, DESIGN.md and LAYOUT.md describe M2's behaviour as built.
 **Write-scope:**
 `README.md`

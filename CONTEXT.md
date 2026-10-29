@@ -25,12 +25,32 @@ that walks every music folder, reads tags with mutagen, and upserts tracks. One
 at a time: it is skipped if a scan is already active. Triggered by launch, by
 the folder watcher, and by `POST /api/scan`.
 
-**Tombstone (`removed_at`)**:
-`tracks.removed_at`, a timestamp marking a track the user removed on purpose.
-The scanner skips a tombstoned row even if its file is still on disk, so a
-rescan does not bring it back, and listings filter `removed_at IS NULL`. The
-row is kept so plays and ratings survive. Distinct from `status =
+**Tombstone (`status='removed'`, `removed_at`)**:
+A track the user removed on purpose: `status = 'removed'` plus a `removed_at`
+timestamp. The scanner skips a row with `removed_at` set even if its file is
+still on disk, and status-filtered readers drop it, so a rescan does not bring
+it back. The row is kept so plays and ratings survive. Restore (Settings >
+Removed songs) sets `status = 'missing_file'` and clears `removed_at`; the next
+scan flips it to `done` if the file exists. Distinct from `status =
 'missing_file'`, which a scan sets when a file merely vanishes.
+
+**Override**:
+A user edit to a track's title, artist, album, track number, disc number or
+year, stored in `track_overrides` and written through to the `tracks` columns.
+The scanner re-applies overrides after reading file tags; the audio file is
+never written. Reset to file tags deletes the override rows.
+_Avoid_: Tag edit (the file's tags are untouched).
+
+**Stale timings**:
+A track whose lyrics were edited while an `.lrc` exists: `lyrics_state.state =
+'manual' AND synced = 0` and the `.lrc` file is on disk. The synced route then
+serves plain text with `lrc_stale: true`, and the listener keeps the old
+timings or removes them.
+
+**Handoff**:
+The switch from the playing `<audio>` element to the preloaded standby one,
+used for gapless playback and crossfade. It preloads only when the next track
+is deterministic: not under shuffle and not under repeat-one.
 
 **Launch chain**:
 The sequence `run_chain` in `muse/api.py` runs at startup and again after every

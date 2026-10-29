@@ -29,6 +29,9 @@ Detail screens sit under them: `/albums/:albumRowid`, `/artists/:artist`,
 Artists / Songs tabs; the Songs tab lists every song. `/search` redirects to
 `/library`, and `/radio` and `/vibe` redirect to `/muse`.
 
+Settings sections run in this order: Music folders, Playback, Duplicates,
+Hidden artists, Removed songs.
+
 **Now Playing is not a route you travel to.** It is a history-backed overlay:
 opening it pushes a history entry, and the close button, Esc and the back
 gesture all call `history.back()`. `/now` and `/lyrics` stay as routes that open
@@ -44,6 +47,10 @@ Playing.
 | < 600 px | 5 bottom tabs, glass | floating mini-player card above the tabs, accent progress line | 2-column cover grid |
 | 600-1023 px | 84 px icon rail | docked bar: art, title, play/next | grids by container width |
 | >= 1024 px | 232 px labelled rail with wordmark | full transport and scrubber in the middle, lyrics and queue buttons on the right | full width, up to 1600 px |
+
+When rows are selected on Library > Songs or an album page, the selection bar
+hangs above the player at every width: it is
+fixed, `bottom` is the tabs, the player and 16 px, `z-index` 20.
 
 `--rail` is 0, 84 px and 232 px at those widths. `--player-h` is 72 px, 80 px
 and 88 px. `--tabs-h` is 64 px below 600 px and 0 above. Gutters are

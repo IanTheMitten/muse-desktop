@@ -50,6 +50,7 @@ npm ci
 npm run dev       # vite dev server
 npm run build     # tsc -b && vite build -> web/dist, served by the FastAPI app
 npm run preview
+npm test           # vitest, node environment (pure modules in web/src/player)
 ```
 No lint/format tooling is configured for either side (no ruff/mypy/eslint
 config present) — don't invent one unasked.
@@ -95,10 +96,22 @@ browse path, run inline with a request because a person is typing and waiting.
 `POST /api/jobs` takes `"mb"` for one track or `"mb_release"` for a whole
 record; both fan out to per-track `download` jobs carrying every resolved fact.
 
+**Edits are write-through and removal is a tombstone.** A user edit to a tag
+is recorded in `track_overrides(track_rowid, field, value)` and also written
+into the `tracks` columns, so every reader sees it with no COALESCE; the
+scanner re-applies overrides after each tag read, and the audio file is never
+written (`overrides.write`). Removal sets `status='removed'` plus `removed_at`
+and never deletes the row: every reader already filters on `status`, so the
+row drops out of browse, search and the recommender while plays and ratings
+stay. `removal.restore` sets `status='missing_file'`, clears `removed_at` and
+nulls `file_mtime` so the next scan flips it back to `done`. Move to Trash
+(`send2trash`) is explicit and a failure leaves the row alone.
+
 **`muse/library/`** is the DB access layer — one module per concern
 (`plays.py`, `ratings.py`, `jobs.py`, `taste.py`, `embeddings.py`,
 `insights.py`, `queries.py`, `state.py`, `art.py`, `features.py`,
-`tracks.py`, `lyrics_state.py`, `playlists.py`) — imported as `from . import library` in `api.py`, which then
+`tracks.py`, `lyrics_state.py`, `playlists.py`, `overrides.py`, `removal.py`,
+`artists.py`, `lyrics_edit.py`) — imported as `from . import library` in `api.py`, which then
 calls `library.<name>` or the submodule directly (`library_taste`,
 `job_rows`, etc.). `muse/library/db.py` and `schema.py` own the connection
 and migrations; nothing else opens a raw `sqlite3.connect`.
@@ -165,7 +178,7 @@ is the one thing in the system that can't be regenerated if written wrong.
 **Frontend** (`web/`, React 19 + TypeScript + Vite + react-router 7): views
 in `web/src/views/`, shared player/job state via React context
 (`web/src/player/PlayerContext.tsx`, `web/src/jobs/JobsContext.tsx`), API
-calls centralized in `web/src/api.ts`. Built output (`web/dist`) is served
+calls centralized in `web/src/api.ts`. The player owns two `<audio>` elements so the next track can be preloaded for the gapless/crossfade handoff. Built output (`web/dist`) is served
 directly by the FastAPI app as a mounted SPA (`muse/api.py`, catch-all
 route); if `web/dist` doesn't exist, `/` serves a placeholder page instead of
 failing.

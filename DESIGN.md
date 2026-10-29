@@ -233,8 +233,8 @@ phone and none when docked. Hairlines are 1px `--hairline`.
 
 ### z-index
 
-Literal values, not tokens: `.wash` 0, `.app` 1, `.player` 19, `.nav` and
-`.job-strip` 20, `.np` 40. Inside Now Playing, `.np-inner` is 1, the sticky tab
+Literal values, not tokens: `.wash` 0, `.app` 1, `.player` 19, `.nav`,
+`.job-strip` and `.sel-bar` (the selection bar) 20, `.np` 40. Inside Now Playing, `.np-inner` is 1, the sticky tab
 row is 2 and the lyric offset backdrop is 5.
 
 ---
@@ -326,7 +326,9 @@ The components that exist, and what each one does.
   `chart` pick the grid: number, art, name and sub, duration. The current row is
   `aria-current="true"` with the accent name and the `.eq` glyph; a row for a
   missing file is `aria-disabled` at 0.55 opacity with "File missing" as its
-  sub-line and no click handler. Hover is `--hairline`.
+  sub-line and no click handler. Hover is `--hairline`. Song rows carry a More
+  menu button (`TrackMenu`) and, in a selection, a selected ring; queue rows in
+  Now Playing carry a drag grip and a remove button.
 - **Cover cards** (`CoverCard`, `.cover`). One link for art and names, with the
   play button floating over the art's corner: hover-revealed with a pointer,
   always visible under 600px, also shown on `:focus-within`.
@@ -350,7 +352,9 @@ The components that exist, and what each one does.
   skeletons, because a spinner that flashes for 40 ms over a tailnet is worse
   than nothing. Errors are the loud state.
 - **Modals are rare.** The queue and lyrics are a panel inside Now Playing. The
-  lyric offset popover and Now Playing itself are the only `role="dialog"`s.
+  lyric offset popover, Now Playing itself and four edit dialogs (Edit details,
+  Remove, Add to playlist, Edit lyrics; native `<dialog>`) are the only
+  `role="dialog"`s.
 - Tap targets are 44px or larger; inputs are 16px or larger so iOS does not zoom.
 
 ---

@@ -39,10 +39,28 @@ Everything Muse writes goes under one data dir: `MUSE_DATA_DIR`, default
 
 Your music folders are never written to.
 
+## Editing your library
+
+Edits never touch your files. Changes to a song's title, artist, album, track
+number, disc number or year are stored in Muse's own database; Reset to file
+tags drops them and the next scan reads the file again.
+
+- **Remove** hides a song and keeps its play history. **Also move to Trash**
+  sends the file to your system Trash as well; plain Remove never deletes a file.
+  Restore removed songs in Settings > Removed songs.
+- **Hidden artists** (Hide artist on an artist page) leave the Artists list.
+  Their albums and songs still show. Unhide in Settings > Hidden artists.
+- **Covers and artist pictures:** upload an image (JPEG, PNG or WebP, up to
+  10 MB) on an album or artist page. An uploaded cover is never replaced by
+  the automatic cover fetch.
+- **Lyrics:** edit a song's lyrics from its More menu. If the song had synced
+  timings, you choose to keep the old timings or remove them.
+
 ## Tests
 
 ```sh
 uv run pytest
+cd web && npm test
 ```
 
 ## More
