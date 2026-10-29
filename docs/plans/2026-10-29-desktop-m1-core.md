@@ -41,7 +41,7 @@ Repo: `~/Projects/muse-desktop` (private GitHub `IanTheMitten/muse-desktop`, bra
   3. art backfill (`config.art_backfill`), which replaces the existing launch-time art backfill task
   4. taste retrain, at launch only, when `config.taste_retrain_at_launch` is set and the last done `taste_retrain` job is more than 86400 s old or absent
 
-  The scan creates no job row when no configured folder (or `downloads/`) exists. That keeps every existing `/api/jobs` assertion intact.
+  The scan creates no job row when no configured folder exists. M1 does not scan `downloads/` (`Config.music_root`); M5 adds it once unlocked (spec line 96). That keeps every existing `/api/jobs` assertion intact.
 - **Watcher.** It uses `watchfiles.awatch(*existing_roots, stop_event=..., rust_timeout=60000, yield_on_timeout=True)`.
   - It watches only roots that exist.
   - It restarts when the folder list changes (on `PUT`).
@@ -69,7 +69,7 @@ Repo: `~/Projects/muse-desktop` (private GitHub `IanTheMitten/muse-desktop`, bra
 - **Moved to later milestones, not stripped in M1:**
   - Genius (`build_genius_client`, `lyricsgenius`), the discover post-freeze filter (`muse/discover.py:150-170`), `Config.catalog_freeze`, and `muse/ingest.py` writing lyrics beside the audio all go to M5.
   - `muse/systemone.py`, `muse/lyric_tag_batch.py`, `Config.laya_*`/`curator_*` and `universal_reco/` go to M4.
-  - The download pipeline stays dormant: no yt-dlp is installed.
+  - The download pipeline stays dormant: no yt-dlp is installed. Scanning `downloads/` goes to M5.
 - **Deferred spec items decided here:** ffmpeg is needed after unlock, because `muse/ingest.py:213` uses `FFmpegExtractAudio`. M5 fetches a static ffmpeg the same way it fetches yt-dlp. The remaining Deferred items belong to M3/M4/M5.
 
 ## Premises
@@ -87,6 +87,7 @@ Repo: `~/Projects/muse-desktop` (private GitHub `IanTheMitten/muse-desktop`, bra
 - Tests that seed rows through `import_manifest`: `tests/test_art.py`, `tests/test_search.py`, `tests/test_plays.py`, `tests/test_ratings.py`, `tests/test_ingest_run_download.py`, plus the whole-subject files `tests/test_import.py`, `tests/test_backup.py`, `tests/test_contract_shapes.py`. Verified: `grep -c "import_manifest\|make_manifest\|make_record" tests/*.py`.
 - Schema is at version 20 (`MIGRATIONS` ends `_m020_reask_missing_art`, `muse/library/schema.py:675-697`). Tests pin the version only through `LATEST_VERSION` (`tests/test_migrations.py:29`).
 - `lyrics_state` states `synced` and `plain` exist (`muse/lyrics_lrclib.py:189`, `muse/lyrics_lrclib.py:201`). `upsert` commits (`muse/library/lyrics_state.py:106-140`).
+- No test pins a whole track dict, so adding `format` to `TRACK_FIELDS` breaks no assertion. The only `"gain_db"`/`"has_lyrics"` hits are in `tests/test_import.py`, which Task 3 deletes. Verified: `grep -rln '"has_lyrics"\|"gain_db"' tests`.
 - Jobs timestamps are unix seconds (`muse/library/jobs.py:25-26`).
 - Chart rows carry no image URL, so the UI loads no third-party art (`muse/charts.py:39`).
 - `TrackRow` already labels `playable=false` rows "File missing" (`web/src/components/TrackRow.tsx:22`). `playable` is set server-side as `status == "done"` (`muse/library/queries.py:45`).
@@ -278,7 +279,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 
    All other art reaches the DOM through `CoverArt` or `paletteFor`.
 **New symbols:** `export const token: string | null`, `export function withToken(url: string): string` and `export function apiFetch(input: string, init?: RequestInit): Promise<Response>` in `web/src/token.ts`
-**Verify:** `cd web && npm run build`, then `grep -rn "fetch(" web/src --include=*.ts --include=*.tsx | grep -v apiFetch`, then `node --experimental-strip-types --input-type=module -e "globalThis.location={href:'http://127.0.0.1:5/library?t=abc'};const s=new Map();globalThis.sessionStorage={getItem:k=>s.get(k)??null,setItem:(k,v)=>s.set(k,v)};let u;globalThis.history={state:null,replaceState:(a,b,c)=>{u=c}};const m=await import('./web/src/token.ts');if(m.token!=='abc'||s.get('muse-token')!=='abc'||u!=='http://127.0.0.1:5/library'||m.withToken('/api/x?v=1')!=='/api/x?v=1&t=abc')throw new Error('token bootstrap wrong');console.log('ok')"`. Expected: the build succeeds; grep prints only the one `fetch(` line inside `web/src/token.ts`; node prints `ok`.
+**Verify:** from the repo root: `(cd web && npm run build)`, then `grep -rn "fetch(" web/src --include=*.ts --include=*.tsx | grep -v apiFetch`, then `node --experimental-strip-types --input-type=module -e "globalThis.location={href:'http://127.0.0.1:5/library?t=abc'};const s=new Map();globalThis.sessionStorage={getItem:k=>s.get(k)??null,setItem:(k,v)=>s.set(k,v)};let u;globalThis.history={state:null,replaceState:(a,b,c)=>{u=c}};const m=await import('./web/src/token.ts');if(m.token!=='abc'||s.get('muse-token')!=='abc'||u!=='http://127.0.0.1:5/library'||m.withToken('/api/x?v=1')!=='/api/x?v=1&t=abc')throw new Error('token bootstrap wrong');console.log('ok')"`. Expected: the build succeeds; grep prints only the one `fetch(` line inside `web/src/token.ts`; node prints `ok`.
 **Forbidden:** no new npm deps; don't change any URL path; don't add the token to `localStorage` (the token is per launch); `token.ts` imports nothing else from `web/src`.
 **Depends:** none
 **Why:** Decision 3 consequences: one header in `api.ts`, and `?t=` where media elements cannot set headers. sessionStorage keeps LAYOUT invariant 5 (reload keeps the player) after the URL is cleaned.
@@ -339,7 +340,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
    ```
 4. In every listed test file, replace each `Config(...)` construction with `make_config(tmp_path, <only the kwargs whose value differs from make_config's base>)`, then drop now-unused `Config` imports. In `tests/test_config.py`, keep the `catalog_freeze` and laya/curator tests. Add `test_paths_default_under_the_data_dir` (with `MUSE_DATA_DIR=<tmp>` set and the other path vars unset, `library_db == tmp/"library.sqlite3"` and `lyrics_root == tmp/"lyrics"`) and `test_port_defaults_to_zero_and_token_to_none`. Delete tests of removed fields.
 **New symbols:** `Config` fields `data_dir`, `lyrics_root`, `settings_path`, `token`, `lyrics_sync`, `taste_retrain_at_launch`; `def make_config(tmp_path, **overrides) -> Config` in `tests/conftest.py`
-**Verify:** `uv run pytest -p no:cacheprovider` and then `grep -rn "Config(" tests | grep -v "make_config\|Config(\*\*"`. Expected: pytest's last line has 0 failures; grep prints only lines that call `Config.from_env` (no hand-built `Config(`).
+**Verify:** `uv run pytest -p no:cacheprovider` and then `grep -rnE "(^|[^A-Za-z_])Config\(" tests | grep -v "Config(\*\*"`. Expected: pytest's last line has 0 failures; grep prints nothing (`Config.from_env(` and `FakeConfig(` do not match; `make_config`'s own `Config(**...)` is excluded).
 **Forbidden:** no default path outside `tmp_path` in `make_config`; don't touch `muse/api.py` (if a removed field is still read there, stop and report, since Task 3 should have removed it); don't touch `muse/__main__.py` (Task 6).
 **Depends:** Task 3
 **Why:** Spec lines 90-97 define one per-user data dir. One test helper replaces 19 hand-built configs, so later field changes touch one place.
@@ -366,7 +367,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Steps:**
 1. Delete `muse/net.py` and `tests/test_net.py`.
 2. Rewrite `muse/__main__.py`:
-   - Keep logging setup and `_listener`, minus the IPv6 branch (IPv4 loopback only).
+   - Keep logging setup and `_listener`, minus the IPv6 branch (IPv4 loopback only) and minus `SO_REUSEADDR`. Port 0 never needs it, and on Windows it would let another process bind the same address.
    - In `main()`: `config = Config.from_env()`, then `generated = config.token is None`, then `config = dataclasses.replace(config, token=config.token or secrets.token_urlsafe(32))`.
    - Bind with `sock = _listener("127.0.0.1", config.port)`. On `OSError`, print `Could not bind 127.0.0.1:<port> (<error>)` to stderr and return 1.
    - `port = sock.getsockname()[1]`, then `print(f"MUSE_LISTENING {port}", flush=True)`.
@@ -385,9 +386,10 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
    - `?t=s3cret` gives 200.
    - A wrong header gives 401.
    - `/api/jobs/stream?t=wrong` gives 401.
+   - `/api/jobs/stream?t=s3cret` gives 200 with `text/event-stream`. Open it with `client.stream("GET", ...)` and read the first line, then close.
    - `/` gives 200 without a token (SPA placeholder).
    - `make_config(tmp_path)` (token None) gives `/api/health` 200 with no token.
-   - The stream route with `?t=` on a seeded `insert_track` row pointing at an absolute `tmp_path/"a.mp3"` gives 200 with content-type `audio/mpeg`.
+   - The stream route with `?t=` on a seeded `insert_track` row pointing at an absolute `tmp_path/"a.mp3"` gives 200 with content-type `audio/mpeg`, and the same URL with header `Range: bytes=0-1` gives 206.
 7. In `tests/test_streaming.py`, add `test_media_type_for_each_extension` covering all six extensions, the uppercase `.MP3`, and an unknown `.xyz`.
 **New symbols:** `MEDIA_TYPES: dict[str, str]` and `def media_type_for(path: Path) -> str` in `muse/streaming.py`; middleware `require_token` in `create_app`
 **Verify:** `uv run pytest -p no:cacheprovider tests/test_token.py tests/test_streaming.py` and then `uv run pytest -p no:cacheprovider`. Expected: both test files pass; the full run's last line has 0 failures.
@@ -478,7 +480,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
    12. `song.txt` alone is copied to `<rowid>.txt` with `lyrics_state.state == 'plain'`.
    13. `embedded_picture` returning `(b"img", ".png")` writes `art_root/<album_rowid>.png`; the `album_art` row has `source == 'embedded'`; `tracks.art_path` is set.
    14. Hidden files (`.song.mp3`) and `.jpg` files are ignored.
-   15. The scanned track is found by `muse.library.queries.search(conn, "Song")` (FTS indexed).
+   15. The scanned track is found by `muse.library.queries.search(conn, "Song")`. The signature is `def search(conn: sqlite3.Connection, query: str, limit: int = 60) -> list[dict]` (`muse/library/queries.py:239`), returning track dicts: assert one has `track_name == "Song"`.
    16. The music folder's directory listing and every audio file's bytes are unchanged after a scan (compare sorted `os.listdir` and `read_bytes` before and after).
 **New symbols:** none
 **Verify:** `uv run pytest -p no:cacheprovider tests/test_tags.py tests/test_scanner.py`. Expected: collection errors, `ModuleNotFoundError: No module named 'muse.tags'` and `No module named 'muse.scanner'`, and nothing else.
@@ -583,11 +585,12 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
    - On success: DONE, with message `f"{r.added} added, {r.moved} moved, {r.missing} missing"` plus `f", {r.unreadable} unreadable"` when non-zero.
    - Cancel and error handling are copied from `run_lyrics_sync_backfill`.
 2. Create `muse/watch.py` with `async def watch_folders(folders: list[Path], on_change: Callable[[], Awaitable[None]], *, stop: asyncio.Event, poll_seconds: float = 60.0) -> None`. Loop until `stop.is_set()`:
-   - Compute `roots = sorted(f for f in folders if f.is_dir())`.
-   - If there are none, `await asyncio.wait_for(stop.wait(), poll_seconds)` (catching `TimeoutError`) and loop.
+   - Before the loop, `previous = sorted(f for f in folders if f.is_dir())`.
+   - At the top of each pass, `roots = sorted(f for f in folders if f.is_dir())`. If `roots != previous`, `await on_change()`, then set `previous = roots`. This covers going from zero roots to one.
+   - If `roots` is empty, `await asyncio.wait_for(stop.wait(), poll_seconds)` (catching `TimeoutError`) and continue.
    - Else `async for changes in watchfiles.awatch(*roots, stop_event=stop, rust_timeout=int(poll_seconds * 1000), yield_on_timeout=True)`:
      - On a non-empty `changes`, `await on_change()`.
-     - Then if `sorted(f for f in folders if f.is_dir()) != roots`, `await on_change()` and break, so the outer loop restarts with the new roots.
+     - Then if `sorted(f for f in folders if f.is_dir()) != roots`, break, so the next pass sees the difference and calls `on_change` once.
    - `on_change` exceptions are logged with `log.exception` and never end the loop.
 3. `tests/test_jobs_scan.py` (absolute `tmp_path` folders, fake `read_tags`):
    - A job row with state `done` and the summary message.
@@ -621,8 +624,8 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 `async def watch_folders(folders: list[Path], on_change: Callable[[], Awaitable[None]], *, stop: asyncio.Event, poll_seconds: float = 60.0) -> None` @ `muse/watch.py` (from Task 11)
 **Steps:**
 1. Add `taste_trainer=None` and `read_tags=None` keyword parameters to `create_app` (injectable like `art_provider`).
-2. In the lifespan, create `app.state.chain_lock = asyncio.Lock()` and define `async def run_chain(launch: bool) -> None`. Under the lock, in order:
-   1. `folders = settings.music_folders(config.settings_path) + [config.music_root]`, then `await run_scan_job(conn, folders, bus, lyrics_root=config.lyrics_root, art_root=config.art_root, read_tags=read_tags)`.
+2. In the lifespan, create `app.state.chain_lock = asyncio.Lock()` and define `async def run_chain(launch: bool) -> None`, stored as `app.state.run_chain` so routes reach it. Under the lock, in order:
+   1. `folders = settings.music_folders(config.settings_path)` (not `config.music_root`: M5 adds `downloads/` once the downloader is unlocked), then `await run_scan_job(conn, folders, bus, lyrics_root=config.lyrics_root, art_root=config.art_root, read_tags=read_tags)`.
    2. If `config.lyrics_sync`: `await run_lyrics_sync_backfill(conn, bus, lyrics_root=config.lyrics_root)`.
    3. If `config.art_backfill`: the existing `run_art_backfill(conn, <same provider expression as today>, config.art_root, bus)` call, moved here. Delete the separate launch `backfill` task.
    4. If `launch and config.taste_retrain_at_launch`, and `job_rows.last(conn, TASTE_RETRAIN, state=job_rows.DONE)` is None or its `updated_at < time.time() - 86400`: `await asyncio.to_thread(taste_retrain.run, conn, taste_trainer)`.
@@ -630,13 +633,13 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
    Each step is wrapped in `try/except Exception: log.exception(...)`, so one failure never skips the rest.
 3. Launch: `app.state.chain_task = asyncio.create_task(run_chain(True))`.
 4. The watcher:
-   - Create `app.state.watch_stop = asyncio.Event()` and a helper `start_watcher()` that cancels any existing watcher task. It then starts `watch_folders(settings.music_folders(config.settings_path) + [config.music_root], lambda: run_chain(False), stop=<fresh Event>)`.
+   - Define `def start_watcher()`, stored as `app.state.start_watcher`. If a watcher is running, it first sets that watcher's own stop `Event`, then cancels its task. Each watcher gets its own fresh `asyncio.Event` kept on `app.state.watch_stop`. It then starts `watch_folders(settings.music_folders(config.settings_path), lambda: run_chain(False), stop=<fresh Event>)`.
    - Start it at launch.
-   - Shutdown sets the stop event, cancels the watcher and chain tasks, and awaits them, swallowing `CancelledError`, before `conn.close()`.
+   - Shutdown sets `app.state.watch_stop` first (so awatch's thread exits without waiting for `rust_timeout`), then cancels the watcher and chain tasks and awaits them, swallowing `CancelledError`, before `conn.close()`.
 5. Routes:
    - `GET /api/settings` returns `settings.load(config.settings_path)` plus `"folder_status": [{"path": p, "present": Path(p).is_dir(), "songs": n}]` per music folder. `n` is `SELECT COUNT(*) FROM tracks WHERE status = 'done' AND removed_at IS NULL AND file_path LIKE ?`, with `p + os.sep + '%'`.
-   - `PUT /api/settings/music_folders` takes body model `MusicFoldersWrite(folders: list[str])`. Validate each entry: `Path(p).is_absolute()`, else 400 `f"{p} is not an absolute path"`; `is_dir()`, else 400 `f"{p} is not a folder"`. Then resolve each, dedupe, and reject nesting: if any folder `is_relative_to` another, 400 `f"{a} is inside {b}"`. Save `music_folders` as resolved strings, call `start_watcher()`, `asyncio.create_task(run_chain(False))`, and return the saved settings.
-   - `POST /api/scan` returns status 202 with `{"started": True}` after `asyncio.create_task(run_chain(False))`.
+   - `PUT /api/settings/music_folders` (an `async def` route, because it calls `asyncio.create_task`) takes body model `MusicFoldersWrite(folders: list[str])`. Validate each entry: `Path(p).is_absolute()`, else 400 `f"{p} is not an absolute path"`; `is_dir()`, else 400 `f"{p} is not a folder"`. Then resolve each, dedupe, and reject nesting: if any folder `is_relative_to` another, 400 `f"{a} is inside {b}"`. Save `music_folders` as resolved strings, call `app.state.start_watcher()`, `asyncio.create_task(app.state.run_chain(False))`, and return the saved settings with `folder_status`.
+   - `POST /api/scan` (an `async def` route) returns status 202 with `{"started": True}` after `asyncio.create_task(app.state.run_chain(False))`.
 6. Add `import settings` from `.` and `taste_retrain` alongside the existing imports.
 7. `tests/test_api_scan.py`, using `TestClient(create_app(make_config(tmp_path), read_tags=<fake>))`:
    - Default `GET /api/settings` gives `{"music_folders": [], "downloader_unlocked": False, "folder_status": []}`.
