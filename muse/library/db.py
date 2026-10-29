@@ -85,6 +85,8 @@ def connect(path: str | Path) -> sqlite3.Connection:
     track that does not exist is the kind of corruption that only shows up
     when the data has become irreplaceable.
     """
+    # A fresh data dir has nothing in it yet; the DB is the first thing opened.
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     # check_same_thread=False because FastAPI runs sync endpoints in a thread
     # pool; `SharedConnection` is what makes that safe.
     conn = sqlite3.connect(

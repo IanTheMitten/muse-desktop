@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from muse.library import LATEST_VERSION, current_version, migrate
+from muse.library import LATEST_VERSION, connect, current_version, migrate
 from muse.library.schema import MIGRATIONS
 from tests.conftest import insert_track
 
@@ -18,6 +18,12 @@ def raw(tmp_path):
     conn = sqlite3.connect(tmp_path / "empty.sqlite3", isolation_level=None)
     conn.row_factory = sqlite3.Row
     yield conn
+    conn.close()
+
+
+def test_connect_creates_a_missing_parent_dir(tmp_path):
+    conn = connect(tmp_path / "a" / "b" / "library.sqlite3")
+    assert (tmp_path / "a" / "b" / "library.sqlite3").exists()
     conn.close()
 
 
