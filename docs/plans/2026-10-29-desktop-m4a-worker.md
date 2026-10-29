@@ -341,7 +341,7 @@ Negative result is a valid outcome.
 **Why:** Spec Testing strategy: "the smart-features installer: hash mismatch, resume, disk full".
 
 ### Task 9: Installer module, manifest and manifest scripts
-- [ ] status
+- [x] status
 **Objective:** `muse/smart.py` passes `tests/test_smart_install.py`, and `muse/smart_manifest.json` holds the real pinned weights.
 **Write-scope:**
 `muse/smart.py` (new)
