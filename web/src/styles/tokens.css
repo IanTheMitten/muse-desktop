@@ -1,0 +1,39 @@
+:root {
+  color-scheme: dark;
+  --ink: #121117;          /* housing when no record colours the room */
+  --ink-raised: #1c1b22;
+  --text: #f5f3f0;
+  --text-2: #dcd9d4;       /* >=4.5:1 on any scrimmed wash, measured in script */
+  --hairline: rgb(255 255 255 / 0.08);
+  --glass: rgb(20 19 26 / 0.62);
+  --accent: #e9e6e1;       /* replaced per record */
+  --on-accent: #121117;
+  --font: "Figtree Variable", ui-rounded, system-ui, sans-serif;
+  --serif: "Newsreader Variable", "Noto Serif CJK KR", "Noto Serif CJK JP", "Hiragino Mincho ProN", "Iowan Old Style", Georgia, serif;
+  --r-s: 8px; --r-m: 14px; --r-l: 22px; --r-pill: 999px;
+  --t-xs: 0.75rem; --t-s: 0.875rem; --t-m: 1rem; --t-l: 1.25rem;
+  --t-xl: clamp(1.5rem, 1.1rem + 1.6vw, 2.25rem);
+  --t-2xl: clamp(2rem, 1.2rem + 3.4vw, 3.75rem);
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --gutter: max(clamp(16px, 3.2vw, 48px), env(safe-area-inset-left, 0px));
+  --gutter-r: max(clamp(16px, 3.2vw, 48px), env(safe-area-inset-right, 0px));
+  --rail: 0px; --player-h: 72px; --tabs-h: 64px;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --ink: #f4f3f6; --ink-raised: #ffffff;
+    --text: #141218; --text-2: #35313b;
+    --hairline: rgb(20 18 24 / 0.09);
+    --glass: rgb(255 255 255 / 0.66);
+    --accent: #2b2830; --on-accent: #ffffff;
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink: #f4f3f6; --ink-raised: #ffffff;
+  --text: #141218; --text-2: #35313b;
+  --hairline: rgb(20 18 24 / 0.09);
+  --glass: rgb(255 255 255 / 0.66);
+  --accent: #2b2830; --on-accent: #ffffff;
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "date": "2026-10-28",
+    "brief": "Muse Player · record wash redesign",
+    "system": "muse-player",
+    "nav": "five bottom tabs on phone, icon rail on tablet, labelled rail on desktop",
+    "footer": "none (persistent player bar)",
+    "hero": "art-led resume card",
+    "scaffold": "content-first shelves",
+    "display": "Newsreader titles + Figtree UI",
+    "palette": "drenched record wash over ink #121117 / #f4f3f6, accent from cover",
+    "anchors": "Plexamp, Apple Music, Spotify"
+  },
+  {
+    "date": "2026-09-03",
+    "brief": "Muse Player · redesign canvas (housing re-hue, merged library, gallery browse, player rebuild, downloader)",
+    "system": "muse-player",
+    "nav": "side rail on desktop, four bottom tabs on phone",
+    "footer": "none (app shell, persistent control bar instead)",
+    "hero": "content-first gallery",
+    "scaffold": "content-first",
+    "display": "system sans names + mono numerals",
+    "palette": "warm charcoal housing (oklch 0.160 0.014 62) / accent hue from the playing cover, chroma scaled by how much colour the sleeve has, no fixed fallback",
+    "anchors": "Plexamp (art-derived palette, grid-or-list browse), Spotify (now-playing and queue share one right panel), Apple Music (lyrics sidebar with full-screen as an explicit expand)",
+    "notes": "Same product as every later Muse build: cohere with this system rather than rotating away from it."
+  }
+]

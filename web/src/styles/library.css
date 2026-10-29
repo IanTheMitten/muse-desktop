@@ -1,0 +1,36 @@
+/* library, album and artist screens. Cover cards, track rows, .field and .seg
+   live in cards.css and base.css. */
+.toolbar { display: grid; gap: 14px; margin-top: 20px; }
+@media (min-width: 760px) { .toolbar { grid-template-columns: minmax(0, 420px) auto; align-items: end; justify-content: space-between; } }
+.grid-wrap { container-type: inline-size; }
+.lib-empty, .lib-error { padding: 48px 0; color: var(--text-2); }
+.lib-error { color: var(--text); }
+
+.artists { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.artist { display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 8px; border-radius: var(--r-m); text-align: left; }
+.artist-art { flex: none; display: block; width: 52px; height: 52px; border-radius: var(--r-pill); overflow: hidden; }
+.artist strong { display: block; font-family: var(--serif); font-size: 1.0625rem; font-weight: 600; }
+.artist span > span { display: block; color: var(--text-2); font-size: var(--t-s); }
+.artist:hover, .row-btn:hover { background: var(--hairline); }
+.artist:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* all matches render; the browser skips layout for rows off screen */
+.song-list > li { content-visibility: auto; contain-intrinsic-size: auto 80px; }
+
+.album { display: grid; gap: clamp(20px, 3vw, 48px); }
+.album-head { position: relative; display: grid; gap: 16px; justify-items: center; text-align: center; padding: 8px 0 4px; }
+.album-art { width: min(72vw, 320px); aspect-ratio: 1; border-radius: var(--r-m); overflow: hidden; box-shadow: 0 24px 60px rgb(0 0 0 / .4); }
+.album-head .page-title { font-size: var(--t-xl); }
+.album-artist { color: var(--text); font-weight: 700; }
+.album-artist:hover { text-decoration: underline; text-underline-offset: 3px; }
+.album-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-weight: 600; color: var(--text-2); margin-bottom: 4px; }
+.back svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; }
+.album-glow { position: absolute; inset: -40px -20px auto; height: 70%; z-index: -1; filter: blur(50px); opacity: .55; border-radius: 50%; pointer-events: none; }
+@media (min-width: 900px) {
+  .album { grid-template-columns: minmax(280px, 400px) minmax(0, 1fr); align-items: start; }
+  .album-head { position: sticky; top: 32px; justify-items: start; text-align: left; }
+  .album-art { width: 100%; }
+  .album-actions { justify-content: flex-start; }
+  .album-tracks { padding-top: 8px; }
+}

@@ -1,0 +1,72 @@
+/* home shelves: every shelf is one row, scrolling sideways */
+.resume {
+  position: relative; isolation: isolate; overflow: hidden; border-radius: var(--r-l); display: grid; gap: 18px; align-items: end;
+  grid-template-columns: minmax(0, 1fr); padding: clamp(16px, 3vw, 32px);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.resume-bg, .pick-bg { position: absolute; inset: 0; z-index: -1; }
+.resume-bg::after, .pick-bg::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 50%, transparent); }
+.resume-art { display: block; width: min(100%, 220px); aspect-ratio: 1; border-radius: var(--r-m); overflow: hidden; box-shadow: 0 16px 40px rgb(0 0 0 / .35); }
+.eyebrow { font-size: var(--t-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.resume h2 { font-family: var(--serif); font-size: var(--t-xl); font-weight: 600; margin-top: 6px; }
+.resume p { margin: 4px 0 16px; color: var(--text-2); }
+.resume-acts { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn .eq i { background: currentColor; }
+a.btn { text-decoration: none; }
+@media (min-width: 600px) { .resume { grid-template-columns: clamp(160px, 22vw, 260px) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); } .resume-art { width: 100%; } }
+
+.home-error { display: grid; gap: 14px; justify-items: start; margin-top: 20px; }
+
+/* chart and track lists: numbered, 5 rows per column */
+.hits { list-style: none; margin: 0; padding: 0 0 6px; display: grid; gap: 2px 24px; grid-auto-flow: column; grid-template-rows: repeat(5, auto); grid-auto-columns: minmax(min(88%, 340px), 1fr); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.hits > li { scroll-snap-align: start; min-width: 0; }
+.hits .row-btn { text-decoration: none; }
+.hits a.row-btn:hover { background: var(--hairline); }
+.hits a.row-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row-ph { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r-s); background: var(--hairline); color: var(--text-2); font-weight: 700; }
+
+/* recommended: cards washed in their own cover */
+.picks { display: grid; gap: 16px; grid-auto-flow: column; grid-auto-columns: min(88%, 340px); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; scrollbar-width: none; }
+.pick { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; align-items: center; padding: 16px; min-height: 128px; border-radius: var(--r-l); text-align: left; box-shadow: inset 0 0 0 1px var(--hairline); transition: transform .25s var(--ease); scroll-snap-align: start; text-decoration: none; background: var(--hairline); }
+.pick:hover { transform: translateY(-3px); }
+.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pick-art { display: block; width: 96px; height: 96px; border-radius: var(--r-m); overflow: hidden; background: var(--hairline); box-shadow: 0 12px 30px rgb(0 0 0 / .35); }
+.pick small { display: block; font-size: var(--t-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.pick strong { display: block; font-family: var(--serif); font-size: 1.0625rem; font-weight: 600; line-height: 1.2; margin-top: 4px; }
+.pick-sub { display: block; color: var(--text-2); margin-top: 2px; font-size: var(--t-s); }
+
+/* playlists */
+.plists { display: grid; gap: clamp(14px, 2vw, 24px); grid-auto-flow: column; grid-auto-columns: min(42%, 200px); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; scrollbar-width: none; }
+.plist { display: grid; gap: 4px; text-decoration: none; border-radius: var(--r-m); scroll-snap-align: start; min-width: 0; }
+.plist:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mosaic { display: grid; grid-template-columns: 1fr 1fr; aspect-ratio: 1; border-radius: var(--r-m); overflow: hidden; background: var(--hairline); margin-bottom: 6px; box-shadow: 0 6px 20px rgb(0 0 0 / .22); }
+.mosaic > * { min-width: 0; min-height: 0; overflow: hidden; }
+.plist-t { font-family: var(--serif); font-size: 1.0625rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plist-n { color: var(--text-2); font-size: var(--t-s); }
+
+/* listening stats */
+.stats { display: grid; gap: clamp(20px, 3vw, 40px); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.stats h3 { font-size: var(--t-m); font-weight: 700; margin-bottom: 12px; }
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; height: 140px; }
+.week-day { display: grid; grid-template-rows: 1.25rem 1fr 1.25rem; justify-items: center; gap: 4px; min-width: 0; }
+.week-value { font-size: var(--t-xs); font-weight: 700; color: var(--text); }
+.week-track { display: flex; align-items: end; width: 100%; max-width: 28px; }
+.week-fill { display: block; width: 100%; border-radius: 6px 6px 2px 2px; background: var(--accent); opacity: .45; }
+.week-fill-peak { opacity: 1; }
+.week-label { font-size: var(--t-xs); color: var(--text-2); }
+.week-label-today { color: var(--text); font-weight: 700; }
+.ranks { display: grid; gap: 4px; }
+.rank { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; min-height: 48px; padding: 6px 8px; border-radius: var(--r-s); align-content: center; text-decoration: none; }
+.rank:hover { background: var(--hairline); }
+.rank-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-n { color: var(--text-2); font-size: var(--t-s); }
+.rank-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--hairline); overflow: hidden; }
+.rank-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.counts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0; }
+.counts dt { color: var(--text-2); font-size: var(--t-s); }
+.counts dd { margin: 0; font-family: var(--serif); font-size: var(--t-xl); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .pick { transition: none; } .pick:hover { transform: none; } }
+
+/* titles wrap rather than ellipsize in the shelf rows */
+.hits .row-name { white-space: normal; overflow: visible; }

@@ -1,0 +1,56 @@
+# Catalog mirrors and the library DB. 47 GB of SQLite, rebuildable from source.
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.content_embed.lock
+*.sqlite3.*.lock
+*.sqlite3-journal
+*.db
+
+# Audio library. 7.2 GB on disk, described by download_manifest.json.
+MUSIC/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Node / frontend (slice 1 adds these)
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Caches and backups
+# Cover art: a disk cache of the Cover Art Archive, ~3 MB, refetchable by
+# deleting the album_art rows. Not source.
+assets/art/
+mb_lang_cache.json
+*.bak
+*.tmp
+
+# Secrets
+.env
+
+# Per-machine Claude Code permissions
+.claude/settings.local.json
+
+# Local git worktrees
+.worktrees/
+
+# Big datasets and model weights: never in git, rebuildable or fetched.
+*.parquet
+*.npy
+*.npz
+*.pt
+*.safetensors
+*.gguf
+*.onnx
+*.wav
+!universal_reco/tests/fixtures/*.wav
+*.mp3
+*.flac
+*.m4a
+*.csv.gz
+*.jsonl

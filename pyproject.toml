@@ -1,0 +1,61 @@
+[project]
+name = "muse"
+version = "0.1.0"
+description = "Muse Player — self-hosted music player for a single listener on a tailnet"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "requests",
+]
+
+# Only `muse.embed`'s real encoders need these — ~0.8 GB of CLAP weights and
+# a torch wheel. Everything else, including the default test run, runs
+# against the stub encoders and never imports this group.
+[project.optional-dependencies]
+embed = [
+    "torch",
+    "transformers",
+    "sentence-transformers",
+    "numpy",
+]
+# Only `muse.taste.ImplicitAlsTrainer` needs these. Everything else,
+# including the default test run, runs against `StubTasteTrainer` and
+# never imports this group.
+taste = [
+    "implicit",
+    "numpy",
+    "scipy",
+]
+# Only muse/ingest.py's real providers need these — yt-dlp for audio, mutagen
+# for m4a tagging, lyricsgenius for the Genius lyrics fallback. Everything
+# else, including the default test run, runs against fakes and never
+# imports this group. lyricsgenius stays importable-but-inert without
+# GENIUS_TOKEN set, same as music_downloader.py today.
+ingest = [
+    "yt-dlp",
+    "mutagen",
+    "lyricsgenius",
+]
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "pytest",
+    "pytest-asyncio",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["muse"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -m 'not slow'"
+asyncio_mode = "auto"
+markers = [
+    "slow: needs the real CLAP/MiniLM encoders (the `embed` extra), the real ALS trainer (the `taste` extra), or universal_reco's own virtualenv (`uv sync --project universal_reco`); run explicitly with -m slow",
+]

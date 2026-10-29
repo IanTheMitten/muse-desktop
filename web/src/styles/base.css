@@ -1,0 +1,62 @@
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--ink); color: var(--text);
+  font-family: var(--font); font-size: var(--t-m); line-height: 1.45;
+  font-feature-settings: "tnum" 1; -webkit-font-smoothing: antialiased;
+}
+body.locked { overflow: hidden; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; border-radius: var(--r-s); }
+img { display: block; max-width: 100%; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.view { max-width: 1600px; margin-inline: auto; animation: rise .32s var(--ease) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+/* ---------- type + common ---------- */
+h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+.serif { font-family: var(--serif); font-weight: 600 !important; letter-spacing: -0.02em !important; }
+.page-title { font-size: var(--t-2xl); font-weight: 800; line-height: 1.02; letter-spacing: -0.035em; }
+.page-sub { color: var(--text-2); margin: 8px 0 0; }
+.section { margin-top: clamp(28px, 4vw, 56px); }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.section-head h2 { font-size: var(--t-l); font-weight: 700; }
+.link-btn { color: var(--text-2); font-weight: 600; font-size: var(--t-s); min-height: 44px; padding-inline: 4px; }
+.btn {
+  min-height: 48px; padding: 0 22px; border-radius: var(--r-pill); display: inline-flex; align-items: center; gap: 10px;
+  font-weight: 700; background: var(--hairline); transition: transform .15s var(--ease);
+}
+.btn svg { width: 20px; height: 20px; fill: currentColor; }
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .45; cursor: default; }
+.field label { display: block; font-size: var(--t-s); font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+.field input {
+  width: 100%; min-height: 48px; padding: 0 16px; border-radius: var(--r-m); font-size: 1rem;
+  border: 1px solid var(--hairline); background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.field input:focus-visible { outline-offset: 0; }
+.seg { display: inline-flex; padding: 4px; border-radius: var(--r-pill); background: var(--hairline); justify-self: start; }
+.seg button { min-height: 40px; padding: 0 18px; border-radius: var(--r-pill); font-weight: 600; color: var(--text-2); }
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--ink); }
+.eq { display: inline-flex; gap: 2px; align-items: end; height: 14px; }
+.eq i { width: 3px; background: var(--accent); border-radius: 1px; animation: eq 1s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: -.4s; } .eq i:nth-child(3) { animation-delay: -.7s; }
+@keyframes eq { 0%,100% { height: 30%; } 50% { height: 100%; } }
+.paused .eq i { animation-play-state: paused; }
+.panel-card { border-radius: var(--r-l); padding: clamp(16px, 2.4vw, 28px); background: var(--glass); backdrop-filter: blur(24px) saturate(1.3); -webkit-backdrop-filter: blur(24px) saturate(1.3); box-shadow: inset 0 0 0 1px var(--hairline); }
+.panel-card h2 { font-size: var(--t-l); font-weight: 700; }
+.range { width: 100%; height: 32px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; accent-color: var(--accent); }
+.range::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--p, 50%), var(--hairline) var(--p, 50%)); }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -8px; border-radius: 50%; background: var(--text); box-shadow: 0 2px 10px rgb(0 0 0 / .35); }
+.range::-moz-range-track { height: 8px; border-radius: 4px; background: var(--hairline); }
+.range::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--accent); }
+.range::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; border: 0; background: var(--text); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 0s !important; }
+  .np { transition: none; }
+}
+
+/* links inherit the text colour; only inline prose links keep an underline */
+a { color: inherit; }
+.cover-link, .pick, .plist, .plist-link, .rank, .hits a, .tab { text-decoration: none; }

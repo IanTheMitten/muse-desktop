@@ -1,0 +1,34 @@
+{
+  "state": {
+    "archetype": "Something calm",
+    "prefix": [],
+    "candidates": [
+      {"id": "t1", "artist": "Nina Simone", "title": "Wild Is the Wind"},
+      {"id": "t2", "artist": "Aphex Twin", "title": "Come to Daddy"}
+    ]
+  },
+  "questions": {
+    "t1": {
+      "type": "score",
+      "instructions": "How well does this song follow what has been played, for a calm list?",
+      "criteria": [
+        "A bad next song here",
+        "A weak fit",
+        "An acceptable next song",
+        "A good next song",
+        "The obvious next song"
+      ]
+    },
+    "t2": {
+      "type": "score",
+      "instructions": "How well does this song follow what has been played, for a calm list?",
+      "criteria": [
+        "A bad next song here",
+        "A weak fit",
+        "An acceptable next song",
+        "A good next song",
+        "The obvious next song"
+      ]
+    }
+  }
+}
