@@ -6,6 +6,7 @@ run that added tracks needs no coordination beyond a restart.
 """
 
 import asyncio
+import hashlib
 import hmac
 import json
 import logging
@@ -59,11 +60,12 @@ from .library import content as library_content
 from .library import embeddings as library_embeddings
 from .library import emotion as library_emotion
 from .library import features as library_features
-from .library import insights
+from .library import artists as library_artists
+from .library import insights, lyrics_edit
 from .library import jobs as job_rows
 from .library import lyrics_state as library_lyrics_state
 from .library import playlists as library_playlists
-from .library import queries
+from .library import overrides, queries, removal
 from .library import taste as library_taste
 from .library import tracks as library_tracks
 from .lrc import parse_lrc
@@ -206,6 +208,65 @@ class RatingWrite(BaseModel):
 
     track_rowid: int
     rating: Literal[-1, 1] | None
+
+
+class TrackIds(BaseModel):
+    track_rowids: list[int] = Field(min_length=1, max_length=500)
+
+
+class ArtistHidden(BaseModel):
+    hidden: bool
+
+
+class LyricsWrite(BaseModel):
+    text: str = Field(max_length=100_000)
+
+
+class LyricsTimings(BaseModel):
+    action: Literal["keep", "drop"]
+
+
+IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+
+async def _image_body(request: Request) -> tuple[bytes, str]:
+    kind = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if kind not in IMAGE_TYPES:
+        raise HTTPException(415, "Use a JPEG, PNG or WebP image")
+    body = await request.body()
+    if not body:
+        raise HTTPException(400, "No image")
+    if len(body) > MAX_IMAGE_BYTES:
+        raise HTTPException(413, "Image is over 10 MB")
+    return body, IMAGE_TYPES[kind]
+
+
+class DetailsValues(BaseModel):
+    track_name: str | None = Field(None, min_length=1, max_length=300)
+    artist_name: str | None = Field(None, min_length=1, max_length=300)
+    album_name: str | None = Field(None, min_length=1, max_length=300)
+    track_no: int | None = Field(None, ge=1, le=999)
+    disc_no: int | None = Field(None, ge=1, le=99)
+    year: int | None = Field(None, ge=1000, le=9999)
+
+    @field_validator("track_name", "artist_name", "album_name")
+    @classmethod
+    def _strip(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("blank")
+        return value
+
+
+class DetailsWrite(TrackIds):
+    values: DetailsValues
+
+
+class RemoveWrite(TrackIds):
+    trash: bool = False
 
 
 class PlaylistWrite(BaseModel):
@@ -715,6 +776,10 @@ def create_app(
             for b in folders:
                 if a != b and a.is_relative_to(b):
                     raise HTTPException(400, f"{a} is inside {b}")
+        data = app.state.config.data_dir.resolve()
+        for f in folders:
+            if data.is_relative_to(f):
+                raise HTTPException(400, f"{f} contains the Muse data folder {data}")
         cfg = app.state.config
         saved = settings.load(cfg.settings_path)
         saved["music_folders"] = [str(f) for f in folders]
@@ -826,9 +891,48 @@ def create_app(
         return queries.albums(app.state.conn)
 
     @app.get("/api/library/songs")
-    def library_songs() -> list[dict]:
-        """Every owned song by title, for the Songs tab with an empty search."""
-        return queries.songs(app.state.conn)
+    def library_songs(
+        sort: Literal["title", "added", "plays", "year", "duration"] = "title",
+        order: Literal["asc", "desc"] = "asc",
+    ) -> list[dict]:
+        """Every owned song, for the Songs tab with an empty search."""
+        return queries.songs(app.state.conn, sort, order)
+
+    @app.get("/api/library/duplicates")
+    def library_duplicates() -> dict:
+        return {"groups": queries.duplicates(app.state.conn)}
+
+    @app.get("/api/library/removed")
+    def library_removed() -> list[dict]:
+        return removal.removed(app.state.conn)
+
+    @app.patch("/api/tracks/details")
+    def patch_details(body: DetailsWrite) -> dict:
+        conn = app.state.conn
+        for i in body.track_rowids:
+            if queries.track(conn, i) is None:
+                raise HTTPException(404, f"No track {i}")
+        vals = body.values.model_dump(exclude_none=True)
+        if not vals:
+            raise HTTPException(422, "Nothing to change")
+        overrides.write(conn, body.track_rowids, vals)
+        return {"tracks": queries.tracks_by_rowid(conn, body.track_rowids)}
+
+    @app.post("/api/tracks/details/reset")
+    async def reset_details(body: TrackIds) -> dict:
+        n = overrides.clear(app.state.conn, body.track_rowids)
+        app.state.spawn_chain()
+        return {"reset": n}
+
+    @app.post("/api/tracks/remove")
+    def remove_tracks(body: RemoveWrite) -> dict:
+        return removal.remove(app.state.conn, body.track_rowids, trash=body.trash)
+
+    @app.post("/api/tracks/restore")
+    async def restore_tracks(body: TrackIds) -> dict:
+        n = removal.restore(app.state.conn, body.track_rowids)
+        app.state.spawn_chain()
+        return {"restored": n}
 
     @app.get("/api/library/artists/{artist_name}/albums")
     def artist_albums(artist_name: str) -> dict:
@@ -1244,12 +1348,48 @@ def create_app(
         return FileResponse(
             path,
             headers={
-                # Art for an album is fetched once and never changes. A year
-                # is not an exaggeration.
-                "cache-control": "public, max-age=31536000, immutable",
-                "etag": f'"{tag}"',
+                # Revalidate: an uploaded cover replaces the file in place.
+                "cache-control": "no-cache",
+                "etag": f'"{tag}-{Path(path).stat().st_mtime_ns}"',
             },
         )
+
+    @app.put("/api/albums/{album_rowid}/art")
+    async def put_album_art(album_rowid: int, request: Request) -> dict:
+        if queries.album(app.state.conn, album_rowid) is None:
+            raise HTTPException(404, f"No album {album_rowid}")
+        body, ext = await _image_body(request)
+        path = app.state.config.art_root / f"{album_rowid}-manual{ext}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+        library_art.record_cover(app.state.conn, album_rowid, str(path), source="manual")
+        return {"ok": True}
+
+    @app.get("/api/artists/{artist_name}/image")
+    def artist_image(artist_name: str) -> FileResponse:
+        sha = hashlib.sha1(artist_name.encode()).hexdigest()[:16]
+        return _art_response(library_artists.image_path(app.state.conn, artist_name), f"artist-{sha}")
+
+    @app.put("/api/artists/{artist_name}/image")
+    async def put_artist_image(artist_name: str, request: Request) -> dict:
+        if not queries.albums_by_artist(app.state.conn, artist_name):
+            raise HTTPException(404, f"No albums for {artist_name!r}")
+        body, ext = await _image_body(request)
+        sha = hashlib.sha1(artist_name.encode()).hexdigest()[:16]
+        path = app.state.config.art_root / "artists" / f"{sha}{ext}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+        library_artists.set_image(app.state.conn, artist_name, str(path))
+        return {"ok": True}
+
+    @app.get("/api/library/hidden-artists")
+    def hidden_artists() -> list[dict]:
+        return library_artists.hidden(app.state.conn)
+
+    @app.put("/api/artists/{artist_name}/hidden")
+    def hide_artist(artist_name: str, write: ArtistHidden) -> dict:
+        library_artists.hide(app.state.conn, artist_name, write.hidden)
+        return {"artist_name": artist_name, "hidden": write.hidden}
 
     @app.get("/api/albums/{album_rowid}/art")
     def album_art(album_rowid: int) -> FileResponse:
@@ -1293,6 +1433,16 @@ def create_app(
         if not library_playlists.delete(app.state.conn, playlist_id):
             raise HTTPException(404, f"No playlist {playlist_id}")
         return Response(status_code=204)
+
+    @app.post("/api/playlists/{playlist_id}/tracks")
+    def append_playlist_tracks(playlist_id: int, write: TrackIds) -> dict:
+        try:
+            ok = library_playlists.append(app.state.conn, playlist_id, write.track_rowids)
+        except sqlite3.IntegrityError:
+            raise HTTPException(422, "Unknown track in playlist")
+        if not ok:
+            raise HTTPException(404, f"No playlist {playlist_id}")
+        return library_playlists.get(app.state.conn, playlist_id)
 
     @app.post("/api/ratings")
     def rate(write: RatingWrite) -> dict:
@@ -1339,6 +1489,28 @@ def create_app(
             raise HTTPException(404, "No lyrics for that track")
         return text
 
+    @app.put("/api/tracks/{track_rowid}/lyrics")
+    def put_track_lyrics(track_rowid: int, write: LyricsWrite) -> dict:
+        out = lyrics_edit.save_text(
+            app.state.conn, track_rowid, write.text, lyrics_root=app.state.config.lyrics_root
+        )
+        if out is None:
+            raise HTTPException(404, f"No track {track_rowid}")
+        return out
+
+    @app.post("/api/tracks/{track_rowid}/lyrics/timings")
+    def track_lyrics_timings(track_rowid: int, write: LyricsTimings) -> dict:
+        root = app.state.config.lyrics_root
+        if write.action == "keep":
+            ok = lyrics_edit.keep_timings(app.state.conn, track_rowid, lyrics_root=root)
+            missing = "No stale timings for that track"
+        else:
+            ok = lyrics_edit.drop_timings(app.state.conn, track_rowid, lyrics_root=root)
+            missing = "No timings for that track"
+        if not ok:
+            raise HTTPException(404, missing)
+        return {"ok": True}
+
     @app.get("/api/tracks/{track_rowid}/lyrics/synced")
     def track_lyrics_synced(track_rowid: int) -> dict:
         """The full-screen lyrics view's route (stories 59-77).
@@ -1364,12 +1536,15 @@ def create_app(
             raise HTTPException(404, "No lyrics for that track")
 
         lines = None
+        stale = lyrics_edit.is_stale(
+            app.state.conn, track_rowid, lyrics_root=app.state.config.lyrics_root
+        )
         _, lrc_path = lyrics_files(app.state.config.lyrics_root, track_rowid)
         try:
             lrc_text = lrc_path.read_text(encoding="utf-8")
         except OSError:
             lrc_text = None
-        if lrc_text is not None:
+        if lrc_text is not None and not stale:
             parsed = parse_lrc(lrc_text)
             if parsed:
                 lines = [{"ms": line.ms, "text": line.text} for line in parsed]
@@ -1380,6 +1555,7 @@ def create_app(
             "lines": lines,
             "plain": None if lines is not None else plain,
             "offset_ms": offset_ms,
+            "lrc_stale": stale,
         }
 
     @app.patch("/api/tracks/{track_rowid}/lyrics/offset")

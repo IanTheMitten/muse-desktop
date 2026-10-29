@@ -420,7 +420,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 ## Phase 3 - API and client
 
 ### Task 11: Track edit routes, sort, duplicates, data-dir folder check
-- [ ] status
+- [x] status
 **Objective:** The API edits details, removes and restores tracks, lists removed tracks and duplicates, sorts songs, and refuses a music folder that contains the data dir.
 **Write-scope:**
 `muse/api.py`
@@ -451,7 +451,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decisions 7, 10 and 15 over HTTP. The data-dir check is the cheap M1 leftover that M5's `downloads/` scan needs.
 
 ### Task 12: Media routes: art and artist-image upload, hide artist, lyrics edit, playlist append
-- [ ] status
+- [x] status
 **Objective:** Covers and artist pictures upload, artists hide and unhide, lyrics save with the stale `.lrc` choice, playlists append, and art responses revalidate.
 **Write-scope:**
 `muse/api.py`
