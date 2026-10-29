@@ -203,6 +203,7 @@ def worker_ask(client: WorkerClient):
     def ask(state, groups):
         questions = {g: {"type": "choice", "instructions": instructions, "criteria": labels}
                      for g, (instructions, labels) in groups.items()}
-        answers = client.request("laya", state=state, questions=questions)
+        reply = client.request("laya", state=state, questions=questions)
+        answers = reply.get("answers", reply)  # real worker nests under "answers"
         return {g: answers[g]["probabilities"] for g in groups}
     return ask

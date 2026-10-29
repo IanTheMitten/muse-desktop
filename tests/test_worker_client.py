@@ -194,6 +194,14 @@ def test_worker_ask(make_client):
     assert got == {"g": {"a": 0.7, "b": 0.3}}
 
 
+def test_worker_ask_unwraps_answers():
+    class C:
+        def request(self, op, **kw):
+            return {"model": "m", "answers": {"g": {"probabilities": {"a": 0.7, "b": 0.3}}}, "usage": {}}
+    got = worker_ask(C())({"text": "x"}, {"g": ("instr", {"a": "A", "b": "B"})})
+    assert got == {"g": {"a": 0.7, "b": 0.3}}
+
+
 def test_model_names():
     assert WorkerAudioEncoder.model_name == embed.CLAP_MODEL
     assert WorkerContentEmbedder.model_name == content.MERT_MODEL

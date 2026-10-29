@@ -316,7 +316,7 @@ Negative result is a valid outcome.
 **Why:** The sidecar's only door to the models; the crash rule and idle stop are spec Data flow ("started lazily, stopped when idle and at quit").
 
 ### Task 7a: worker_ask unwraps the real laya reply
-- [ ] status
+- [x] status
 **Objective:** `worker_ask` accepts the real worker reply shape `{"model", "answers": {group: {...}}, "usage"}` as well as the flat `{group: {...}}` the fake worker returns.
 **Write-scope:**
 `muse/worker.py`
