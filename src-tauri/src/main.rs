@@ -1,3 +1,5 @@
+// release builds on Windows get no console window
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::collections::{HashMap, VecDeque};
 use std::fs::OpenOptions;
 use std::io::Write;
