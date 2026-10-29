@@ -320,7 +320,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Decisions 2 and 3. Every API and permission named here was compiled and run in a scratch shell at planning (see Premises).
 
 ### Task 7: Mini window view [design]
-- [ ] status
+- [x] status
 **Objective:** `/mini` renders the mini window, which mirrors `muse:now` and sends `muse:command`, without mounting `App`.
 **Write-scope:**
 `web/src/views/MiniWindow.tsx` (new)
