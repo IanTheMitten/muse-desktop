@@ -43,6 +43,23 @@ export const NextIcon = (props: Props) => (
   </Icon>
 );
 
+export const GripIcon = (props: Props) => (
+  <Icon {...props}>
+    <circle className="icon-fill" cx="9" cy="6.5" r="1.4" />
+    <circle className="icon-fill" cx="9" cy="12" r="1.4" />
+    <circle className="icon-fill" cx="9" cy="17.5" r="1.4" />
+    <circle className="icon-fill" cx="15" cy="6.5" r="1.4" />
+    <circle className="icon-fill" cx="15" cy="12" r="1.4" />
+    <circle className="icon-fill" cx="15" cy="17.5" r="1.4" />
+  </Icon>
+);
+
+export const CloseIcon = (props: Props) => (
+  <Icon {...props}>
+    <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" />
+  </Icon>
+);
+
 export const QueueIcon = (props: Props) => (
   <Icon {...props}>
     <path d="M4 7h11M4 12h11M4 17h7" />

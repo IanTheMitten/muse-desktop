@@ -103,3 +103,15 @@
 @media (prefers-reduced-motion: reduce) {
   .np, .np.up, .np-art, .lyrics-line { transition: none; }
 }
+
+/* Queue editing: grip leads, remove trails; both are 44x44 icon buttons. */
+.np .rows > li { display: flex; align-items: center; }
+.np .rows > li > .row-btn { flex: 1; min-width: 0; }
+.queue-grip, .queue-remove { color: var(--text-2); }
+.queue-grip:hover, .queue-grip:focus-visible, .queue-remove:hover, .queue-remove:focus-visible { color: var(--text); }
+.queue-grip { touch-action: none; cursor: grab; }
+.queue-grip:focus-visible, .queue-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.np .rows.sorting > li { transition: transform .18s var(--ease); }
+.np .rows.sorting > li.lifted { transition: none; position: relative; z-index: 1; background: var(--ink-raised); border-radius: var(--r-s); box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
+.np .rows.sorting .queue-grip { cursor: grabbing; }
+@media (prefers-reduced-motion: reduce) { .np .rows.sorting > li { transition: none; } }

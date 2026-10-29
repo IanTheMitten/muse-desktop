@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { CoverArt } from "./CoverArt";
 
 const fmt = (ms: number) => {
@@ -16,13 +18,16 @@ export function TrackRow(props: {
   unplayable: string | null;
   onPlay: () => void;
   variant?: "plain" | "song" | "queue" | "chart";
+  leading?: ReactNode;
+  trailing?: ReactNode;
 }) {
-  const { n, title, sub, durationMs, artSrc, current, paused, unplayable, onPlay, variant = "plain" } = props;
+  const { n, title, sub, durationMs, artSrc, current, paused, unplayable, onPlay, variant = "plain", leading, trailing } = props;
   const showArt = artSrc !== undefined && variant !== "plain";
   const playable = unplayable === null;
   const label = playable ? sub : unplayable;
   return (
     <li className={paused ? "paused" : undefined}>
+      {leading}
       <button
         type="button"
         className={`row-btn row-${variant}`}
@@ -53,6 +58,7 @@ export function TrackRow(props: {
         </span>
         <span className="row-dur">{durationMs !== null ? fmt(durationMs) : ""}</span>
       </button>
+      {trailing}
     </li>
   );
 }

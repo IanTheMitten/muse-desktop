@@ -1,10 +1,13 @@
 import { withToken } from "../token";
 import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyEvent, PointerEvent as ReactPointerEvent } from "react";
 
 import type { Track } from "../api";
 import { CoverArt } from "../components/CoverArt";
 import {
+  CloseIcon,
   CollapseIcon,
+  GripIcon,
   NextIcon,
   PauseIcon,
   PlayIcon,
@@ -48,6 +51,7 @@ export function NowPlayingSheet() {
     current, playing, positionMs, durationMs, queue, index,
     toggle, next, previous, seek, rate, shuffle, repeat,
     toggleShuffle, cycleRepeat, playQueue, reasonsFor, playingFrom,
+    moveInQueue, removeFromQueue,
   } = usePlayer();
   const { open, panel, hide, setPanel } = useSheet();
   const wide = useWide();
@@ -270,6 +274,8 @@ export function NowPlayingSheet() {
                     }))}
                     isMuse={(rowid) => reasonsFor(rowid) != null}
                     onPlay={(at) => playQueue(queue, at, playingFrom ?? undefined)}
+                    onMove={moveInQueue}
+                    onRemove={removeFromQueue}
                   />
                 )}
               </div>
@@ -342,33 +348,37 @@ function UpNext({
   rows,
   isMuse,
   onPlay,
+  onMove,
+  onRemove,
 }: {
   albumName: string;
   rows: { track: Track; at: number }[];
   isMuse: (rowid: number) => boolean;
   onPlay: (at: number) => void;
+  onMove: (from: number, to: number) => void;
+  onRemove: (at: number) => void;
 }) {
+  // After a keyboard move the row remounts under a new key; focus follows by index.
+  const focusAt = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusAt.current === null) return;
+    document
+      .querySelector<HTMLElement>(`.np .queue-grip[data-at="${focusAt.current}"]`)
+      ?.focus({ preventScroll: true });
+    focusAt.current = null;
+  });
   if (rows.length === 0) {
     return <p className="lyrics-note">Nothing queued after this one.</p>;
   }
+  const move = (from: number, to: number, focus: boolean) => {
+    if (focus) focusAt.current = to;
+    onMove(from, to);
+  };
   const group = (label: string, list: typeof rows) =>
     list.length > 0 && (
       <>
         <h3 className="queue-h">{label}</h3>
-        <ul className="rows">
-          {list.map(({ track, at }) => (
-            <TrackRow
-              key={`${track.track_rowid}-${at}`}
-              variant="queue"
-              title={track.track_name}
-              sub={track.artist_name}
-              durationMs={track.duration_ms}
-              artSrc={track.has_art ? `/api/tracks/${track.track_rowid}/art` : null}
-              unplayable={unplayableReason(track)}
-              onPlay={() => onPlay(at)}
-            />
-          ))}
-        </ul>
+        <QueueGroup list={list} onPlay={onPlay} onMove={move} onRemove={onRemove} />
       </>
     );
   return (
@@ -376,5 +386,139 @@ function UpNext({
       {group(`Next from ${albumName}`, rows.filter((r) => !isMuse(r.track.track_rowid)))}
       {group("Then Muse continues with", rows.filter((r) => isMuse(r.track.track_rowid)))}
     </>
+  );
+}
+
+type Drag = { i: number; target: number; dy: number };
+
+function QueueGroup({
+  list,
+  onPlay,
+  onMove,
+  onRemove,
+}: {
+  list: { track: Track; at: number }[];
+  onPlay: (at: number) => void;
+  onMove: (from: number, to: number, focus: boolean) => void;
+  onRemove: (at: number) => void;
+}) {
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const ul = useRef<HTMLUListElement>(null);
+  const live = useRef<{ y0: number; h: number[] } | null>(null);
+
+  const cancel = () => {
+    live.current = null;
+    setDrag(null);
+  };
+  // Esc drops the row back; it must not also close the sheet.
+  useEffect(() => {
+    if (!drag) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      cancel();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [drag === null]);
+
+  const start = (e: ReactPointerEvent<HTMLButtonElement>, i: number) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const ul = e.currentTarget.closest("ul");
+    if (!ul) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const h = Array.from(ul.children).map((li) => li.getBoundingClientRect().height);
+    live.current = { y0: e.clientY, h };
+    setDrag({ i, target: i, dy: 0 });
+  };
+  const drift = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!drag || !live.current) return;
+    const { y0, h } = live.current;
+    const before = h.slice(0, drag.i).reduce((a, b) => a + b, 0);
+    const after = h.slice(drag.i + 1).reduce((a, b) => a + b, 0);
+    const dy = Math.max(-before, Math.min(after, e.clientY - y0));
+    let target = drag.i;
+    let run = 0;
+    if (dy > 0) {
+      for (let j = drag.i + 1; j < h.length && dy > run + h[j] / 2; j++) {
+        run += h[j];
+        target = j;
+      }
+    } else {
+      for (let j = drag.i - 1; j >= 0 && -dy > run + h[j] / 2; j--) {
+        run += h[j];
+        target = j;
+      }
+    }
+    setDrag({ i: drag.i, target, dy });
+  };
+  const finish = () => {
+    if (drag && drag.target !== drag.i) onMove(list[drag.i].at, list[drag.target].at, false);
+    cancel();
+  };
+  const key = (e: ReactKeyEvent<HTMLButtonElement>, k: number) => {
+    const to = k + (e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0);
+    if (to === k || to < 0 || to >= list.length) return;
+    e.preventDefault();
+    onMove(list[k].at, list[to].at, true);
+  };
+  // Rows the lifted one passes make room by one lifted-row height, transform
+  // only. Set on the <li>s directly: TrackRow owns them and takes no style.
+  useEffect(() => {
+    const lis = Array.from(ul.current?.children ?? []) as HTMLElement[];
+    lis.forEach((li, k) => {
+      let y = 0;
+      if (drag && live.current) {
+        const { i, target, dy } = drag;
+        const h = live.current.h[i];
+        if (k === i) y = dy;
+        else if (k > i && k <= target) y = -h;
+        else if (k < i && k >= target) y = h;
+      }
+      li.style.transform = y ? `translateY(${y}px)` : "";
+      li.classList.toggle("lifted", drag?.i === k);
+    });
+  }, [drag]);
+
+  return (
+    <ul className={drag ? "rows sorting" : "rows"} ref={ul}>
+      {list.map(({ track, at }, k) => (
+        <TrackRow
+          key={`${track.track_rowid}-${at}`}
+          variant="queue"
+          title={track.track_name}
+          sub={track.artist_name}
+          durationMs={track.duration_ms}
+          artSrc={track.has_art ? `/api/tracks/${track.track_rowid}/art` : null}
+          unplayable={unplayableReason(track)}
+          onPlay={() => onPlay(at)}
+          leading={
+            <button
+              type="button"
+              className="icon-btn queue-grip"
+              data-at={at}
+              aria-label={`Move ${track.track_name}`}
+              onPointerDown={(e) => start(e, k)}
+              onPointerMove={drift}
+              onPointerUp={finish}
+              onPointerCancel={cancel}
+              onKeyDown={(e) => key(e, k)}
+            >
+              <GripIcon />
+            </button>
+          }
+          trailing={
+            <button
+              type="button"
+              className="icon-btn queue-remove"
+              aria-label={`Remove ${track.track_name} from queue`}
+              onClick={() => onRemove(at)}
+            >
+              <CloseIcon />
+            </button>
+          }
+        />
+      ))}
+    </ul>
   );
 }
