@@ -1,6 +1,7 @@
 // Smoke driver: injected only when MUSE_SMOKE_REPORT is set. Decodes the fixture songs through the real stream URLs.
 document.addEventListener("DOMContentLoaded", async () => {
-  if (location.protocol !== "http:" || location.pathname !== "/") return;
+  // Windows serves the boot page from http://tauri.localhost/, so check the host too.
+  if (location.protocol !== "http:" || location.hostname !== "127.0.0.1" || location.pathname !== "/") return;
   const token = window.__MUSE_TOKEN__;
   const headers = { "X-Muse-Token": token };
   const types = {

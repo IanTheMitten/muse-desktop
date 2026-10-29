@@ -16,7 +16,10 @@ no request (D4).
 """
 
 import argparse
-import fcntl
+try:
+    import fcntl
+except ImportError:  # shortcut: Windows has no flock, so the batch lock is a no-op there; upgrade to msvcrt.locking if a second writer ever appears
+    fcntl = None
 import json
 import logging
 import os
@@ -55,7 +58,8 @@ def exclusive(library_db: Path):
     live job row."""
     fd = os.open(lock_path(library_db), os.O_CREAT | os.O_RDWR, 0o644)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         os.close(fd)
         log.info("Lyric tag batch already running (lock held at %s)", lock_path(library_db))
@@ -67,7 +71,8 @@ def exclusive(library_db: Path):
     try:
         yield True
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
 
