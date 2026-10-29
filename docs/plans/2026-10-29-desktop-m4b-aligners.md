@@ -116,7 +116,7 @@ CONSTRAINTS: WCAG AA; Tap pill 64px tall (>=44px); Space on a window `keydown` l
 Round note: Task 2 commits a red test. Tasks 4, 5 and 6 verify with their own test files only; the phase gate runs the full suite (`uv run pytest -p no:cacheprovider`, `npm --prefix web test`).
 
 ### Task 1: Preflight the aligner artifacts and add the worker deps
-- [ ] status
+- [x] status
 **Objective:** A recorded proof that schufo's weights load into its model under torch 2.15, MMS-FA loads through transformers 5.22 from three files, and `uroman` and `py3langid` work offline, with timings for a 240 s input.
 **Write-scope:** `pyproject.toml`
 `uv.lock`

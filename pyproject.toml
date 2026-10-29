@@ -25,6 +25,8 @@ embed = [
     "numpy",
     "av==19.0.2",
     "laya==0.3.20",
+    "uroman==1.3.1.1",
+    "py3langid==0.4.0",
 ]
 # Only muse/ingest.py's real providers need these — yt-dlp for audio, mutagen
 # for m4a tagging, lyricsgenius for the Genius lyrics fallback. Everything
