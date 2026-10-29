@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import tags as _tags
 from .tags import AUDIO_EXTENSIONS
-from .library import lyrics_state
+from .library import lyrics_state, overrides
 from .library.art import record_cover
 from .library.tracks import (
     album_rowid_for_key,
@@ -166,14 +166,16 @@ def scan(
         if row is None:
             new.append((path, st, t))
             continue
-        f = _fields(path, t)
+        f = overrides.apply(conn, row["track_rowid"], _fields(path, t))
+        album_rowid = album_rowid_for_key(conn, f["album_key"])
         conn.execute(
             "UPDATE tracks SET track_name=?, artist_name=?, artist_names=?, album_name=?,"
             " album_key=?, album_rowid=?, track_no=?, disc_no=?, duration_ms=?, isrc=?,"
+            " art_path=COALESCE((SELECT art_path FROM album_art WHERE album_rowid = ?), art_path),"
             " year=?, file_size=?, file_mtime=?, status='done', error=NULL WHERE track_rowid=?",
             (f["track_name"], f["artist_name"], json.dumps([f["artist_name"]]),
-             f["album_name"], f["album_key"], album_rowid_for_key(conn, f["album_key"]),
-             f["track_no"], f["disc_no"], f["duration_ms"], f["isrc"],
+             f["album_name"], f["album_key"], album_rowid,
+             f["track_no"], f["disc_no"], f["duration_ms"], f["isrc"], album_rowid,
              f["year"], st.st_size, int(st.st_mtime), row["track_rowid"]))
         index_track(conn, row["track_rowid"], f["track_name"], f["artist_name"], f["album_name"])
         res.updated += 1
@@ -184,9 +186,12 @@ def scan(
         key=lambda r: r["track_rowid"])
     for path, st, t in new:
         f = _fields(path, t)
-        key = (st.st_size, f["duration_ms"], f["artist_name"], f["album_name"], f["track_name"])
-        match = next((r for r in vanished if (r["file_size"], r["duration_ms"], r["artist_name"],
-                                              r["album_name"], r["track_name"]) == key), None)
+        def same(r):
+            g = overrides.apply(conn, r["track_rowid"], f)
+            return (r["file_size"], r["duration_ms"], r["artist_name"], r["album_name"],
+                    r["track_name"]) == (st.st_size, g["duration_ms"], g["artist_name"],
+                                         g["album_name"], g["track_name"])
+        match = next((r for r in vanished if same(r)), None)
         if match is not None:
             vanished.remove(match)
             conn.execute(
