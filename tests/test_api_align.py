@@ -7,6 +7,7 @@ import inspect
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from muse.api import AlignRequest, TappedTimings, create_app
 from muse.library import db
@@ -135,6 +136,11 @@ async def test_put_lrc_decreasing_is_400(app, tmp_path):
         await call(route(app, PUT_LRC), 1, TappedTimings(starts_ms=[1000, 3000, 2000]))
     assert err.value.status_code == 400
     assert err.value.detail == "Timings must not go backwards"
+
+
+def test_tapped_timings_negative_rejected():
+    with pytest.raises(ValidationError):
+        TappedTimings(starts_ms=[-1, 0])
 
 
 async def test_put_lrc_unknown_track_is_404(app, tmp_path):

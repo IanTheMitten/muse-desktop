@@ -15,7 +15,7 @@ import sqlite3
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 # `Path` here would shadow `pathlib.Path`, which this module uses far more
 # often, so the path-parameter declarer comes in under its own name.
@@ -243,7 +243,7 @@ class AlignRequest(BaseModel):
 
 
 class TappedTimings(BaseModel):
-    starts_ms: list[int] = Field(max_length=5000)
+    starts_ms: list[Annotated[int, Field(ge=0)]] = Field(max_length=5000)
 
 
 class LyricsWrite(BaseModel):
