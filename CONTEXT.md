@@ -9,7 +9,7 @@ and your own listening history. See
 **Data dir**:
 The one directory (`MUSE_DATA_DIR`, default `./data`) under which Muse keeps
 everything it writes: `library.sqlite3`, `lyrics/`, `art/`, `downloads/`,
-`settings.json`. Each path can be overridden singly. Music folders are not in
+`models/`, `settings.json`. Each path can be overridden singly. Music folders are not in
 it; they stay where the user keeps them and are never written.
 _Avoid_: Library (that is the tracks table, not the directory).
 
@@ -23,7 +23,36 @@ _Avoid_: Wrapper, client (the UI is served by the sidecar, not by the shell).
 **Sidecar**:
 The frozen Python server (`muse-core`, built by `scripts/freeze_sidecar.py`)
 that the shell spawns: `python -m muse` with the web UI bundled in.
-_Avoid_: Backend, worker (the ML worker is an M4 thing).
+_Avoid_: Backend, worker (the ML worker is a different process, below).
+
+**ML worker**:
+The separate process (`muse/worker_main.py`, frozen as `muse-worker`) that
+holds every model: CLAP, MiniLM, both emotion models, MERT and Laya. The sidecar
+talks to it through `muse/worker.py` (`WorkerClient`), starts it on the first
+request, stops it after 120 s idle and starts it at most twice per `begin()`
+session (a crashing worker fails the job once and is relaunched once). Only it imports torch.
+_Avoid_: Sidecar (that is the API server), backend.
+
+**Worker protocol**:
+`PROTOCOL = 1`. One JSON object per stdin line, `{"id": <int>, "op": <str>, ...}`;
+one reply per stdout line, `{"id": <int>, "ok": <result>}` or
+`{"id": <int|null>, "error": "<message>"}`. Ops: `hello`, `clap_audio`,
+`clap_text`, `minilm`, `audio_va`, `lyrics_va`, `mert`, `laya`. stdout carries
+only protocol lines; stdin EOF ends the worker.
+
+**Smart features**:
+The ML legs and Laya lyric tags together: the embed backfill, the MERT content
+batch, lyric tagging and vibe search. On when `smart.installed()` (or
+`config.embed_batch` in development). Off, the app plays and browses and vibe
+search answers 503. Reported by `GET /api/smart` as `installed`,
+`not_installed` or `unsupported`.
+_Avoid_: ML features, AI (the worker runs fixed models; the word promises more).
+
+**Smart-features installer**:
+`muse/smart.py`: downloads the weights and the worker archive listed in
+`muse/smart_manifest.json` into `models/`, each file checked by sha256, resumable
+from a `.part` file, then writes `installed.json`. Runs as the `smart_install`
+job (`POST /api/smart/install`).
 
 **Parent watch**:
 With `MUSE_PARENT_WATCH=1`, the sidecar reads stdin on a daemon thread
@@ -88,8 +117,9 @@ is deterministic: not under shuffle and not under repeat-one.
 **Launch chain**:
 The sequence `run_chain` in `muse/api.py` runs at startup and again after every
 watcher event, folder change or `POST /api/scan`: scan, lyrics sync, art
-backfill, and (launch only, when the last retrain is over a day old) a taste
-retrain. One `asyncio.Lock` serializes it because the shared connection cannot
+backfill, then, when smart features are on, the embed backfill, the MERT
+content batch and Laya lyric tagging, and (launch only, when the last retrain is
+over a day old) a taste retrain. One `asyncio.Lock` serializes it because the shared connection cannot
 hold two transactions.
 
 **Leg**:
@@ -124,7 +154,7 @@ unnormalized 2D valence-arousal point, since VA is a bounded plane, not a
 direction). `muse/embed.py` is the only module that imports torch, and only
 inside the real encoders' `__init__` — never at module import time — so the
 default test run and the app itself never pay for it unless
-`config.embed_batch` is on.
+smart features are installed (or `config.embed_batch` is on).
 _Avoid_: Model wrapper (too generic — the point of the name is the seam,
 not that it wraps a model).
 
@@ -142,9 +172,8 @@ audio+text).
 
 **Content vec**:
 A 768-dimension per-track vector (`content_embeddings.content_vec`) from
-pretrained MERT-v1-95M, computed by `universal_reco` — a separate project
-with its own virtualenv that `muse` never imports, invoked as a subprocess
-batch (`python -m muse.content_embed_batch`). Stored **raw**, not
+pretrained MERT-v1-95M, computed by the ML worker (`mert` op) in a batch
+(`python -m muse.content_embed_batch`, or the launch chain). Stored **raw**, not
 L2-normalized like `audio_vec` and `lyrics_vec`: MERT's output is
 anisotropic, so `reco.content_sim` subtracts the corpus mean
 (`content_stats.mean_vec`) before comparing and rescales through two
@@ -405,12 +434,10 @@ this actually is).
 
 **System One backend**:
 A model that answers typed `questions` against a `state` with probabilities
-and generates no text — `choice`, `score`, or `noul` — reached over
-`POST /v1/systemone`, one wire protocol both vendors speak. Jev is hosted
-(`https://api.typesafe.ai`, a paid model id required); Laya is local
-(`laya-serve`, no key, no model). `muse/systemone.py` is the one HTTP client
-for both; the A/B between them is that one client against two base URLs,
-never two clients that could drift apart.
+and generates no text — `choice`, `score`, or `noul`. In the desktop app that
+is Laya, loaded inside the ML worker and reached by the `laya` op
+(`muse.worker.worker_ask`); no key, no server. The hosted model and its HTTP
+client are gone.
 _Avoid_: LLM (neither model generates text; System One primitives return
 typed answers with probabilities, not prose).
 

@@ -549,7 +549,7 @@ Negative result is a valid outcome.
 ## Phase 6 - Docs and proof
 
 ### Task 16: Docs for the worker, smart features, licences and brand [docs]
-- [ ] status
+- [x] status
 **Objective:** README, CLAUDE.md, CONTEXT.md and DESIGN.md describe M4a as built.
 **Write-scope:**
 `README.md`
