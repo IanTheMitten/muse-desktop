@@ -27,6 +27,7 @@ TRACK_FIELDS = """
     lyrics_path IS NOT NULL AS has_lyrics,
     gain_db,
     format,
+    year,
     -- A correlated subquery rather than a join: every one of these queries
     -- would otherwise need its own LEFT JOIN, and over 723 rows the difference
     -- is unmeasurable. It rides along so a rating is visible everywhere a
@@ -64,23 +65,60 @@ def artists(conn: sqlite3.Connection) -> list[dict]:
         "       (SELECT a.album_rowid FROM tracks a"
         "         WHERE a.artist_name = tracks.artist_name"
         "           AND a.art_path IS NOT NULL"
-        "         ORDER BY a.album_rowid LIMIT 1) AS art_album_rowid"
+        "         ORDER BY a.album_rowid LIMIT 1) AS art_album_rowid,"
+        "       EXISTS (SELECT 1 FROM artist_images i"
+        "                WHERE i.artist_name = tracks.artist_name) AS has_image"
         "  FROM tracks"
         " WHERE status IN ('done', 'missing_file')"
+        "   AND artist_name NOT IN (SELECT artist_name FROM hidden_artists)"
         " GROUP BY artist_name"
         " ORDER BY LOWER(LTRIM(REPLACE(artist_name, 'The ', ''))) COLLATE NOCASE"
     ).fetchall()
-    return [dict(row) for row in rows]
+    return [dict(row) | {"has_image": bool(row["has_image"])} for row in rows]
 
 
-def songs(conn: sqlite3.Connection) -> list[dict]:
-    """Every owned song by title, for the Songs tab's unfiltered list."""
+SONG_SORTS = {
+    "title": "track_name COLLATE NOCASE",
+    "added": "added_at",
+    "plays": "(SELECT COUNT(*) FROM plays p WHERE p.track_rowid = tracks.track_rowid)",
+    "year": "year",
+    "duration": "duration_ms",
+}
+
+
+def songs(conn: sqlite3.Connection, sort: str = "title", order: str = "asc") -> list[dict]:
+    """Every owned song, for the Songs tab's list; NULLs sort last either way."""
+    if sort not in SONG_SORTS or order not in ("asc", "desc"):
+        raise ValueError(f"bad sort {sort!r} {order!r}")
+    col = SONG_SORTS[sort]
+    nulls = "" if sort == "title" else f"{col} IS NULL, "
     rows = conn.execute(
         f"SELECT {TRACK_FIELDS} FROM tracks"
         " WHERE status IN ('done', 'missing_file')"
-        " ORDER BY track_name COLLATE NOCASE, track_rowid"
+        f" ORDER BY {nulls}{col} {order.upper()}, track_name COLLATE NOCASE, track_rowid"
     ).fetchall()
     return [_track(row) for row in rows]
+
+
+def duplicates(conn: sqlite3.Connection) -> list[list[dict]]:
+    """Clusters of 2+ tracks with the same normalized title and artist, within 2s."""
+    rows = conn.execute(
+        f"SELECT {TRACK_FIELDS} FROM tracks"
+        " WHERE status IN ('done', 'missing_file') AND duration_ms IS NOT NULL"
+        " ORDER BY duration_ms, track_rowid"
+    ).fetchall()
+    groups: dict[tuple, list[list[dict]]] = {}
+    for row in rows:
+        t = _track(row)
+        clusters = groups.setdefault(
+            (normalize_title(t["track_name"]), t["artist_name"].casefold()), [])
+        if clusters and t["duration_ms"] - clusters[-1][0]["duration_ms"] <= 2000:
+            clusters[-1].append(t)
+        else:
+            clusters.append([t])
+    found = [(k, c) for k, cs in groups.items() for c in cs if len(c) > 1]
+    found.sort(key=lambda kc: (kc[0], kc[1][0]["track_rowid"]))
+    return [c for _, c in found]
 
 
 def albums(conn: sqlite3.Connection) -> list[dict]:
@@ -320,7 +358,8 @@ def tracks_by_rowid(
         return []
     placeholders = ",".join("?" * len(rowids))
     rows = conn.execute(
-        f"SELECT {TRACK_FIELDS} FROM tracks WHERE track_rowid IN ({placeholders})",
+        f"SELECT {TRACK_FIELDS} FROM tracks WHERE track_rowid IN ({placeholders})"
+        " AND status != 'removed'",
         rowids,
     ).fetchall()
     found = {row["track_rowid"]: _track(row) for row in rows}

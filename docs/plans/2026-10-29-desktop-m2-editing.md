@@ -259,7 +259,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Spec testing strategy lists queue edits and the crossfade span close for `PlayerContext`; pinning them as pure functions keeps them testable without a DOM.
 
 ### Task 5: Queue and crossfade modules, PlayerContext queue editing
-- [ ] status
+- [x] status
 **Objective:** `queue.ts` and `crossfade.ts` pass Task 4's tests, and `PlayerContext` exposes `playNext`, `moveInQueue` and `removeFromQueue`.
 **Write-scope:**
 `web/src/player/queue.ts` (new)
@@ -313,7 +313,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decision 7: an override wins on every read and every rescan. The scanner interaction (re-read, move match) is where this breaks silently.
 
 ### Task 7: Tag override layer and scanner integration
-- [ ] status
+- [x] status
 **Objective:** `muse/library/overrides.py` exists, the scanner re-applies overrides on re-read and move, and Task 6 passes.
 **Write-scope:**
 `muse/library/overrides.py` (new)
@@ -368,7 +368,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decision 10 and the M1 leftover: something must set `removed_at`. Read-time filtering makes restore lossless.
 
 ### Task 9: Library reads: sort, year, duplicates, hidden artists, artist images
-- [ ] status
+- [x] status
 **Objective:** `queries.songs` sorts server-side, tracks carry `year`, duplicates group, hidden artists leave the artist list, and artist images and hidden flags have a store.
 **Write-scope:**
 `muse/library/queries.py`
