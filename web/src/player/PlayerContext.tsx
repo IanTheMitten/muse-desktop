@@ -19,8 +19,17 @@ import {
   type Reasons,
   type Track,
 } from "../api";
-import { attachGain, resumeGainContext, setGain } from "./gain";
-import { append, insertNext, move, nextIndex, removeAt } from "./queue";
+import { attachGain, resumeGainContext, setFade, setGain } from "./gain";
+import {
+  GAPLESS_LEAD_MS,
+  fadeGains,
+  fadeMs,
+  getCrossfadeSeconds,
+  handoffAtMs,
+  handoffClose,
+} from "./crossfade";
+import { unplayableReason } from "./formats";
+import { append, insertNext, move, nextIndex, removeAt, upcomingIndex } from "./queue";
 import {
   PAUSE_TIMEOUT_MS,
   beatSpan,
@@ -35,8 +44,8 @@ import {
   type RepeatMode,
 } from "./sync";
 
-/* The audio element lives here, above the router, and is rendered exactly
- * once. This is structural, not an optimisation: an <audio> element inside a
+/* The audio elements live here, above the router, and are rendered exactly
+ * once (a pair, so the next track can be preloaded and handed off to). This is structural, not an optimisation: an audio element inside a
  * route unmounts the moment the listener taps an artist, and the music stops.
  *
  * The queue lives on the server (ticket 04), so closing the laptop mid-song
@@ -156,7 +165,10 @@ export function usePlayer(): PlayerApi {
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const audio = useRef<HTMLAudioElement | null>(null);
+  const pair = useRef<(HTMLAudioElement | null)[]>([null, null]);
+  const active = useRef(0);
+  const el = () => pair.current[active.current];
+  const standby = () => pair.current[1 - active.current];
 
   const [queue, setQueue] = useState<Track[]>([]);
   const [index, setIndex] = useState(0);
@@ -232,6 +244,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seekCount = useRef(0);
   const positionRef = useRef(0);
   const pauseTimer = useRef<number | null>(null);
+
+  /* Gapless/crossfade handoff state. `preloaded` is the standby's track,
+   * `handedOff` the rowid a handoff started so the load effect does not reload
+   * it, `fading` keeps the preload effect off the outgoing element. */
+  const preloaded = useRef<{ rowid: number; at: number } | null>(null);
+  const handoffTimer = useRef<number | null>(null);
+  const handedOff = useRef<number | null>(null);
+  const fadeOut = useRef<{ el: HTMLAudioElement; ms: number } | null>(null);
+  const fading = useRef(false);
+  const fadeTimer = useRef<number | null>(null);
+  const [fadeDone, setFadeDone] = useState(0);
 
   const current = queue[index] ?? null;
 
@@ -335,7 +358,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const clearQueue = useCallback(() => {
     autoplay.current = false;
-    audio.current?.pause();
+    if (handoffTimer.current != null) clearTimeout(handoffTimer.current);
+    handoffTimer.current = null;
+    pair.current.forEach((node) => node?.pause());
     setQueue([]);
     setIndex(0);
     setPositionMs(0);
@@ -357,7 +382,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [queue.length, shuffle, repeat]);
 
   const previous = useCallback(() => {
-    const element = audio.current;
+    const element = el();
     // Standard player behaviour: previous restarts the track unless you are
     // already near its start.
     if (element && element.currentTime > 3) {
@@ -370,20 +395,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggle = useCallback(() => {
-    const element = audio.current;
+    const element = el();
     if (!element || !current) return;
     resumeGainContext();
     if (element.paused) {
       autoplay.current = true;
       void element.play();
     } else {
+      if (handoffTimer.current != null) clearTimeout(handoffTimer.current);
+      handoffTimer.current = null;
       element.pause();
     }
   }, [current]);
 
   const seek = useCallback((ms: number) => {
-    const element = audio.current;
+    const element = el();
     if (!element) return;
+    if (handoffTimer.current != null) clearTimeout(handoffTimer.current);
+    handoffTimer.current = null;
     element.currentTime = ms / 1000;
     setPositionMs(ms);
     // How much the listener fidgeted is physical fact and part of the record.
@@ -663,15 +692,65 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // --- load the selected track ------------------------------------------
   useEffect(() => {
-    const element = audio.current;
+    const element = el();
     if (!element || !current) return;
 
-    element.src = withToken(`/api/tracks/${current.track_rowid}/stream`);
-    element.load();
-    setGain(current.gain_db);
-
-    if (autoplay.current) {
+    if (handedOff.current === current.track_rowid) {
+      // The preloaded element is already the active one: start it, don't reload.
+      handedOff.current = null;
+      setGain(element, current.gain_db);
+      const out = fadeOut.current;
+      fadeOut.current = null;
+      const ms = out?.ms ?? 0;
+      const seconds = element.duration;
+      setDurationMs(Number.isFinite(seconds) ? seconds * 1000 : 0);
+      setFade(element, ms > 0 ? 0 : 1);
       void element.play().catch(() => setPlaying(false));
+      fading.current = true;
+      if (fadeTimer.current != null) {
+        clearInterval(fadeTimer.current);
+        clearTimeout(fadeTimer.current);
+      }
+      if (out && ms > 0) {
+        const t0 = performance.now();
+        fadeTimer.current = window.setInterval(() => {
+          const elapsed = performance.now() - t0;
+          const g = fadeGains(elapsed, ms);
+          setFade(out.el, g.out);
+          setFade(element, g.in);
+          if (elapsed < ms) return;
+          clearInterval(fadeTimer.current!);
+          fadeTimer.current = null;
+          out.el.pause();
+          setFade(out.el, 1);
+          fading.current = false;
+          setFadeDone((n) => n + 1);
+        }, 50);
+      } else {
+        fadeTimer.current = window.setTimeout(() => {
+          fadeTimer.current = null;
+          fading.current = false;
+          setFadeDone((n) => n + 1);
+        }, GAPLESS_LEAD_MS * 2);
+      }
+    } else {
+      handedOff.current = null;
+      standby()?.pause();
+      if (fadeTimer.current != null) {
+        clearInterval(fadeTimer.current);
+        clearTimeout(fadeTimer.current);
+      }
+      fadeTimer.current = null;
+      fading.current = false;
+      pair.current.forEach((node) => node && setFade(node, 1));
+
+      element.src = withToken(`/api/tracks/${current.track_rowid}/stream`);
+      element.load();
+      setGain(element, current.gain_db);
+
+      if (autoplay.current) {
+        void element.play().catch(() => setPlaying(false));
+      }
     }
 
     // Closing happens on the way out, with the reason the listener's action
@@ -679,6 +758,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // close as `lost`, which is the honest record of a client that stopped
     // reporting.
     return () => {
+      if (handoffTimer.current != null) clearTimeout(handoffTimer.current);
+      handoffTimer.current = null;
       endSpan(closingReason.current);
       closingReason.current = "new_selection";
       seekCount.current = 0;
@@ -686,11 +767,55 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [current, endSpan]);
 
+  // Preload the one track that certainly plays next into the standby element.
+  // After the load effect so a fade it just started is already `fading`.
+  useEffect(() => {
+    if (fading.current) return;
+    const at = upcomingIndex(queue.length, index, { shuffle, repeat });
+    const t = at == null ? null : queue[at];
+    const spare = standby();
+    if (at != null && t && spare && unplayableReason(t) === null) {
+      const p = preloaded.current;
+      if (p && p.rowid === t.track_rowid && p.at === at) return;
+      spare.src = withToken(`/api/tracks/${t.track_rowid}/stream`);
+      spare.preload = "auto";
+      spare.load();
+      preloaded.current = { rowid: t.track_rowid, at };
+    } else {
+      preloaded.current = null;
+    }
+  }, [current, queue, index, shuffle, repeat, fadeDone]);
+
+  /** Start the preloaded track now; the outgoing span closes where it stopped. */
+  const doHandoff = () => {
+    handoffTimer.current = null;
+    const p = preloaded.current;
+    const outgoing = el();
+    if (!p || !outgoing || outgoing.paused) return;
+    if (queueRef.current[p.at]?.track_rowid !== p.rowid) return;
+    if (playId.current != null) {
+      const c = handoffClose(positionRef.current);
+      void closeSpan(playId.current, c.reason, c.positionMs);
+      playId.current = null;
+    }
+    seekCount.current = 0;
+    fadeOut.current = {
+      el: outgoing,
+      ms: fadeMs(outgoing.duration * 1000, getCrossfadeSeconds()),
+    };
+    active.current = 1 - active.current;
+    handedOff.current = p.rowid;
+    preloaded.current = null;
+    autoplay.current = true;
+    closingReason.current = "track_end";
+    setIndex(p.at);
+  };
+
   // A span opens when playback actually begins, not when a track is loaded:
   // a restored queue sitting paused has not been listened to.
   const beginSpan = useCallback(() => {
     if (playId.current != null || !current) return;
-    const element = audio.current;
+    const element = el();
     const durationSeconds = element?.duration;
     const trackDuration = Number.isFinite(durationSeconds)
       ? (durationSeconds as number) * 1000
@@ -702,7 +827,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     void openSpan(current.track_rowid, trackDuration, source).then((id) => {
       // Guard against a track change that happened while this was in flight.
-      if (id != null && audio.current && current === queue[index]) {
+      if (id != null && el() && current === queue[index]) {
         playId.current = id;
       } else if (id != null) {
         void closeSpan(id, "new_selection", 0);
@@ -807,8 +932,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
-      ["play", () => void audio.current?.play()],
-      ["pause", () => audio.current?.pause()],
+      ["play", () => void el()?.play()],
+      ["pause", () => el()?.pause()],
       ["nexttrack", next],
       ["previoustrack", previous],
     ];
@@ -849,28 +974,46 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext.Provider value={api}>
       {/* Rendered once, outside the router, for the lifetime of the app. */}
+      {[0, 1].map((slot) => (
       <audio
-        ref={audio}
+        key={slot}
+        ref={(node) => {
+          pair.current[slot] = node;
+        }}
         preload="metadata"
-        onPlay={() => {
+        onPlay={(event) => {
+          if (event.currentTarget !== el()) return;
           setPlaying(true);
-          attachGain(audio.current);
+          attachGain(event.currentTarget);
           beginSpan();
         }}
-        onPause={() => setPlaying(false)}
+        onPause={(event) => {
+          if (event.currentTarget !== el()) return;
+          setPlaying(false);
+        }}
         /* Deliberately no write on pause. A paused client does not write, and
          * labelling this one "playing" to sneak a final position through would
          * hand every background tab the same loophole. The cost is that a
          * pause loses up to ten seconds of position; the rule it protects is
          * worth more than that. */
         onTimeUpdate={(event) => {
+          if (event.currentTarget !== el()) return;
           const ms = event.currentTarget.currentTime * 1000;
           // A ref as well as state: the heartbeat reads the position from a
           // closure that would otherwise be a render behind.
           positionRef.current = ms;
           setPositionMs(ms);
+
+          const p = preloaded.current;
+          if (!p || handoffTimer.current != null || repeat === "one") return;
+          if (queue[p.at]?.track_rowid !== p.rowid) return;
+          const at = handoffAtMs(event.currentTarget.duration * 1000, getCrossfadeSeconds());
+          if (at != null && at - ms <= 1000) {
+            handoffTimer.current = window.setTimeout(doHandoff, Math.max(0, at - ms));
+          }
         }}
         onLoadedMetadata={(event) => {
+          if (event.currentTarget !== el()) return;
           const seconds = event.currentTarget.duration;
           setDurationMs(Number.isFinite(seconds) ? seconds * 1000 : 0);
           // A restored session resumes here, not at zero.
@@ -879,22 +1022,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             resumeAt.current = null;
           }
         }}
-        onEnded={() => {
+        onEnded={(event) => {
+          if (event.currentTarget !== el()) return;
           // Closed here rather than left to the effect, because repeat-one
           // never changes track and the span must still end honestly.
           endSpan("track_end");
           seekCount.current = 0;
           positionRef.current = 0;
 
-          if (repeat === "one" && audio.current) {
-            audio.current.currentTime = 0;
-            void audio.current.play(); // opens a fresh span
+          const element = el();
+          if (repeat === "one" && element) {
+            element.currentTime = 0;
+            void element.play(); // opens a fresh span
             return;
           }
           closingReason.current = "track_end";
           next();
         }}
       />
+      ))}
       {children}
     </PlayerContext.Provider>
   );

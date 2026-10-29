@@ -5,22 +5,25 @@
  * is already decoding every file for, fills the column, and this starts doing
  * something without any of it being rebuilt.
  *
+ * Two audio elements (gapless and crossfade) share one AudioContext, each with
+ * its own gain node, track gain and crossfade factor.
+ *
  * Two things make this delicate enough to keep in its own file.
  *
  * `createMediaElementSource` permanently reroutes an element's audio through
  * the Web Audio graph — there is no detaching it — and on iOS that interacts
- * badly with an AudioContext created before a user gesture. So the graph is
- * built on the first `play` event and never before, and every step is guarded:
+ * badly with an AudioContext created before a user gesture. So each element's graph is
+ * built on its first `play` event and never before, and every step is guarded:
  * if anything throws, the element keeps playing on its own and the listener
  * hears music rather than silence. An inert feature must never be able to
  * break the one thing this slice is for.
  */
 
 let context: AudioContext | null = null;
-let gainNode: GainNode | null = null;
-let attached = false;
-let element: HTMLAudioElement | null = null;
-let pendingGainDb: number | null = null;
+const attempted = new Set<HTMLAudioElement>();
+const nodes = new Map<HTMLAudioElement, GainNode>();
+const dbs = new Map<HTMLAudioElement, number | null>();
+const fades = new Map<HTMLAudioElement, number>();
 
 const VOLUME_KEY = "muse.volume";
 
@@ -41,56 +44,64 @@ export function setVolume(v: number): void {
   } catch {
     // not remembered, still applied
   }
-  applyGain(pendingGainDb);
+  attempted.forEach(applyGain);
 }
 
-/** Called on the first `play`, when a user gesture has definitely happened. */
+/** Called on each element's first `play`, when a user gesture has definitely happened. */
 export function attachGain(audio: HTMLAudioElement | null): void {
-  if (attached || !audio) return;
-  attached = true; // one attempt, whatever happens
-  element = audio;
+  if (!audio || attempted.has(audio)) return;
+  attempted.add(audio); // one attempt per element, whatever happens
 
   try {
-    const Ctor = window.AudioContext ?? (window as never as {
-      webkitAudioContext: typeof AudioContext;
-    }).webkitAudioContext;
-    if (!Ctor) {
-      applyGain(null);
-      return;
+    if (!context) {
+      const Ctor = window.AudioContext ?? (window as never as {
+        webkitAudioContext: typeof AudioContext;
+      }).webkitAudioContext;
+      if (!Ctor) {
+        applyGain(audio);
+        return;
+      }
+      context = new Ctor();
     }
-
-    context = new Ctor();
     const source = context.createMediaElementSource(audio);
-    gainNode = context.createGain();
-    source.connect(gainNode);
-    gainNode.connect(context.destination);
-    applyGain(pendingGainDb);
+    const node = context.createGain();
+    source.connect(node);
+    node.connect(context.destination);
+    nodes.set(audio, node);
+    applyGain(audio);
   } catch {
     // Fall back to the bare element. Unity gain is the correct behaviour in
     // slice 1 anyway, so nothing is lost until slice 2 has data.
-    context = null;
-    gainNode = null;
-    applyGain(null); // volume still reaches the bare element
+    applyGain(audio); // volume still reaches the bare element
   }
 }
 
 /** Set the gain for the track about to play. Null means unity. */
-export function setGain(gainDb: number | null): void {
-  pendingGainDb = gainDb;
-  applyGain(gainDb);
+export function setGain(audio: HTMLAudioElement, gainDb: number | null): void {
+  dbs.set(audio, gainDb);
+  applyGain(audio);
 }
 
-function applyGain(gainDb: number | null): void {
-  if (!gainNode || !context) {
-    if (element) element.volume = getVolume();
+/** Crossfade level, 0 to 1, multiplied into the element's gain. */
+export function setFade(audio: HTMLAudioElement, factor: number): void {
+  fades.set(audio, factor);
+  applyGain(audio);
+}
+
+function applyGain(audio: HTMLAudioElement): void {
+  const fade = fades.get(audio) ?? 1;
+  const node = nodes.get(audio);
+  if (!node || !context) {
+    audio.volume = Math.min(Math.max(getVolume() * fade, 0), 1);
     return;
   }
   // Decibels to amplitude, times the listener's volume. Null is unity, not zero.
-  const value = (gainDb == null ? 1 : 10 ** (gainDb / 20)) * getVolume();
+  const db = dbs.get(audio) ?? null;
+  const value = (db == null ? 1 : 10 ** (db / 20)) * getVolume() * fade;
   try {
-    gainNode.gain.setValueAtTime(value, context.currentTime);
+    node.gain.setValueAtTime(value, context.currentTime);
   } catch {
-    gainNode.gain.value = value;
+    node.gain.value = value;
   }
 }
 
