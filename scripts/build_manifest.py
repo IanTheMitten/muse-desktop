@@ -28,7 +28,20 @@ PINNED = {
     "lyrics_va": ("j-hartmann/emotion-english-distilroberta-base", "0e1cd914e3d46199ed785853e12b57304e04178b", [
         "config.json", "merges.txt", "pytorch_model.bin", "special_tokens_map.json",
         "tokenizer.json", "tokenizer_config.json", "vocab.json"]),
+    "mms": ("MahmoudAshraf/mms-300m-1130-forced-aligner", "49402e9577b1158620820667c218cd494cc44486", [
+        "config.json", "model.safetensors", "vocab.json"]),
 }
+RAW = [
+    {"path": "weights/schufo/model_parameters.pth",
+     "url": "https://raw.githubusercontent.com/schufo/lyrics-aligner/72be8a14b9126c201e0b8920513764c44ccd3f9e/model_parameters.pth",
+     "sha256": "cf907661b6e3c477b24cf61f0bdf2a08aa1cfdc1e326f112861559a81785469e", "size": 40357640},
+    {"path": "weights/schufo/cmudict.dict",
+     "url": "https://raw.githubusercontent.com/cmusphinx/cmudict/74790861f652b15e4ac49015a90074ad62a27690/cmudict.dict",
+     "sha256": "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22", "size": 3618488},
+    {"path": "weights/schufo/checkpoint20.npz",
+     "url": "https://raw.githubusercontent.com/Kyubyong/g2p/c6439c274c42b9724a7fee1dc07ca6a4c68a0538/g2p_en/checkpoint20.npz",
+     "sha256": "b8af35e4596d8dd5836dfd3fe9b2ba4f97b9c311efe8879544cbcfcbd566d8c6", "size": 3342298},
+]
 LAYA_FILES = [
     "encoder/config.json", "model.safetensors", "rl_agent_config.json",
     "tokenizer/tokenizer.json", "tokenizer/tokenizer_config.json",
@@ -87,8 +100,9 @@ def main() -> None:
     weights = []
     for key, (repo, rev, files) in PINNED.items():
         weights += hf_entries(key, repo, rev, files)
+    weights += RAW
     weights += laya_entries(args.laya_dir, args.laya_repo)
-    args.out.write_text(json.dumps({"version": 1, "weights": weights, "workers": workers}, indent=2) + "\n")
+    args.out.write_text(json.dumps({"version": 2, "weights": weights, "workers": workers}, indent=2) + "\n")
     print(f"{len(weights)} files, {sum(w['size'] for w in weights)} bytes")
 
 

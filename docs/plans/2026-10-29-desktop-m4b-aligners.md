@@ -291,7 +291,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** One op hides both aligners and the routing from the sidecar.
 
 ### Task 10: Pin the aligner weights and wire packaging
-- [ ] status
+- [x] status
 **Objective:** The manifest (version 2) carries the six aligner files, the frozen worker bundles uroman and py3langid data, and CI smokes the `align` op.
 **Write-scope:** `scripts/build_manifest.py`
 `muse/smart_manifest.json`

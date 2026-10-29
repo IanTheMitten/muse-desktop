@@ -59,8 +59,8 @@ jobs:
           enable-cache: true
       - uses: dtolnay/rust-toolchain@stable
       - run: uv run --extra embed --group package python scripts/freeze_worker.py
-      - run: uv run --extra embed python scripts/fetch_weights.py --keys mert,minilm --out build/ci-weights
-      - run: uv run python scripts/worker_smoke.py --worker build/worker-dist/muse-worker/muse-worker${{ runner.os == 'Windows' && '.exe' || '' }} --weights build/ci-weights --ops hello,mert,minilm --fixture tests/fixtures/smoke/tone.wav
+      - run: uv run --extra embed python scripts/fetch_weights.py --keys mert,minilm,schufo,mms --out build/ci-weights
+      - run: uv run python scripts/worker_smoke.py --worker build/worker-dist/muse-worker/muse-worker${{ runner.os == 'Windows' && '.exe' || '' }} --weights build/ci-weights --ops hello,mert,minilm,align --fixture tests/fixtures/smoke/tone.wav
       - uses: actions/upload-artifact@v7
         with:
           name: worker-${{ matrix.os }}
