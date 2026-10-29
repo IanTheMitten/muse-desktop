@@ -53,7 +53,8 @@ def main() -> int:
     if generated:
         log.info("Open http://127.0.0.1:%d/?t=%s", port, config.token)
 
-    server = uvicorn.Server(uvicorn.Config(create_app(config), log_level="info"))
+    # Access lines carry ?t=<token> on every media/art/SSE URL (Decision 3).
+    server = uvicorn.Server(uvicorn.Config(create_app(config), log_level="info", access_log=False))
     server.run(sockets=[sock])
     return 0
 
