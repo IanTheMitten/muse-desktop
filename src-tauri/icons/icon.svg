@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="plum" cx="0.12" cy="0.18" r="1"><stop offset="0" stop-color="#7a4b8f"/><stop offset="0.62" stop-color="#7a4b8f" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ember" cx="0.88" cy="0.12" r="1"><stop offset="0" stop-color="#b5573a"/><stop offset="0.58" stop-color="#b5573a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="teal" cx="0.82" cy="0.88" r="1"><stop offset="0" stop-color="#2f6f7e"/><stop offset="0.64" stop-color="#2f6f7e" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ochre" cx="0.08" cy="0.92" r="1"><stop offset="0" stop-color="#a8842a"/><stop offset="0.58" stop-color="#a8842a" stop-opacity="0"/></radialGradient>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect x="100" y="100" width="824" height="824" fill="#121117"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#plum)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#ember)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#teal)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#ochre)"/>
+  </g>
+  <rect x="332" y="402" width="96" height="300" rx="48" fill="#f5f3f0"/>
+  <rect x="464" y="282" width="96" height="420" rx="48" fill="#f5f3f0"/>
+  <rect x="596" y="482" width="96" height="220" rx="48" fill="#f5f3f0"/>
+</svg>

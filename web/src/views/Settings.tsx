@@ -16,6 +16,7 @@ import { RemoveDialog } from "../components/RemoveDialog";
 import { Screen } from "../components/Screen";
 import { useJobs } from "../jobs/JobsContext";
 import { getCrossfadeSeconds, setCrossfadeSeconds } from "../player/crossfade";
+import { shell } from "../shell";
 
 export function Settings() {
   const { libraryVersion } = useJobs();
@@ -87,6 +88,18 @@ function MusicFolders({
     if (await save([...folders, next])) setPath("");
   };
 
+  const choose = async () => {
+    if (!shell) return;
+    setFormError(null);
+    try {
+      const result = await shell.dialog.open({ directory: true, multiple: true });
+      if (!result) return;
+      await save([...folders, ...(Array.isArray(result) ? result : [result])]);
+    } catch (cause) {
+      setFormError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
   const rescan = async () => {
     setFormError(null);
     try {
@@ -144,6 +157,24 @@ function MusicFolders({
             </ul>
           )}
 
+          {shell ? (
+            <div className="folder-add">
+              <div className="folder-actions">
+                <button type="button" className="btn" disabled={busy} onClick={choose}>
+                  Choose folder…
+                </button>
+                <button type="button" className="btn" disabled={scanning} onClick={rescan}>
+                  Rescan now
+                </button>
+              </div>
+              <p className="folder-hint">You can also drag a folder onto this window.</p>
+              {formError && (
+                <p id="folder-error" className="error" role="alert">
+                  {formError}
+                </p>
+              )}
+            </div>
+          ) : (
           <form className="folder-add" onSubmit={add}>
             <div className="field">
               <label htmlFor="folder-path">Folder path</label>
@@ -172,6 +203,7 @@ function MusicFolders({
               </button>
             </div>
           </form>
+          )}
 
           <p className="folder-scan" role="status">
             {status}

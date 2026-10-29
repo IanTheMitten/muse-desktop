@@ -1,0 +1,38 @@
+/* Mini window: fixed 400x96 remote. The record's card wash over --ink. */
+html, body, #root { height: 100%; overflow: hidden; }
+.mini {
+  position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 400px; height: 96px; padding: 16px; overflow: hidden; background: var(--ink); color: var(--text);
+  user-select: none; -webkit-user-select: none;
+}
+.mini-wash { position: absolute; inset: 0; pointer-events: none; }
+.mini > :not(.mini-wash) { position: relative; }
+
+.mini-art { width: 64px; height: 64px; border-radius: var(--r-s); overflow: hidden; }
+.mini-art .art { width: 64px; height: 64px; }
+
+.mini-text { min-width: 0; padding-right: 4px; }
+.mini-title, .mini-artist { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-title { font-family: var(--serif); font-weight: 600; font-size: 1.0625rem; line-height: 1.25; letter-spacing: -0.01em; }
+.mini-artist { color: var(--text-2); font-size: 0.8125rem; }
+
+.mini-transport { display: flex; align-items: center; }
+.mini-btn {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r-pill); color: var(--text);
+}
+.mini-btn svg, .mini-close svg { width: 24px; height: 24px; fill: currentColor; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.mini-btn:hover { background: var(--hairline); }
+.mini-btn:active { background: var(--hairline); transform: scale(0.96); }
+.mini-btn:disabled { opacity: 0.45; cursor: default; background: none; transform: none; }
+.mini-play { background: var(--accent); color: var(--on-accent); }
+.mini-play:hover, .mini-play:active { background: var(--accent); filter: brightness(0.92); }
+.mini-play:disabled { background: var(--accent); }
+
+.mini .mini-close {
+  position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: var(--r-pill); color: var(--text-2);
+}
+.mini-close svg { width: 16px; height: 16px; fill: none; stroke-width: 1.8; }
+.mini-close:hover { background: var(--hairline); color: var(--text); }
+
+.mini :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }

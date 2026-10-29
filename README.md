@@ -3,7 +3,7 @@
 A local music player and recommender for your own music folders. No account,
 no server: it runs on your machine and only your machine can reach it.
 
-Status: alpha. Run it from source for now; unsigned builds come in M3.
+Status: alpha. Run it from source, or build the desktop app below.
 
 ## Requirements
 
@@ -25,15 +25,49 @@ token is new on every launch; set `MUSE_PORT` to pin the port.
 Add your music folders in the app's settings. Muse scans them at launch and
 watches them for changes.
 
+## Desktop app (alpha)
+
+A Tauri shell wraps the server in a native window. To build and run it from
+source on Linux, for development:
+
+```sh
+npm --prefix web ci
+npm --prefix web run build
+uv run --group package python scripts/freeze_sidecar.py
+bash scripts/tauri.sh dev
+```
+
+macOS and Windows builds come from the `package` GitHub Actions workflow. It
+runs on manual dispatch and on tags named `v*` or `ci-package-*`. The builds
+are unsigned. On macOS, right-click the app and choose Open. On Windows, in the
+SmartScreen warning choose More info, then Run anyway.
+
+The desktop app keeps its data dir in the platform's app data folder, under
+`io.github.ianthemitten.muse`:
+
+- Linux: `~/.local/share/io.github.ianthemitten.muse`
+- macOS: `~/Library/Application Support/io.github.ianthemitten.muse`
+- Windows: `%APPDATA%\io.github.ianthemitten.muse`
+
+`MUSE_DATA_DIR` overrides it. The server's log is `muse.log` in that dir; when
+Muse can't start, the start screen shows its last lines and the path.
+
+- **Tray:** closing the window hides Muse to the tray (menu bar on macOS), where
+  the menu has Play/Pause, Next, Mini player, Show Muse and Quit Muse.
+- **Mini player:** a small always-on-top window with the cover, title and
+  previous, play/pause and next buttons.
+- **Drop:** drag a folder onto the window to watch it, or a song to add it in place.
+
 ## Where data lives
 
 Everything Muse writes goes under one data dir: `MUSE_DATA_DIR`, default
-`./data`. It holds:
+`./data` (the desktop app's default is above). It holds:
 
 - `library.sqlite3`: tracks, plays, ratings, jobs
 - `lyrics/`: `.txt` and `.lrc` files keyed by track id
 - `art/`: album and artist images
-- `settings.json`: your music folders
+- `settings.json`: your music folders and any songs you dropped in
+- `muse.log`: the desktop app's server log
 - `downloads/`: output of Add, scanned like a music folder
 - `models/`: arrives with smart features (M4)
 

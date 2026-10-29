@@ -155,6 +155,19 @@ export async function putMusicFolders(folders: string[]): Promise<Settings> {
   return (await response.json()) as Settings;
 }
 
+export type ImportResult = { folders_added: number; songs_added: number; already: number; ignored: number };
+
+export async function importPaths(paths: string[]): Promise<ImportResult> {
+  const path = "/library/import";
+  const response = await apiFetch(`/api${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paths }),
+  });
+  if (!response.ok) throw await refusal(path, response);
+  return (await response.json()) as ImportResult;
+}
+
 export async function startScan(): Promise<void> {
   const response = await apiFetch("/api/scan", { method: "POST" });
   if (!response.ok) throw await refusal("/scan", response);

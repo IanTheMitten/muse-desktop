@@ -1,0 +1,15 @@
+{
+  "identifier": "default",
+  "windows": ["main", "mini"],
+  "remote": { "urls": ["http://127.0.0.1:*"] },
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "dialog:allow-open",
+    "allow-boot-status",
+    "allow-smoke-report",
+    "allow-open-mini",
+    "allow-show-main"
+  ]
+}

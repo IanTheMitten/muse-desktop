@@ -73,6 +73,7 @@ from .lyrics_lrclib import LYRICS_SYNC
 from .lyrics import lyrics_files, read_lyrics
 from .musicbrainz import MusicBrainzClient
 from .watch import watch_folders
+from .tags import AUDIO_EXTENSIONS
 from .streaming import ByteRange, Unsatisfiable, media_type_for, parse_range, read_range
 from .taste import TASTE_RETRAIN
 
@@ -126,6 +127,10 @@ class ArcPlan(BaseModel):
 
 class MusicFoldersWrite(BaseModel):
     folders: list[str]
+
+
+class ImportPaths(BaseModel):
+    paths: list[str]
 
 
 class StateWrite(BaseModel):
@@ -548,7 +553,8 @@ def create_app(
 
         async def run_chain(launch: bool) -> None:
             async with chain_lock:
-                folders = settings.music_folders(config.settings_path)
+                folders = (settings.music_folders(config.settings_path)
+                           + settings.music_files(config.settings_path))
                 try:
                     await run_scan_job(
                         conn, folders, bus, lyrics_root=config.lyrics_root,
@@ -764,14 +770,7 @@ def create_app(
     def get_settings() -> dict:
         return _settings_view()
 
-    @app.put("/api/settings/music_folders")
-    async def put_music_folders(body: MusicFoldersWrite) -> dict:
-        for p in body.folders:
-            if not Path(p).is_absolute():
-                raise HTTPException(400, f"{p} is not an absolute path")
-            if not Path(p).is_dir():
-                raise HTTPException(400, f"{p} is not a folder")
-        folders = list(dict.fromkeys(Path(p).resolve() for p in body.folders))
+    def _check_folders(folders: list[Path]) -> None:
         for a in folders:
             for b in folders:
                 if a != b and a.is_relative_to(b):
@@ -780,6 +779,16 @@ def create_app(
         for f in folders:
             if data.is_relative_to(f):
                 raise HTTPException(400, f"{f} contains the Muse data folder {data}")
+
+    @app.put("/api/settings/music_folders")
+    async def put_music_folders(body: MusicFoldersWrite) -> dict:
+        for p in body.folders:
+            if not Path(p).is_absolute():
+                raise HTTPException(400, f"{p} is not an absolute path")
+            if not Path(p).is_dir():
+                raise HTTPException(400, f"{p} is not a folder")
+        folders = list(dict.fromkeys(Path(p).resolve() for p in body.folders))
+        _check_folders(folders)
         cfg = app.state.config
         saved = settings.load(cfg.settings_path)
         saved["music_folders"] = [str(f) for f in folders]
@@ -787,6 +796,45 @@ def create_app(
         app.state.start_watcher()
         app.state.spawn_chain()
         return _settings_view()
+
+    @app.post("/api/library/import")
+    async def import_paths(body: ImportPaths) -> dict:
+        cfg = app.state.config
+        saved = settings.load(cfg.settings_path)
+        folders = [Path(p) for p in saved["music_folders"]]
+        files = list(saved["music_files"])
+        folders_added = songs_added = already = ignored = 0
+        for raw in body.paths:
+            if not Path(raw).is_absolute():
+                ignored += 1
+                continue
+            p = Path(raw).resolve()
+            listed = any(p == f or p.is_relative_to(f) for f in folders)
+            if p.is_dir():
+                if listed:
+                    already += 1
+                else:
+                    folders.append(p)
+                    folders_added += 1
+            elif p.is_file() and p.suffix.lower() in AUDIO_EXTENSIONS:
+                if listed or str(p) in files:
+                    already += 1
+                else:
+                    files.append(str(p))
+                    songs_added += 1
+            else:
+                ignored += 1
+        if folders_added:
+            _check_folders(folders)
+        if folders_added or songs_added:
+            saved["music_folders"] = [str(f) for f in folders]
+            saved["music_files"] = files
+            settings.save(cfg.settings_path, saved)
+            if folders_added:
+                app.state.start_watcher()
+            app.state.spawn_chain()
+        return {"folders_added": folders_added, "songs_added": songs_added,
+                "already": already, "ignored": ignored}
 
     @app.post("/api/scan", status_code=202)
     async def scan_now() -> dict:

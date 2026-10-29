@@ -123,6 +123,15 @@ def scan(
     files: list[Path] = []
     for folder in folders:
         folder = Path(folder).resolve()
+        if folder.suffix.lower() in AUDIO_EXTENSIONS and not folder.is_dir():
+            # One dropped song (Decision 15): read in place, rescanned with the chain, never watched.
+            if folder.is_file():
+                files.append(folder)
+            else:
+                res.missing += conn.execute(
+                    "UPDATE tracks SET status = 'missing_file' WHERE file_path = ?"
+                    " AND status = 'done' AND removed_at IS NULL", (str(folder),)).rowcount
+            continue
         if not folder.is_dir():
             for r in _rows_under(conn, folder):
                 if r["status"] == "done":

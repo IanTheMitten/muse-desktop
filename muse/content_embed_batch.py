@@ -14,7 +14,10 @@ Run it directly: `python -m muse.content_embed_batch`.
 """
 
 import argparse
-import fcntl
+try:
+    import fcntl
+except ImportError:  # shortcut: Windows has no flock, so the batch lock is a no-op there; upgrade to msvcrt.locking if a second writer ever appears
+    fcntl = None
 import logging
 import os
 import sys
@@ -81,7 +84,8 @@ def _try_acquire_lock(path: Path) -> int | None:
     """
     fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         # The one outcome that means "someone else holds it": `LOCK_NB`
         # contention raises `BlockingIOError` (confirmed empirically --
@@ -129,7 +133,8 @@ def exclusive(library_db: Path):
     try:
         yield True
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
+        if fcntl:
+            fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
 

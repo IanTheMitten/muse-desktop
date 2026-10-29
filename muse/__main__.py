@@ -8,9 +8,12 @@ must carry a per-launch token, so other local processes cannot read the library
 
 import dataclasses
 import logging
+import os
 import secrets
 import socket
 import sys
+import threading
+import time
 
 import uvicorn
 
@@ -29,6 +32,21 @@ def _listener(address: str, port: int) -> socket.socket:
     sock.listen(128)
     sock.set_inheritable(True)
     return sock
+
+
+def _exit_with_parent(server: uvicorn.Server) -> None:
+    """Stop when stdin closes: the shell that spawned us is gone (Decision 3).
+
+    A PyInstaller onefile binary is a bootloader plus a child, and killing the
+    bootloader orphans the child; a closed stdin pipe is the one signal every
+    platform delivers.
+    """
+    if sys.stdin is None:
+        return
+    sys.stdin.buffer.read()
+    server.should_exit = True
+    time.sleep(10)
+    os._exit(0)
 
 
 def main() -> int:
@@ -55,6 +73,8 @@ def main() -> int:
 
     # Access lines carry ?t=<token> on every media/art/SSE URL (Decision 3).
     server = uvicorn.Server(uvicorn.Config(create_app(config), log_level="info", access_log=False))
+    if os.environ.get("MUSE_PARENT_WATCH") == "1":
+        threading.Thread(target=_exit_with_parent, args=(server,), daemon=True).start()
     server.run(sockets=[sock])
     return 0
 

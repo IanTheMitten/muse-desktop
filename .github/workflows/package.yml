@@ -1,0 +1,43 @@
+# Builds the desktop app on the two release targets and smoke-tests it in the real webview. Manual or tag-triggered only: macOS minutes count 10x on a private repo.
+name: package
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*", "ci-package-*"]
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm --prefix web ci
+      - run: npm --prefix web run build
+      - run: uv run --group package python scripts/freeze_sidecar.py
+      - run: web/node_modules/.bin/tauri build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+      - run: uv run python scripts/shell_smoke.py --binary src-tauri/target/release/muse-shell --expect mp3,flac,m4a,wav --report-out smoke-report.json
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-${{ matrix.os }}
+          path: smoke-report.json

@@ -442,12 +442,12 @@ async def run_scan_job(
     """Scan the library folders into the database, once.
 
     Returns None without a row when a scan is already running or no folder
-    exists (an unplugged drive is not an error).
+    or dropped song exists (an unplugged drive is not an error).
     """
     if job_rows.active(conn, SCAN):
         log.info("Scan already running; not starting a second")
         return None
-    if not any(f.is_dir() for f in folders):
+    if not any(f.exists() for f in folders):
         return None
 
     job_id = job_rows.create(conn, SCAN, {"folders": len(folders)})

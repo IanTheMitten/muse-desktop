@@ -7,7 +7,7 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-DEFAULTS = {"music_folders": [], "downloader_unlocked": False}
+DEFAULTS = {"music_folders": [], "music_files": [], "downloader_unlocked": False}
 
 
 def load(path: Path) -> dict:
@@ -35,3 +35,7 @@ def save(path: Path, settings: dict) -> None:
 
 def music_folders(path: Path) -> list[Path]:
     return [Path(p) for p in load(path)["music_folders"]]
+
+
+def music_files(path: Path) -> list[Path]:
+    return [Path(p) for p in load(path)["music_files"]]

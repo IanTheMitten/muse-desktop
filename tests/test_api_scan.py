@@ -24,7 +24,7 @@ def _client(tmp_path):
 def test_default_settings_and_no_scan_job(tmp_path):
     with _client(tmp_path) as client:
         assert client.get("/api/settings").json() == {
-            "music_folders": [], "downloader_unlocked": False, "folder_status": []}
+            "music_folders": [], "music_files": [], "downloader_unlocked": False, "folder_status": []}
         assert "scan" not in [j["kind"] for j in client.get("/api/jobs").json()]
 
 

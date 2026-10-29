@@ -234,7 +234,7 @@ phone and none when docked. Hairlines are 1px `--hairline`.
 ### z-index
 
 Literal values, not tokens: `.wash` 0, `.app` 1, `.player` 19, `.nav`,
-`.job-strip` and `.sel-bar` (the selection bar) 20, `.np` 40. Inside Now Playing, `.np-inner` is 1, the sticky tab
+`.job-strip` and `.sel-bar` (the selection bar) 20, `.np` 40, `.drop` (the drop overlay) 50. Inside Now Playing, `.np-inner` is 1, the sticky tab
 row is 2 and the lyric offset backdrop is 5.
 
 ---
@@ -340,6 +340,25 @@ The components that exist, and what each one does.
 - **Mini player** (`ControlBar`) and **Now Playing** (`NowPlayingSheet`, §7).
 - **Lyrics** (`SyncedLyrics`). Synced lines with an offset popover
   (`role="dialog"` on `--ink-raised`).
+- **Mini window** (`MiniWindow`, `/mini`, desktop shell only). A 400x96
+  always-on-top window with no decorations: the record's card wash over `--ink`,
+  a 64px cover that brings the main window back, title and artist on one line
+  each, previous, play/pause and next, and a close button. It is a remote: it
+  mirrors the main window and holds no audio. Not the Mini player above.
+- **Drop overlay** (`DropZone`, desktop shell only). While files are dragged
+  over the window, a full-window `--glass` blur with an inset accent outline and
+  "Drop to add to your library". After the drop a small `--glass` toast above the
+  player says what was added (for example "Added 1 folder and 2 songs"), then
+  fades after 2.5 s.
+- **Boot page** (`src-tauri/boot/index.html`). The shell's first screen, before
+  the UI loads: "Starting Muse" on `--bg`, light or dark by system setting. If
+  the server fails to start it shows "Muse couldn't start", the log path and the
+  last log lines in a monospace block.
+- **App icon and tray glyph** (`src-tauri/icons/icon.svg`). Three rounded white
+  bars of different heights on a `#121117` rounded square washed with four soft
+  radial colours (plum, ember, teal, ochre), the record's-hues idea in small.
+  The macOS tray glyph (`tray-template.svg`) is the same three bars in black, a
+  template image; other platforms use the app icon.
 - **Job strip** (`JobProgress`). A fixed strip above the player showing cover
   art fetch progress ("Fetching cover art · n of m") and, briefly, the result.
 - **Week bars** (`WeekBars`). Seven bars, one series, no legend; an empty week

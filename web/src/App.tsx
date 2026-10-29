@@ -8,8 +8,10 @@ import {
 } from "react-router-dom";
 
 import { ControlBar } from "./components/ControlBar";
+import { DropZone } from "./components/DropZone";
 import { JobProgress } from "./components/JobProgress";
 import { NavBar } from "./components/NavBar";
+import { ShellBridge } from "./components/ShellBridge";
 import { JobsProvider } from "./jobs/JobsContext";
 import { NowPlayingSheet } from "./player/NowPlayingSheet";
 import { PlayerProvider } from "./player/PlayerContext";
@@ -42,6 +44,7 @@ export function App() {
   return (
     <JobsProvider>
       <PlayerProvider>
+        <ShellBridge />
         <BrowserRouter>
           <SheetProvider>
             <Wash where="app" />
@@ -76,6 +79,7 @@ export function App() {
               <JobProgress />
             </div>
             <NowPlayingSheet />
+            <DropZone />
           </SheetProvider>
         </BrowserRouter>
       </PlayerProvider>
