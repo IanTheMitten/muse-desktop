@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "weights": [
+    {
+      "path": "weights/mert/config.json",
+      "url": "https://huggingface.co/m-a-p/MERT-v1-95M/resolve/12af15fef9d0ac838c3f475bfbbf26d2060dd4f5/config.json",
+      "sha256": "ea2627c4c7825cd66f3c944b6b966331604c35928174e0100cd4a82829424e32",
+      "size": 1817
+    },
+    {
+      "path": "weights/mert/configuration_MERT.py",
+      "url": "https://huggingface.co/m-a-p/MERT-v1-95M/resolve/12af15fef9d0ac838c3f475bfbbf26d2060dd4f5/configuration_MERT.py",
+      "sha256": "ae0ec2bab8f59c724ba9878a7c20b67210189536ea62d34a56775968e9decb03",
+      "size": 5340
+    },
+    {
+      "path": "weights/mert/modeling_MERT.py",
+      "url": "https://huggingface.co/m-a-p/MERT-v1-95M/resolve/12af15fef9d0ac838c3f475bfbbf26d2060dd4f5/modeling_MERT.py",
+      "sha256": "6c3ee73cef6f0c30ef494f88d96f891fa6925ffe663fa391b512f4b57abecc6c",
+      "size": 18033
+    },
+    {
+      "path": "weights/mert/preprocessor_config.json",
+      "url": "https://huggingface.co/m-a-p/MERT-v1-95M/resolve/12af15fef9d0ac838c3f475bfbbf26d2060dd4f5/preprocessor_config.json",
+      "sha256": "cc5a5e4a5d3b1a758a5ed984b2eaa15bb0522d811d44a9eed82bfca4baa0dc8f",
+      "size": 211
+    },
+    {
+      "path": "weights/mert/pytorch_model.bin",
+      "url": "https://huggingface.co/m-a-p/MERT-v1-95M/resolve/12af15fef9d0ac838c3f475bfbbf26d2060dd4f5/pytorch_model.bin",
+      "sha256": "a2b8b747f72c06e0595aeae41ae5473f4364938c6b39b2c58be38c48e6bd3fcd",
+      "size": 377552987
+    },
+    {
+      "path": "weights/clap/config.json",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/config.json",
+      "sha256": "04733de73869ed861b469b275a0f31d04a7004f578234bcc3d080fd38da6c4db",
+      "size": 635
+    },
+    {
+      "path": "weights/clap/merges.txt",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/merges.txt",
+      "sha256": "1ce1664773c50f3e0cc8842619a93edc4624525b728b188a9e0be33b7726adc5",
+      "size": 456318
+    },
+    {
+      "path": "weights/clap/preprocessor_config.json",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/preprocessor_config.json",
+      "sha256": "9739f58296aa6f9ac18008fd0150fb2649bc554985fbde86d0a4041c882ac753",
+      "size": 541
+    },
+    {
+      "path": "weights/clap/pytorch_model.bin",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/pytorch_model.bin",
+      "sha256": "b73c5e596fda5b29b522a1ab3f0842977fe2b147bf8b78c2ec5f7ae6267038a1",
+      "size": 776444665
+    },
+    {
+      "path": "weights/clap/special_tokens_map.json",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/special_tokens_map.json",
+      "sha256": "06e405a36dfe4b9604f484f6a1e619af1a7f7d09e34a8555eb0b77b66318067f",
+      "size": 280
+    },
+    {
+      "path": "weights/clap/tokenizer.json",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/tokenizer.json",
+      "sha256": "dc239041d98de27ffc3975473a1a23e3db4c937b23c138c38bbc66588bd247e5",
+      "size": 2108774
+    },
+    {
+      "path": "weights/clap/tokenizer_config.json",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/tokenizer_config.json",
+      "sha256": "e2eb445cfdbf4711de620cbdf10478b0423950799e85652d9f28da47066ab86d",
+      "size": 1362
+    },
+    {
+      "path": "weights/clap/vocab.json",
+      "url": "https://huggingface.co/laion/larger_clap_music_and_speech/resolve/195c3a3e68faebb3e2088b9a79e79b43ddbda76b/vocab.json",
+      "sha256": "ed19656ea1707df69134c4af35c8ceda2cc9860bf2c3495026153a133670ab5e",
+      "size": 798293
+    },
+    {
+      "path": "weights/minilm/1_Pooling/config.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/1_Pooling/config.json",
+      "sha256": "4be450dde3b0273bb9787637cfbd28fe04a7ba6ab9d36ac48e92b11e350ffc23",
+      "size": 190
+    },
+    {
+      "path": "weights/minilm/config.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json",
+      "sha256": "953f9c0d463486b10a6871cc2fd59f223b2c70184f49815e7efbcab5d8908b41",
+      "size": 612
+    },
+    {
+      "path": "weights/minilm/config_sentence_transformers.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json",
+      "sha256": "061ca9d39661d6c6d6de5ba27f79a1cd5770ea247f8d46412a68a498dc5ac9f3",
+      "size": 116
+    },
+    {
+      "path": "weights/minilm/model.safetensors",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/model.safetensors",
+      "sha256": "53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db",
+      "size": 90868376
+    },
+    {
+      "path": "weights/minilm/modules.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json",
+      "sha256": "84e40c8e006c9b1d6c122e02cba9b02458120b5fb0c87b746c41e0207cf642cf",
+      "size": 349
+    },
+    {
+      "path": "weights/minilm/sentence_bert_config.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/sentence_bert_config.json",
+      "sha256": "fc1993fde0a95c24ec6c022539d41cf6e2f7c9721e5415d6fb6897472a9cd4b7",
+      "size": 53
+    },
+    {
+      "path": "weights/minilm/special_tokens_map.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/special_tokens_map.json",
+      "sha256": "303df45a03609e4ead04bc3dc1536d0ab19b5358db685b6f3da123d05ec200e3",
+      "size": 112
+    },
+    {
+      "path": "weights/minilm/tokenizer.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer.json",
+      "sha256": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037",
+      "size": 466247
+    },
+    {
+      "path": "weights/minilm/tokenizer_config.json",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json",
+      "sha256": "acb92769e8195aabd29b7b2137a9e6d6e25c476a4f15aa4355c233426c61576b",
+      "size": 350
+    },
+    {
+      "path": "weights/minilm/vocab.txt",
+      "url": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/vocab.txt",
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3",
+      "size": 231508
+    },
+    {
+      "path": "weights/audio_va/LICENSE",
+      "url": "https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim/resolve/6eba34a2485ea31cb03600241787c3a5edab8626/LICENSE",
+      "sha256": "e66c269d4819aaab34b49ef5220c4ddab6756f21bb5180761a4eb8561f2b7bbd",
+      "size": 20850
+    },
+    {
+      "path": "weights/audio_va/config.json",
+      "url": "https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim/resolve/6eba34a2485ea31cb03600241787c3a5edab8626/config.json",
+      "sha256": "c0962c3d1f065972bbebbba0bbffb8016ef4e9aae4a9b07e5fec22f770d2cddb",
+      "size": 2344
+    },
+    {
+      "path": "weights/audio_va/model.safetensors",
+      "url": "https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim/resolve/6eba34a2485ea31cb03600241787c3a5edab8626/model.safetensors",
+      "sha256": "efa5ac1a13b2d2f42182738e44794b1eb4c0cdd221a8b4ae11304c3a5f5fae95",
+      "size": 661375508
+    },
+    {
+      "path": "weights/audio_va/preprocessor_config.json",
+      "url": "https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim/resolve/6eba34a2485ea31cb03600241787c3a5edab8626/preprocessor_config.json",
+      "sha256": "60ca5a31e13f69ee2fbf147504c8676db5f6398fd7a6b12294341dff838edfcf",
+      "size": 214
+    },
+    {
+      "path": "weights/audio_va/vocab.json",
+      "url": "https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim/resolve/6eba34a2485ea31cb03600241787c3a5edab8626/vocab.json",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "size": 2
+    },
+    {
+      "path": "weights/lyrics_va/config.json",
+      "url": "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base/resolve/0e1cd914e3d46199ed785853e12b57304e04178b/config.json",
+      "sha256": "ab16b3e561e9c9bda68a97a668bd3aa59978dcdc20b6257fdcae1bb0682b625c",
+      "size": 1005
+    },
+    {
+      "path": "weights/lyrics_va/merges.txt",
+      "url": "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base/resolve/0e1cd914e3d46199ed785853e12b57304e04178b/merges.txt",
+      "sha256": "fe36cab26d4f4421ed725e10a2e9ddb7f799449c603a96e7f29b5a3c82a95862",
+      "size": 456356
+    },
+    {
+      "path": "weights/lyrics_va/pytorch_model.bin",
+      "url": "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base/resolve/0e1cd914e3d46199ed785853e12b57304e04178b/pytorch_model.bin",
+      "sha256": "dde1eadd81741344dd707d1c482a3293810eb895c873053213ccdb2b57ca9e95",
+      "size": 328544361
+    },
+    {
+      "path": "weights/lyrics_va/special_tokens_map.json",
+      "url": "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base/resolve/0e1cd914e3d46199ed785853e12b57304e04178b/special_tokens_map.json",
+      "sha256": "378eb3bf733eb16e65792d7e3fda5b8a4631387ca04d2015199c4d4f22ae554d",
+      "size": 239
+    },
+    {
+      "path": "weights/lyrics_va/tokenizer.json",
+      "url": "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base/resolve/0e1cd914e3d46199ed785853e12b57304e04178b/tokenizer.json",
+      "sha256": "a65474d70a34ab230f809b83412ee547a1d91803f742086977028b13dc6d5b70",
+      "size": 1356047
+    },
+    {
+      "path": "weights/lyrics_va/tokenizer_config.json",
+      "url": "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base/resolve/0e1cd914e3d46199ed785853e12b57304e04178b/tokenizer_config.json",
+      "sha256": "44e6cbab3bc89d7b04cc614a5a8d6ef6483e3de53e5a423be82e799de3deb2ca",
+      "size": 294
+    },
+    {
+      "path": "weights/lyrics_va/vocab.json",
+      "url": "https://huggingface.co/j-hartmann/emotion-english-distilroberta-base/resolve/0e1cd914e3d46199ed785853e12b57304e04178b/vocab.json",
+      "sha256": "ed19656ea1707df69134c4af35c8ceda2cc9860bf2c3495026153a133670ab5e",
+      "size": 798293
+    },
+    {
+      "path": "weights/laya/encoder/config.json",
+      "url": "https://huggingface.co/IanTheMitten/laya-muse-v4/resolve/main/encoder/config.json",
+      "sha256": "83f6916d13ef0f556ac461f28308dc2bffa7ebeadee8ec9e2db5812020ea5bb4",
+      "size": 1938
+    },
+    {
+      "path": "weights/laya/model.safetensors",
+      "url": "https://huggingface.co/IanTheMitten/laya-muse-v4/resolve/main/model.safetensors",
+      "sha256": "68a82a19f8d7182d3e4a267923a80b31ddcbdaa578ef5d9c3ec4e7b84240d605",
+      "size": 1287653720
+    },
+    {
+      "path": "weights/laya/rl_agent_config.json",
+      "url": "https://huggingface.co/IanTheMitten/laya-muse-v4/resolve/main/rl_agent_config.json",
+      "sha256": "280ee7b4ba21f7ae315598a2708f9ce1656abe12bada99adca4cec9dbc9d70e3",
+      "size": 601
+    },
+    {
+      "path": "weights/laya/tokenizer/tokenizer.json",
+      "url": "https://huggingface.co/IanTheMitten/laya-muse-v4/resolve/main/tokenizer/tokenizer.json",
+      "sha256": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f",
+      "size": 34363188
+    },
+    {
+      "path": "weights/laya/tokenizer/tokenizer_config.json",
+      "url": "https://huggingface.co/IanTheMitten/laya-muse-v4/resolve/main/tokenizer/tokenizer_config.json",
+      "sha256": "6c6b2d8e3c84ce0e671c129cd6b374b235d6f9863042a5836358d00a89bbb5a1",
+      "size": 524
+    }
+  ],
+  "workers": {}
+}

@@ -11,6 +11,7 @@ import { ControlBar } from "./components/ControlBar";
 import { DropZone } from "./components/DropZone";
 import { JobProgress } from "./components/JobProgress";
 import { NavBar } from "./components/NavBar";
+import { SmartBanner } from "./components/SmartBanner";
 import { ShellBridge } from "./components/ShellBridge";
 import { JobsProvider } from "./jobs/JobsContext";
 import { NowPlayingSheet } from "./player/NowPlayingSheet";
@@ -51,6 +52,7 @@ export function App() {
             <div className="app">
               <NavBar />
               <main className="main">
+                <SmartBanner />
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/library" element={<Library />} />

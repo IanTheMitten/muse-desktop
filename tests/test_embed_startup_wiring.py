@@ -1,6 +1,6 @@
-"""`create_app`'s embed-batch startup wiring: `config.embed_batch` actually
-runs the batch in the background, the same way `config.art_backfill` already
-does for cover art. No HTTP layer here (this repo has no `TestClient`
+"""`create_app`'s launch-chain wiring: with ML on (`config.embed_batch` or an
+installed worker) the chain embeds in the background, the same way
+`config.art_backfill` does for cover art. No HTTP layer here (this repo has no `TestClient`
 dependency yet) -- the app's lifespan is driven directly, which is enough to
 prove the wiring itself works: the job gets created, the stub encoders run,
 and `/api/health`'s new `embeddings` coverage would reflect it.
@@ -19,7 +19,20 @@ def _config(tmp_path, **overrides):
     return make_config(tmp_path, **overrides)
 
 
-def test_embed_batch_runs_at_startup_when_enabled(tmp_path):
+class FakeWorker:
+    """Answers nothing; the stub encoders do the embedding."""
+
+    def begin(self):
+        pass
+
+    def stop(self):
+        pass
+
+    def request(self, op, **args):
+        raise AssertionError(f"unexpected worker call {op}")
+
+
+def test_chain_embeds_when_enabled(tmp_path):
     lyrics_path = tmp_path / "1.lyrics.txt"
     lyrics_path.write_text("Hello world", encoding="utf-8")
 
@@ -30,6 +43,7 @@ def test_embed_batch_runs_at_startup_when_enabled(tmp_path):
         lyrics_encoder=embed.StubLyricsEncoder(),
         audio_va_encoder=embed.StubAudioVAEncoder(),
         lyrics_va_encoder=embed.StubLyricsVAEncoder(),
+        worker_client=FakeWorker(),
     )
 
     async def drive() -> dict:
@@ -58,12 +72,13 @@ def test_embed_batch_runs_at_startup_when_enabled(tmp_path):
     assert emotion_coverage == {"playable": 1, "embedded": 1}
 
 
-def test_embed_batch_does_not_run_when_disabled(tmp_path):
+def test_chain_does_not_embed_when_disabled_and_not_installed(tmp_path):
     config = _config(tmp_path, embed_batch=False)
     app = create_app(
         config,
         audio_encoder=embed.StubAudioEncoder(),
         lyrics_encoder=embed.StubLyricsEncoder(),
+        worker_client=FakeWorker(),
     )
 
     async def drive() -> None:

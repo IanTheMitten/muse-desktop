@@ -1,29 +1,19 @@
-"""The MERT content leg: the seam over `universal_reco`, the batch that
-fills the work queue, and the corpus statistics the leg is normalized by.
+"""The MERT content leg: the embedder protocol, the batch that fills the
+work queue, and the corpus statistics the leg is normalized by.
 
-The seam is the same idea as `muse.embed`'s encoder protocols and
-`muse.taste`'s `TasteTrainer`, with one difference: what it hides is a
-subprocess, not a model object. `universal_reco` needs `torchaudio` and
-`torchcodec`, which muse's `embed` extra does not have, and declares
-`requires-python >=3.10` against muse's `>=3.14` -- importing it in-process
-is not merely a decoupling violation, the dependencies are not there.
-
-`StubContentEmbedder` is what the default test run uses. It exercises the
-work queue, the per-track commit, the error path, and the statistics
-recompute without `universal_reco` existing at all -- the same rule every
-other heavy leg in this codebase follows.
+The real embedder runs in the ML worker (`muse/worker.py`, `muse/mert.py`),
+not in this process; `StubContentEmbedder` is what the default test run uses.
+It exercises the work queue, the per-track commit, the error path, and the
+statistics recompute without any model -- the same rule every other heavy leg
+in this codebase follows.
 """
 
 import hashlib
-import json
 import logging
 import random
-import shutil
 import sqlite3
-import subprocess
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Protocol
 
 from .embed import l2_normalize, pack_vector
@@ -142,7 +132,7 @@ def _hash_vector(seed: str, dim: int = CONTENT_DIM) -> list[float]:
 
 
 class StubContentEmbedder:
-    """No subprocess, no model, no audio decode. Default embedder for tests
+    """No worker, no model, no audio decode. Default embedder for tests
     and for any batch that has not opted into the real one -- deterministic
     per path, the same way `StubAudioEncoder` is."""
 
@@ -153,199 +143,6 @@ class StubContentEmbedder:
     ) -> Iterator[tuple[int, list[float] | None, str | None]]:
         for track_rowid, path in items:
             yield track_rowid, _hash_vector(path), None
-
-
-# Where `universal_reco` lives relative to this file, and how to run its
-# batch CLI in its own virtualenv. `uv run --project` is what picks that
-# venv up without this process knowing anything about where it is.
-UNIVERSAL_RECO_ROOT = Path(__file__).resolve().parent.parent / "universal_reco"
-
-
-def _uv_executable() -> str:
-    """An absolute path to `uv`, not the bare name.
-
-    A systemd *user* unit inherits the user manager's PATH, which is the
-    login default and does not include `~/.local/bin` -- where uv installs
-    itself. `deploy/muse-content-embed.service` spells its own ExecStart as
-    `%h/.local/bin/uv` for exactly that reason, but that only fixes the
-    parent: this list is what the parent then execs, and a bare "uv" here
-    raised `FileNotFoundError: [Errno 2] ... 'uv'` before the batch embedded
-    a single track. The nightly timer could never have worked.
-
-    `shutil.which` first, so a uv installed anywhere on an interactive
-    PATH still wins; the install default second; the bare name last, so the
-    failure is still the same recognisable one rather than a new error
-    about a path that was only ever a guess.
-    """
-    found = shutil.which("uv")
-    if found:
-        return found
-    fallback = Path.home() / ".local" / "bin" / "uv"
-    return str(fallback) if fallback.exists() else "uv"
-
-
-DEFAULT_COMMAND = [
-    _uv_executable(), "run", "--project", str(UNIVERSAL_RECO_ROOT),
-    "python", "-m", "content_embed.batch",
-]
-
-
-class SubprocessContentEmbedder:
-    """The real embedder: one long-lived `content_embed.batch` process for
-    the whole run.
-
-    One process per batch, not per track, because
-    `content_embed.model._load_model()` caches the model in a module global
-    precisely because loading it is expensive -- a process per track would
-    pay that cost every time.
-
-    Work goes in on stdin and results come back on stdout, one JSON line
-    each. Nothing about muse crosses that boundary: `id` is an opaque token
-    on the other side, which is what lets `universal_reco` keep its own
-    dependencies, its own Python version floor, and its own lockfile.
-
-    `process.stdout.readline()` below has no timeout: a child that neither
-    responds nor exits blocks this method forever. That is a deliberate
-    deferral, not an oversight -- a `selectors`-based read timeout is real
-    complexity for a failure mode an external guard already handles better.
-    The backstop is a `RuntimeMaxSec` on the systemd unit that runs the
-    nightly batch (`deploy/muse-content-embed.service`), not anything in
-    this class.
-    """
-
-    model_name = MERT_MODEL
-
-    def __init__(self, command: list[str] | None = None):
-        self._command = command or DEFAULT_COMMAND
-
-    def embed_many(
-        self, items: list[tuple[int, str]]
-    ) -> Iterator[tuple[int, list[float] | None, str | None]]:
-        process = subprocess.Popen(
-            self._command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",  # not the process locale -- systemd user
-            # units set no LANG, and this is a personal music library where
-            # non-ASCII artist and track names are ordinary, not an edge case.
-            bufsize=1,
-        )
-        try:
-            answered = 0
-            for track_rowid, path in items:
-                try:
-                    process.stdin.write(
-                        json.dumps({"id": track_rowid, "path": path}) + "\n"
-                    )
-                    process.stdin.flush()
-                except OSError as error:
-                    # The pipe breaking under a write is the realistic way
-                    # this process dies -- it can be OOM-killed hours into a
-                    # batch, not just fail to start. Converting to the same
-                    # RuntimeError the post-loop check raises means a caller
-                    # can't tell "died before any output" from "died mid-
-                    # batch" except by exit code, which is the only
-                    # difference that matters. Everything yielded before
-                    # this iteration has already reached the caller and,
-                    # per run_content_batch, already been committed -- this
-                    # only ends the run, it doesn't unwind it.
-                    code = process.wait()
-                    if code != 0:
-                        raise RuntimeError(
-                            f"content_embed.batch exited with exit code {code}"
-                        ) from error
-                    # A clean (0) exit discovered here rather than through
-                    # the `readline()` EOF below is the same "answered
-                    # fewer than it was sent" case that check handles, just
-                    # reached by a race between this write and the child's
-                    # own exit -- not a crash, so fall through to it rather
-                    # than raising on an exit code that says nothing failed.
-                    break
-                line = process.stdout.readline()
-                if not line:
-                    break
-
-                try:
-                    result = json.loads(line)
-                    response_id = result.get("id")
-                    if "error" not in result:
-                        vector = result["vec"]
-                except (
-                    json.JSONDecodeError, AttributeError, KeyError, TypeError,
-                ) as error:
-                    # Uncorrelated to any track -- there is no id to trust
-                    # here, since the line itself didn't parse into the
-                    # shape that would carry one. The line is the whole
-                    # diagnostic.
-                    raise RuntimeError(
-                        "content_embed.batch produced a malformed response"
-                        f" line: {line!r}"
-                    ) from error
-
-                if response_id != track_rowid:
-                    # `content_embed/model.py` loads MERT with
-                    # `trust_remote_code=True`, which runs third-party code
-                    # that can print() to stdout at any time. One stray
-                    # line desynchronizes every response after it by one --
-                    # silently, since the ids would still all "arrive," just
-                    # attached to the wrong track. Nothing else would ever
-                    # notice; `run_content_batch` commits by whatever id
-                    # comes back.
-                    raise RuntimeError(
-                        f"expected a response for track {track_rowid}, got"
-                        f" {response_id!r}"
-                    )
-
-                answered += 1
-                if "error" in result:
-                    yield response_id, None, result["error"]
-                else:
-                    yield response_id, vector, None
-
-            if answered < len(items):
-                # A clean exit does not mean every request got an answer --
-                # a child that silently truncates every run would
-                # under-process the library every night with no other
-                # signal. The remainder stays queued (run_content_batch only
-                # ever upserts what it received), so this is a warning, not
-                # a raise.
-                log.warning(
-                    "content_embed.batch answered %d of %d requests before"
-                    " exiting", answered, len(items),
-                )
-
-            try:
-                process.stdin.close()
-            except OSError:
-                # Reaching here after the `break` above means stdin already
-                # broke under a write that turned out to be a clean (0)
-                # exit -- closing our end again can still raise if that
-                # write left data unflushed, and the fd closes underneath
-                # regardless of whether the flush inside close() succeeds.
-                pass
-            code = process.wait()
-            if code != 0:
-                raise RuntimeError(
-                    f"content_embed.batch exited with exit code {code}"
-                )
-        finally:
-            # Close both streams defensively before kill. On the
-            # broken-pipe path above, stdin was never explicitly closed --
-            # its TextIOWrapper still holds a live finalizer, and its
-            # attempt to flush during garbage collection is what produces a
-            # spurious "Exception ignored while finalizing" line in the
-            # logs otherwise. The same reasoning applies to stdout (e.g. on
-            # the GeneratorExit path, if the caller abandons iteration
-            # mid-batch, having never reached this close()).
-            for stream in (process.stdin, process.stdout):
-                try:
-                    stream.close()
-                except OSError:
-                    pass
-            if process.poll() is None:
-                process.kill()
-                process.wait()
 
 
 @dataclass(slots=True)

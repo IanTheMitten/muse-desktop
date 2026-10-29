@@ -25,6 +25,7 @@ class Config:
     lyrics_root: Path
     settings_path: Path
     web_dist: Path
+    models_dir: Path
     port: int = 0
     host: str = "127.0.0.1"
     token: str | None = None
@@ -33,25 +34,13 @@ class Config:
     # appears. Off is for tests and for working without a network.
     art_backfill: bool = True
     lyrics_sync: bool = True
-    # Off by default: a projected ~14 minutes over the whole library and its
-    # real encoders need torch, transformers, and sentence-transformers.
+    # Run the ML steps without an installed worker (dev, with MUSE_WORKER_CMD).
     embed_batch: bool = False
-    # Whether the content-embed leg is expected to be populated here. Does not
-    # switch any batch on or off; it only informs the health surface.
-    content_embed: bool = False
+    worker_cmd: str | None = None
     taste_retrain_at_launch: bool = True
     # The date the catalog scrape stopped; anything released after it has no
     # row in the mirror.
     catalog_freeze: str = "2025-11-13"
-    # System One endpoints. Laya is the prompt parse's backend (`laya_*`).
-    # `curator_*` still names the Jev settings the lyric tag batch uses via
-    # `muse/systemone.py` -- the curator is retired (ADR 0009), the names stayed.
-    laya_url: str = "http://127.0.0.1:8000"
-    laya_model: str = "multilingual"
-    laya_timeout_ms: int = 10000
-    curator_jev_url: str = "https://api.typesafe.ai"
-    curator_model: str | None = None
-    curator_timeout_ms: int = 8000
     # Seconds between consecutive downloads (scaled up to +50% at random),
     # so a bulk queue does not hit YouTube back to back. See
     # `jobs.run_download_worker`. 0 here so a hand-built Config (every test)
@@ -84,17 +73,10 @@ class Config:
             art_backfill=os.environ.get("MUSE_ART_BACKFILL", "1") != "0",
             lyrics_sync=os.environ.get("MUSE_LYRICS_SYNC", "1") != "0",
             embed_batch=os.environ.get("MUSE_EMBED_BATCH", "0") != "0",
-            content_embed=os.environ.get("MUSE_CONTENT_EMBED", "0") != "0",
+            models_dir=store("MUSE_MODELS_DIR", "models"),
+            worker_cmd=os.environ.get("MUSE_WORKER_CMD") or None,
             taste_retrain_at_launch=os.environ.get("MUSE_TASTE_RETRAIN", "1") != "0",
             catalog_freeze=os.environ.get("MUSE_CATALOG_FREEZE", "2025-11-13"),
-            curator_jev_url=os.environ.get(
-                "MUSE_CURATOR_JEV_URL", "https://api.typesafe.ai"
-            ),
-            laya_url=os.environ.get("MUSE_LAYA_URL", "http://127.0.0.1:8000"),
-            laya_model=os.environ.get("MUSE_LAYA_MODEL", "multilingual"),
-            laya_timeout_ms=int(os.environ.get("MUSE_LAYA_TIMEOUT_MS", "10000")),
-            curator_model=os.environ.get("MUSE_CURATOR_MODEL") or None,
-            curator_timeout_ms=int(os.environ.get("MUSE_CURATOR_TIMEOUT_MS", "8000")),
             download_gap_seconds=float(os.environ.get("MUSE_DOWNLOAD_GAP_S", "12")),
             chart_base_url=os.environ.get(
                 "MUSE_CHART_URL", "https://rss.marketingtools.apple.com"),

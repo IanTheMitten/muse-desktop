@@ -93,3 +93,53 @@ def test_scan_marks_deleted_listed_file_missing(tmp_path):
     song.unlink()
     scanner.scan(conn, [song], **kw)
     assert conn.execute("SELECT status FROM tracks").fetchone()[0] == "missing_file"
+
+
+def test_parent_folder_replaces_listed_child(tmp_path):
+    parent = tmp_path / "music"
+    child = parent / "rock"
+    child.mkdir(parents=True)
+    with _client(tmp_path) as client:
+        _drop(client, child)
+        assert _drop(client, parent).json()["folders_added"] == 1
+        assert client.get("/api/settings").json()["music_folders"] == [str(parent.resolve())]
+
+
+def test_parent_drop_with_song_in_same_gesture(tmp_path):
+    parent = tmp_path / "music"
+    (parent / "rock").mkdir(parents=True)
+    song = tmp_path / "loose" / "song.mp3"
+    song.parent.mkdir()
+    song.write_bytes(b"abc")
+    with _client(tmp_path) as client:
+        _drop(client, parent / "rock")
+        r = _drop(client, parent, song)
+        assert r.status_code == 200
+        assert r.json()["folders_added"] == 1 and r.json()["songs_added"] == 1
+        s = client.get("/api/settings").json()
+        assert s["music_folders"] == [str(parent.resolve())]
+        assert s["music_files"] == [str(song.resolve())]
+
+
+def test_new_folder_prunes_dropped_songs_inside_it(tmp_path):
+    music = tmp_path / "music"
+    music.mkdir()
+    song = music / "song.mp3"
+    song.write_bytes(b"abc")
+    with _client(tmp_path) as client:
+        _drop(client, song)
+        assert client.get("/api/settings").json()["music_files"] == [str(song.resolve())]
+        _drop(client, music)
+        assert client.get("/api/settings").json()["music_files"] == []
+
+
+def test_put_folders_prunes_music_files(tmp_path):
+    music = tmp_path / "music"
+    music.mkdir()
+    song = music / "song.mp3"
+    song.write_bytes(b"abc")
+    with _client(tmp_path) as client:
+        _drop(client, song)
+        r = client.put("/api/settings/music_folders", json={"folders": [str(music)]})
+        assert r.status_code == 200
+        assert client.get("/api/settings").json()["music_files"] == []

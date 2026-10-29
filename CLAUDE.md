@@ -24,13 +24,15 @@ uv sync                       # install deps (core only; see extras below)
 uv run pytest                 # run the test suite (skips slow/model tests by default)
 uv run pytest tests/test_reco.py            # single file
 uv run pytest tests/test_reco.py::test_name # single test
-uv run pytest -m slow                       # the real CLAP/MiniLM/ALS tests (needs the embed extra)
+uv run --extra embed pytest -m slow         # the real CLAP/MiniLM/MERT/ALS tests (needs the embed extra)
 uv run python -m muse         # start the server on 127.0.0.1 and print the launch URL
 uv run python -m muse.taste_retrain  # standalone taste-embedding retrain
 uv run python -m muse.reco_eval      # offline recommender harness, read-only (~4 min)
 uv run python -m muse.arc_eval       # offline arc harness, read-only
-uv sync --project universal_reco     # the content leg's own venv (retired in M4)
-uv run python -m muse.content_embed_batch  # library-wide MERT content-embed batch
+uv run python -m muse.content_embed_batch  # library-wide MERT content-embed batch, through the worker
+uv run python -m muse.lyric_tag_batch      # library-wide lyric tagging, through the worker (Laya)
+uv run --extra embed python -m muse.worker_main --weights <dir>   # the ML worker by hand (JSON lines on stdin)
+uv run --extra embed --group package python scripts/freeze_worker.py   # PyInstaller onedir worker -> build/muse-worker-<triple>.zip
 ```
 
 Desktop shell (from repo root; needs Rust and `web/node_modules`):
@@ -45,16 +47,28 @@ uv run python scripts/shell_smoke.py --build --expect mp3,flac,wav   # headless 
 CI (`.github/workflows/package.yml`: `workflow_dispatch` and tags `v*`,
 `ci-package-*`) packages macOS and Windows and does not use the wrapper.
 
-`universal_reco/` is a decoupled sibling project with its own `pyproject.toml`,
-lockfile, and virtualenv; `muse` never imports it. `muse/content.py` shells out
-to `python -m content_embed.batch` over a stdin/stdout JSON line protocol. It is
-retired in M4, when the ML worker replaces it. The default test run never
-touches it.
-Optional dependency groups: `embed` (torch/transformers/sentence-transformers)
-and `ingest` (yt-dlp/mutagen/lyricsgenius). The default test run and the app
-itself never import torch unless `config.embed_batch` is on or
-`ImplicitAlsTrainer` is explicitly constructed — everything else runs against
-deterministic stub encoders/trainers.
+**The ML worker.** Every model runs in a separate process, not in the API
+process. `muse/worker_main.py` is the worker: a JSON-line server (one request
+per stdin line, one reply per stdout line, `PROTOCOL = 1`) with ops `hello`,
+`clap_audio`, `clap_text`, `minilm`, `audio_va`, `lyrics_va`, `mert` and `laya`.
+Its models are `muse/embed.py` (CLAP, MiniLM, the two VA encoders),
+`muse/mert.py` (MERT) and `laya`; `muse/audio_decode.py` decodes audio with PyAV.
+The sidecar side is `muse/worker.py` (`WorkerClient` and the adapters that fit
+the `AudioEncoder`/`LyricsEncoder` protocols) and `muse/smart.py` (the
+smart-features installer and `muse/smart_manifest.json`). The worker is
+`MUSE_WORKER_CMD` when set, else `<models dir>/worker/muse-worker/muse-worker`.
+`config.embed_batch` (`MUSE_EMBED_BATCH`) turns the ML steps on without an
+installed worker; otherwise they run when `smart.installed()`.
+
+**Torch rule.** Only the worker imports torch, transformers,
+sentence_transformers, laya or av, and only inside a real encoder's
+`__init__`/handler. The sidecar (`muse/api.py`, `muse/worker.py`,
+`muse/smart.py`) never does. Optional dependency groups: `embed`
+(torch/transformers/sentence-transformers/av/laya) and `ingest`
+(yt-dlp/mutagen/lyricsgenius). The default test run and the app itself never
+import torch; `ImplicitAlsTrainer` imports `implicit` only when explicitly
+constructed. Everything else runs against deterministic stub
+encoders/trainers.
 
 Frontend (from `web/`, Node 22/npm):
 ```sh
@@ -80,7 +94,9 @@ At startup the lifespan migrates `library.sqlite3`, reaps any job left
 watcher as `asyncio` tasks — never inside a request handler.
 
 **The launch chain** (`run_chain` in `muse/api.py`) runs the folder scan,
-the lyrics sync backfill, the art backfill, and (launch only, if the last
+the lyrics sync backfill, the art backfill, then (when `config.embed_batch` or
+`smart.installed()`) the embed backfill, the MERT content batch and Laya lyric
+tagging, all through the worker, and (launch only, if the last
 retrain is over a day old) a taste retrain, one after another under a single
 `asyncio.Lock`, because the shared connection cannot hold two transactions.
 The watcher (`muse/watch.py`) and `POST /api/scan` take the same lock by
@@ -187,8 +203,9 @@ enough history exists. `muse/embed.py` defines the `AudioEncoder`/
 `LyricsEncoder`/`*VAEncoder` protocol seam: real implementations
 (CLAP/MiniLM/MER/TextVA) need torch and are constructed lazily via factories,
 never at import time; tests and the default run use deterministic hash-based
-stubs. This is the only module that imports torch, and only inside a real
-encoder's `__init__`.
+stubs. Torch is imported only in the worker's modules (this one,
+`muse/mert.py`, `muse/worker_main.py`), inside a real encoder's `__init__` or
+a handler (see the torch rule above).
 
 **Jobs** (`muse/jobs.py`, `muse/library/jobs.py`) are the one mechanism for
 long-running background work — `download`, `scan`, `art_backfill`, `embed`,

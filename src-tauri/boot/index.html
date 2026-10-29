@@ -6,8 +6,8 @@
 <title>Muse</title>
 <style>
   :root {
-    --bg: #121117;
-    --raised: #1c1b22;
+    --bg: #24142c;
+    --raised: #2f1c38;
     --text: #f5f3f0;
     --text-2: #dcd9d4;
     --hairline: rgb(255 255 255 / 0.08);
@@ -34,6 +34,7 @@
     padding: 24px;
   }
   main { width: 100%; max-width: 480px; }
+  .mark { display: block; width: 48px; height: 48px; margin: 0 0 16px; }
   h1 { margin: 0 0 12px; font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
   p { margin: 0 0 12px; color: var(--text-2); }
   [hidden] { display: none; }
@@ -67,6 +68,7 @@
 </head>
 <body>
 <main>
+  <svg class="mark" viewBox="0 0 256 256" aria-hidden="true" focusable="false"><defs><linearGradient id="mk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5b9dc"/><stop offset="1" stop-color="#ffdb8c"/></linearGradient></defs><path fill="url(#mk)" d="M214.86,180.12a8,8,0,0,1-11,2.74L136,142.13V216a8,8,0,0,1-16,0V142.13L52.12,182.86a8,8,0,1,1-8.23-13.72L112.45,128,43.89,86.86a8,8,0,1,1,8.23-13.72L120,113.87V40a8,8,0,0,1,16,0v73.87l67.88-40.73a8,8,0,1,1,8.23,13.72L143.55,128l68.56,41.14A8,8,0,0,1,214.86,180.12Z"/></svg>
   <section id="starting" role="status"><h1>Starting Muse</h1></section>
   <section id="failed" role="alert" hidden>
     <h1>Muse couldn't start</h1>

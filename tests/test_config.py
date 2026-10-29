@@ -33,29 +33,20 @@ def test_port_defaults_to_zero_and_token_to_none(monkeypatch):
     assert config.token is None
 
 
-def test_system_one_config_defaults(monkeypatch):
-    for name in ("MUSE_CURATOR_JEV_URL", "MUSE_CURATOR_MODEL",
-                 "MUSE_CURATOR_TIMEOUT_MS", "MUSE_LAYA_URL", "MUSE_LAYA_MODEL",
-                 "MUSE_LAYA_TIMEOUT_MS"):
-        monkeypatch.delenv(name, raising=False)
+def test_models_dir_and_worker_cmd(tmp_path, monkeypatch):
+    monkeypatch.setenv("MUSE_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("MUSE_MODELS_DIR", raising=False)
+    monkeypatch.delenv("MUSE_WORKER_CMD", raising=False)
 
     config = Config.from_env()
 
-    assert config.curator_jev_url == "https://api.typesafe.ai"
-    assert config.laya_url == "http://127.0.0.1:8000"
-    assert config.laya_model == "multilingual"
-    assert config.laya_timeout_ms == 10000
-    assert config.curator_model is None
-    assert config.curator_timeout_ms == 8000
+    assert config.models_dir == tmp_path / "models"
+    assert config.worker_cmd is None
 
-
-def test_system_one_config_is_overridable(monkeypatch):
-    monkeypatch.setenv("MUSE_CURATOR_MODEL", "jev-1.13.0")
-    monkeypatch.setenv("MUSE_LAYA_MODEL", "english")
-    monkeypatch.setenv("MUSE_CURATOR_TIMEOUT_MS", "2000")
+    monkeypatch.setenv("MUSE_MODELS_DIR", str(tmp_path / "m"))
+    monkeypatch.setenv("MUSE_WORKER_CMD", "python -m muse.worker_main")
 
     config = Config.from_env()
 
-    assert config.curator_model == "jev-1.13.0"
-    assert config.laya_model == "english"
-    assert config.curator_timeout_ms == 2000
+    assert config.models_dir == tmp_path / "m"
+    assert config.worker_cmd == "python -m muse.worker_main"
