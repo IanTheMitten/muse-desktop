@@ -6,7 +6,7 @@ import "../styles/playlists.css";
 import { deletePlaylist, getPlaylist, renamePlaylist } from "../api";
 import { BackIcon, PlayIcon, ShuffleIcon } from "../components/Icons";
 import { TrackRow } from "../components/TrackRow";
-import { unplayableReason } from "../player/formats";
+import { playableOnly, unplayableReason } from "../player/formats";
 import { usePlayer } from "../player/PlayerContext";
 import { useLoad } from "../useLoad";
 import { Mosaic, playlistMeta } from "./Playlists";
@@ -28,7 +28,7 @@ export function PlaylistDetail() {
     if (data) setTitle(data.name);
   }, [data]);
 
-  const playable = data?.tracks.filter((t) => t.playable) ?? [];
+  const playable = playableOnly(data?.tracks ?? []);
   const from = { kind: "playlist" as const, label: title, playlistId: id };
   const back = () =>
     window.history.state?.idx > 0 ? navigate(-1) : navigate("/playlists");

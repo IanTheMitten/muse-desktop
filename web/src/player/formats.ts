@@ -26,3 +26,7 @@ export function unplayableReason(track: { playable: boolean; format: string | nu
   if (!canPlayFormat(track.format)) return `Format not supported on this ${platformWord}`;
   return null;
 }
+
+export function playableOnly<T extends { playable: boolean; format: string | null }>(tracks: T[]): T[] {
+  return tracks.filter((t) => unplayableReason(t) === null);
+}

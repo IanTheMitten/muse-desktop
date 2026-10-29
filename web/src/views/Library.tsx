@@ -16,7 +16,7 @@ import { CoverArt } from "../components/CoverArt";
 import { CoverCard } from "../components/CoverCard";
 import { Screen } from "../components/Screen";
 import { TrackRow } from "../components/TrackRow";
-import { unplayableReason } from "../player/formats";
+import { playableOnly, unplayableReason } from "../player/formats";
 import { count } from "../format";
 import { useJobs } from "../jobs/JobsContext";
 import { usePlayer } from "../player/PlayerContext";
@@ -145,12 +145,12 @@ export function Library() {
   );
 
   const shownSongs = query.trim() ? songs : (allSongs ?? []);
-  const playable = shownSongs.filter((track) => track.playable);
+  const playable = playableOnly(shownSongs);
 
   const playAlbum = (album: LibraryAlbum) =>
     getAlbum(album.album_rowid)
       .then((detail) => {
-        const tracks = detail.tracks.filter((track) => track.playable);
+        const tracks = playableOnly(detail.tracks);
         if (tracks.length) playQueue(tracks, 0, { kind: "album", label: album.album_name });
       })
       .catch((cause: unknown) =>

@@ -10,6 +10,7 @@ import { count, runtime } from "../format";
 import { FeelPicker, useFeel } from "../muse/FeelPicker";
 import { MakePlaylist } from "../muse/MakePlaylist";
 import { usePlayer, type MoodPoint } from "../player/PlayerContext";
+import { playableOnly } from "../player/formats";
 import { useLoad } from "../useLoad";
 
 /** First four distinct albums' covers, as the server picked them. */
@@ -61,7 +62,7 @@ export function Playlists() {
     try {
       const detail = await getPlaylist(p.id);
       playQueue(
-        detail.tracks.filter((t) => t.playable),
+        playableOnly(detail.tracks),
         0,
         { kind: "playlist", label: p.name, playlistId: p.id },
       );

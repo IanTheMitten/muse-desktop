@@ -6,7 +6,7 @@ import { getAlbum } from "../api";
 import { BackIcon, PlayIcon, ShuffleIcon } from "../components/Icons";
 import { CoverArt } from "../components/CoverArt";
 import { TrackRow } from "../components/TrackRow";
-import { unplayableReason } from "../player/formats";
+import { playableOnly, unplayableReason } from "../player/formats";
 import { useCardMesh } from "../components/Wash";
 import { count, runtime } from "../format";
 import { usePlayer } from "../player/PlayerContext";
@@ -27,7 +27,7 @@ export function AlbumTracks() {
 
   // Tapping a track plays the album from there. Unplayable tracks are left out
   // of the queue rather than skipped over at playback time.
-  const playable = data?.tracks.filter((track) => track.playable) ?? [];
+  const playable = playableOnly(data?.tracks ?? []);
   const from = { kind: "album" as const, label: data?.album_name ?? "" };
 
   const back = () =>

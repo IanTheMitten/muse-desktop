@@ -7,6 +7,7 @@ import { useLoad } from "../useLoad";
 import { CoverCard } from "../components/CoverCard";
 import { Screen } from "../components/Screen";
 import { usePlayer } from "../player/PlayerContext";
+import { playableOnly } from "../player/formats";
 
 export function ArtistAlbums() {
   const { artist = "" } = useParams();
@@ -37,7 +38,7 @@ export function ArtistAlbums() {
                 artSrc={album.has_art ? `/api/albums/${album.album_rowid}/art` : null}
                 onPlay={() =>
                   void getAlbum(album.album_rowid).then((detail) => {
-                    const tracks = detail.tracks.filter((t) => t.playable);
+                    const tracks = playableOnly(detail.tracks);
                     if (tracks.length) playQueue(tracks, 0, { kind: "artist", label: artist });
                   })
                 }

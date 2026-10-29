@@ -140,7 +140,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 ## Phase 1 - Foundations
 
 ### Task 1: Remove stale muse.backup and systemd comments [mechanical]
-- [ ] status
+- [x] status
 **Objective:** `taste_retrain.py` and `content_embed_batch.py` no longer mention `muse.backup` or a systemd timer.
 **Write-scope:**
 `muse/taste_retrain.py`
@@ -160,7 +160,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Parked M1 task 3r2. `muse/backup.py` was stripped in M1 and the desktop app has no systemd.
 
 ### Task 2: Migration 22, year tag, and scanner year
-- [ ] status
+- [x] status
 **Objective:** Schema 22 adds `track_overrides`, `hidden_artists`, `artist_images` and `tracks.year`; tags and the scanner read and store the year.
 **Write-scope:**
 `muse/library/schema.py`
@@ -194,7 +194,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** One migration for M2's tables keeps the ladder short. The year backfill rides the scanner's existing re-read path instead of a separate job.
 
 ### Task 3: Web test runner and playable-only queues
-- [ ] status
+- [x] status
 **Objective:** `npm test` runs vitest, and no queue builder can queue a track whose format the webview cannot play.
 **Write-scope:**
 `web/package.json`

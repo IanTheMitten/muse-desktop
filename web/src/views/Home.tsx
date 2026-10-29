@@ -17,7 +17,7 @@ import { CoverCard } from "../components/CoverCard";
 import { PlayIcon } from "../components/Icons";
 import { Screen } from "../components/Screen";
 import { TrackRow } from "../components/TrackRow";
-import { unplayableReason } from "../player/formats";
+import { playableOnly, unplayableReason } from "../player/formats";
 import { WeekBars } from "../components/WeekBars";
 import { useCardMesh } from "../components/Wash";
 import { count } from "../format";
@@ -55,7 +55,7 @@ export function Home() {
     playQueue(tracks, at, from(label));
   const playAlbum = async (album: LibraryAlbum, label: string) => {
     const detail = await getAlbum(album.album_rowid);
-    const tracks = detail.tracks.filter((t) => t.playable);
+    const tracks = playableOnly(detail.tracks);
     if (tracks.length > 0) playQueue(tracks, 0, from(label));
   };
 
@@ -78,7 +78,7 @@ export function Home() {
   const resumeTrack = current ?? dash?.resume?.track ?? null;
 
   const chart = data?.chart ?? [];
-  const chartTracks = chart.flatMap((s) => (s.track?.playable ? [s.track] : []));
+  const chartTracks = chart.flatMap((s) => (s.track && unplayableReason(s.track) === null ? [s.track] : []));
   const albumShelf = (label: string, albums: LibraryAlbum[]) => (
     <Shelf title={label} show={albums.length > 0}>
       <div className="covers row">
