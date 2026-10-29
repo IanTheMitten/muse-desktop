@@ -610,7 +610,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 ## Phase 4 - Wiring and UI
 
 ### Task 12: Lifespan chain, settings and scan routes
-- [ ] status
+- [x] status
 **Objective:** On launch, the app runs scan, LRCLIB, art and a stale retrain under one lock. A watcher reruns the chain. `GET /api/settings`, `PUT /api/settings/music_folders` and `POST /api/scan` exist.
 **Write-scope:**
 `muse/api.py`

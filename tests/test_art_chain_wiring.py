@@ -43,7 +43,7 @@ def test_both_chains_lead_with_caa_then_itunes_and_share_one_itunes(
 
     async def drive():
         async with app.router.lifespan_context(app):
-            return None
+            await app.state.chain_task  # the launch chain builds the backfill chain
 
     asyncio.run(drive())
 

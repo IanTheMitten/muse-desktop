@@ -9,6 +9,7 @@ import asyncio
 import hmac
 import json
 import logging
+import os
 import sqlite3
 import time
 from contextlib import asynccontextmanager
@@ -30,6 +31,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from . import embed as embed_module
+from . import settings, taste_retrain
 from . import library
 from .art import ChainedArtProvider, CoverArtArchive, ItunesArt, YtdlpThumbnailArt
 from .catalog import EmptyCatalog
@@ -44,6 +46,8 @@ from .jobs import (
     DOWNLOAD,
     JobBus,
     run_art_backfill,
+    run_lyrics_sync_backfill,
+    run_scan_job,
     run_content_backfill,
     run_download_job,
     run_download_worker,
@@ -64,6 +68,7 @@ from .library import tracks as library_tracks
 from .lrc import parse_lrc
 from .lyrics import lyrics_files, read_lyrics
 from .musicbrainz import MusicBrainzClient
+from .watch import watch_folders
 from .streaming import ByteRange, Unsatisfiable, media_type_for, parse_range, read_range
 from .taste import TASTE_RETRAIN
 
@@ -113,6 +118,10 @@ class ArcPlan(BaseModel):
     pos: int = 0
     recent: list[int] = []
     exclude: list[int] = []
+
+
+class MusicFoldersWrite(BaseModel):
+    folders: list[str]
 
 
 class StateWrite(BaseModel):
@@ -384,6 +393,8 @@ def create_app(
     audio_source=None,
     genius_client=None,
     chart_fetch=None,
+    taste_trainer=None,
+    read_tags=None,
 ) -> FastAPI:
     """`art_provider` is injectable so tests never reach MusicBrainz. `mb` is
     the one MusicBrainz client this process gets, injectable for the same
@@ -465,18 +476,68 @@ def create_app(
         # at startup (Decision 5 C).
         # One instance: one 3 s floor between iTunes requests for the whole process.
         itunes_art = ItunesArt()
-        backfill = None
-        if config.art_backfill:
-            backfill = asyncio.create_task(
-                run_art_backfill(
-                    conn,
-                    art_provider or ChainedArtProvider(
-                        [CoverArtArchive(mb=resolved_mb), itunes_art]
-                    ),
-                    config.art_root,
-                    bus,
-                )
-            )
+
+        # Scan, lyrics, art, then a stale retrain, one step at a time: the
+        # shared connection cannot hold two transactions at once.
+        app.state.chain_lock = chain_lock = asyncio.Lock()
+
+        async def run_chain(launch: bool) -> None:
+            async with chain_lock:
+                folders = settings.music_folders(config.settings_path)
+                try:
+                    await run_scan_job(
+                        conn, folders, bus, lyrics_root=config.lyrics_root,
+                        art_root=config.art_root, read_tags=read_tags,
+                    )
+                except Exception:
+                    log.exception("Library scan failed")
+                if config.lyrics_sync:
+                    try:
+                        await run_lyrics_sync_backfill(
+                            conn, bus, lyrics_root=config.lyrics_root
+                        )
+                    except Exception:
+                        log.exception("Lyrics sync backfill failed")
+                if config.art_backfill:
+                    try:
+                        await run_art_backfill(
+                            conn,
+                            art_provider or ChainedArtProvider(
+                                [CoverArtArchive(mb=resolved_mb), itunes_art]
+                            ),
+                            config.art_root,
+                            bus,
+                        )
+                    except Exception:
+                        log.exception("Art backfill failed")
+                if launch and config.taste_retrain_at_launch:
+                    try:
+                        last = job_rows.last(conn, TASTE_RETRAIN, state=job_rows.DONE)
+                        if last is None or last["updated_at"] < time.time() - 86400:
+                            await asyncio.to_thread(taste_retrain.run, conn, taste_trainer)
+                    except Exception:
+                        log.exception("Launch taste retrain failed")
+
+        app.state.run_chain = run_chain
+        app.state.chain_task = asyncio.create_task(run_chain(True))
+
+        watch_task = None
+        app.state.watch_stop = None
+
+        def start_watcher() -> None:
+            nonlocal watch_task
+            if watch_task is not None:
+                app.state.watch_stop.set()
+                watch_task.cancel()
+            app.state.watch_stop = stop = asyncio.Event()
+            watch_task = asyncio.create_task(watch_folders(
+                settings.music_folders(config.settings_path),
+                lambda: asyncio.shield(run_chain(False)),
+                stop=stop,
+            ))
+
+        app.state.start_watcher = start_watcher
+        start_watcher()
 
         # The embed batch, in the background, never in a request -- same
         # reasoning as the art backfill. Off by default (config.embed_batch):
@@ -577,11 +638,16 @@ def create_app(
             yield
         finally:
             sweeper.cancel()
-            if backfill is not None:
-                backfill.cancel()
             if embed_task is not None:
                 embed_task.cancel()
             download_worker.cancel()
+            app.state.watch_stop.set()
+            for task in (watch_task, app.state.chain_task):
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
             # Cancelling a to_thread task leaves its thread running, and it
             # would query the connection closed on the next line (segfault).
             await warm_home
@@ -606,6 +672,47 @@ def create_app(
             {**s, "track": queries.find_track(app.state.conn, s["name"], s["artist_name"])}
             for s in songs
         ]}
+
+    def _settings_view() -> dict:
+        saved = settings.load(app.state.config.settings_path)
+        status = []
+        for p in saved["music_folders"]:
+            (n,) = app.state.conn.execute(
+                "SELECT COUNT(*) FROM tracks WHERE status = 'done'"
+                " AND removed_at IS NULL AND file_path LIKE ?",
+                (p + os.sep + "%",),
+            ).fetchone()
+            status.append({"path": p, "present": Path(p).is_dir(), "songs": n})
+        return {**saved, "folder_status": status}
+
+    @app.get("/api/settings")
+    def get_settings() -> dict:
+        return _settings_view()
+
+    @app.put("/api/settings/music_folders")
+    async def put_music_folders(body: MusicFoldersWrite) -> dict:
+        for p in body.folders:
+            if not Path(p).is_absolute():
+                raise HTTPException(400, f"{p} is not an absolute path")
+            if not Path(p).is_dir():
+                raise HTTPException(400, f"{p} is not a folder")
+        folders = list(dict.fromkeys(Path(p).resolve() for p in body.folders))
+        for a in folders:
+            for b in folders:
+                if a != b and a.is_relative_to(b):
+                    raise HTTPException(400, f"{a} is inside {b}")
+        cfg = app.state.config
+        saved = settings.load(cfg.settings_path)
+        saved["music_folders"] = [str(f) for f in folders]
+        settings.save(cfg.settings_path, saved)
+        app.state.start_watcher()
+        asyncio.create_task(app.state.run_chain(False))
+        return _settings_view()
+
+    @app.post("/api/scan", status_code=202)
+    async def scan_now() -> dict:
+        asyncio.create_task(app.state.run_chain(False))
+        return {"started": True}
 
     @app.get("/api/health")
     def health() -> dict:
