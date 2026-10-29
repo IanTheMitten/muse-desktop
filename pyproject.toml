@@ -2,11 +2,15 @@
 name = "muse"
 version = "0.1.0"
 description = "Muse Player — self-hosted music player for a single listener on a tailnet"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "requests",
+    "mutagen",
+    "watchfiles",
+    "implicit",
+    "numpy",
 ]
 
 # Only `muse.embed`'s real encoders need these — ~0.8 GB of CLAP weights and
@@ -18,14 +22,6 @@ embed = [
     "transformers",
     "sentence-transformers",
     "numpy",
-]
-# Only `muse.taste.ImplicitAlsTrainer` needs these. Everything else,
-# including the default test run, runs against `StubTasteTrainer` and
-# never imports this group.
-taste = [
-    "implicit",
-    "numpy",
-    "scipy",
 ]
 # Only muse/ingest.py's real providers need these — yt-dlp for audio, mutagen
 # for m4a tagging, lyricsgenius for the Genius lyrics fallback. Everything

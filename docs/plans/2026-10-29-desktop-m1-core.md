@@ -140,7 +140,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 ## Phase 1 - Fork baseline
 
 ### Task 1: Pin Python 3.12 and move mutagen, watchfiles and the taste deps into core [mechanical]
-- [ ] status
+- [x] status
 **Objective:** The project resolves and tests on Python 3.12, with `mutagen`, `watchfiles`, `implicit` and `numpy` as core dependencies.
 **Write-scope:**
 `pyproject.toml`

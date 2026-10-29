@@ -54,3 +54,5 @@ mb_lang_cache.json
 *.m4a
 *.csv.gz
 *.jsonl
+# Desktop data dir (Config.data_dir default)
+/data/
