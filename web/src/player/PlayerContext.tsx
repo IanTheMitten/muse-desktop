@@ -1,3 +1,4 @@
+import { withToken } from "../token";
 import {
   createContext,
   useCallback,
@@ -647,7 +648,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const element = audio.current;
     if (!element || !current) return;
 
-    element.src = `/api/tracks/${current.track_rowid}/stream`;
+    element.src = withToken(`/api/tracks/${current.track_rowid}/stream`);
     element.load();
     setGain(current.gain_db);
 
@@ -780,7 +781,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       artist: current.artist_names.join(", ") || current.artist_name,
       album: current.album_name,
       artwork: current.has_art
-        ? [{ src: `/api/tracks/${current.track_rowid}/art`, sizes: "512x512" }]
+        ? [{ src: withToken(`/api/tracks/${current.track_rowid}/art`), sizes: "512x512" }]
         : [],
     });
   }, [current]);

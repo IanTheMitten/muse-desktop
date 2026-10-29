@@ -1,3 +1,4 @@
+import { withToken } from "../token";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import "../styles/library.css";
@@ -53,7 +54,7 @@ export function AlbumTracks() {
             <div className="album-glow" style={{ background: glow }} aria-hidden="true" />
             <div className="album-art">
               <CoverArt
-                src={`/api/albums/${data.album_rowid}/art`}
+                src={withToken(`/api/albums/${data.album_rowid}/art`)}
                 hasArt={hasArt}
                 size="hero"
                 alt={`Cover of ${data.album_name}`}

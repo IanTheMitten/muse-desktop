@@ -1,3 +1,4 @@
+import { apiFetch } from "../token";
 import { ApiError } from "../api";
 import type { MoodPoint } from "../player/PlayerContext";
 
@@ -60,7 +61,7 @@ export function toArcSpec(p: MoodPoint, seed: number | null, n: number): object 
 }
 
 export async function postArcPlaylist(spec: object, n: number): Promise<number[]> {
-  const response = await fetch("/api/arc", {
+  const response = await apiFetch("/api/arc", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ spec, mode: "playlist", n }),

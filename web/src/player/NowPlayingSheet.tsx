@@ -1,3 +1,4 @@
+import { withToken } from "../token";
 import { useEffect, useRef, useState } from "react";
 
 import type { Track } from "../api";
@@ -176,7 +177,7 @@ export function NowPlayingSheet() {
           <div className="np-main">
             <div className="np-art">
               <CoverArt
-                src={`/api/tracks/${current.track_rowid}/art`}
+                src={withToken(`/api/tracks/${current.track_rowid}/art`)}
                 hasArt={current.has_art}
                 size="hero"
                 alt={`${current.album_name} by ${current.artist_name}`}

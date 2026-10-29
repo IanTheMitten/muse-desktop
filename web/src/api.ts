@@ -1,3 +1,4 @@
+import { apiFetch } from "./token";
 /* The one place that knows the API exists. */
 
 export type Health = {
@@ -103,7 +104,7 @@ export const statusOf = (cause: unknown): number | null =>
   cause instanceof ApiError ? cause.status : null;
 
 export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`/api${path}`, { signal });
+  const response = await apiFetch(`/api${path}`, { signal });
   if (!response.ok) {
     throw new ApiError(path, response.status, response.statusText);
   }
@@ -137,7 +138,7 @@ export async function rateTrack(
   trackRowid: number,
   rating: Rating,
 ): Promise<Rating> {
-  const response = await fetch("/api/ratings", {
+  const response = await apiFetch("/api/ratings", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ track_rowid: trackRowid, rating }),
@@ -171,7 +172,7 @@ async function sendPlaylist(
   path: string,
   body?: unknown,
 ): Promise<Response> {
-  const response = await fetch(`/api${path}`, {
+  const response = await apiFetch(`/api${path}`, {
     method,
     headers: { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -211,7 +212,7 @@ export async function getLyrics(
   trackRowid: number,
   signal?: AbortSignal,
 ): Promise<string | null> {
-  const response = await fetch(`/api/tracks/${trackRowid}/lyrics`, { signal });
+  const response = await apiFetch(`/api/tracks/${trackRowid}/lyrics`, { signal });
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new ApiError(
@@ -246,7 +247,7 @@ export async function setLyricsOffset(
   trackRowid: number,
   offsetMs: number,
 ): Promise<number> {
-  const response = await fetch(`/api/tracks/${trackRowid}/lyrics/offset`, {
+  const response = await apiFetch(`/api/tracks/${trackRowid}/lyrics/offset`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ offset_ms: offsetMs }),
@@ -647,7 +648,7 @@ export type JobRequest =
   | { kind: "mb_release"; release_group_mbid: string };
 
 async function post<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`/api${path}`, {
+  const response = await apiFetch(`/api${path}`, {
     method: "POST",
     headers: body === undefined ? {} : { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),

@@ -238,7 +238,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Spec lines 73-88: the copy leaves out the contract, the mirrors and the manifest path. `_open_catalog` stays as the seam that `tests/test_api_discover.py:217` monkeypatches.
 
 ### Task 4: Web token plumbing: header on every fetch, ?t= on every media URL
-- [ ] status
+- [x] status
 **Objective:** Every `/api` request from the UI carries `X-Muse-Token`, and every media, `Image` and `EventSource` URL carries `?t=`. Both come from one module that bootstraps the token from the page URL and survives a reload.
 **Write-scope:**
 `web/src/token.ts` (new)

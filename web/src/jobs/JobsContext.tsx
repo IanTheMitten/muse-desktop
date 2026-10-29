@@ -1,3 +1,4 @@
+import { withToken } from "../token";
 import {
   createContext,
   useContext,
@@ -40,7 +41,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   const wasRunning = useRef(false);
 
   useEffect(() => {
-    const source = new EventSource("/api/jobs/stream");
+    const source = new EventSource(withToken("/api/jobs/stream"));
 
     source.onmessage = (event) => {
       let next: Job;

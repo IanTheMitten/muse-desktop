@@ -1,3 +1,4 @@
+import { apiFetch } from "../token";
 /* Recording what was actually listened to.
  *
  * This is the part of slice 1 that manufactures slice 2's training data, and
@@ -24,7 +25,7 @@ export async function openSpan(
   source: string,
 ): Promise<number | null> {
   try {
-    const response = await fetch("/api/plays", {
+    const response = await apiFetch("/api/plays", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -46,7 +47,7 @@ export async function beatSpan(
   seekCount: number,
 ): Promise<void> {
   try {
-    await fetch(`/api/plays/${playId}`, {
+    await apiFetch(`/api/plays/${playId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -65,7 +66,7 @@ export async function closeSpan(
   positionMs: number,
 ): Promise<void> {
   try {
-    await fetch(`/api/plays/${playId}/close`, {
+    await apiFetch(`/api/plays/${playId}/close`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

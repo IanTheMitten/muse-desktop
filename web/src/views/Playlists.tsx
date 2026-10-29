@@ -1,3 +1,4 @@
+import { withToken } from "../token";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -16,7 +17,7 @@ export function Mosaic({ ids }: { ids: number[] }) {
   return (
     <div className="mosaic" aria-hidden="true">
       {ids.slice(0, 4).map((id) => (
-        <img key={id} src={`/api/tracks/${id}/art`} alt="" loading="lazy" />
+        <img key={id} src={withToken(`/api/tracks/${id}/art`)} alt="" loading="lazy" />
       ))}
     </div>
   );

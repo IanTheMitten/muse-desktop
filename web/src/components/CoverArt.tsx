@@ -1,3 +1,4 @@
+import { withToken } from "../token";
 import { useEffect, useState } from "react";
 
 import { useJobs } from "../jobs/JobsContext";
@@ -41,7 +42,7 @@ export function CoverArt({
       {worthTrying ? (
         <img
           className="art-image"
-          src={artVersion > 0 ? `${src}?v=${artVersion}` : (src as string)}
+          src={withToken(artVersion > 0 ? `${src}?v=${artVersion}` : (src as string))}
           alt={alt}
           loading="lazy"
           decoding="async"

@@ -1,3 +1,4 @@
+import { apiFetch } from "../token";
 import type { Track } from "../api";
 
 /* Talking to the server-side player state.
@@ -45,7 +46,7 @@ export function deviceLabel(): string {
 }
 
 export async function readState(signal?: AbortSignal): Promise<RemoteState> {
-  const response = await fetch("/api/player/state", { signal });
+  const response = await apiFetch("/api/player/state", { signal });
   if (!response.ok) throw new Error(`player state -> ${response.status}`);
   return (await response.json()) as RemoteState;
 }
@@ -64,7 +65,7 @@ export async function writeState(payload: {
   // position, and blocking playback on a failed write would be far worse than
   // the thing it protects against.
   try {
-    await fetch("/api/player/state", {
+    await apiFetch("/api/player/state", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...payload, updated_by: deviceLabel() }),

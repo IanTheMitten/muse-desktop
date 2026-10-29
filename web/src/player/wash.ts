@@ -1,3 +1,4 @@
+import { withToken } from "../token";
 /* The record wash engine. A cover becomes a 4-colour palette; each colour is
  * scaled into a luminance band so text contrast holds by construction, and the
  * accent is pushed to >= 3.2:1 against the worst (np) band. Art is same-origin,
@@ -81,7 +82,7 @@ export function paletteFor(key: number, src: string): Promise<Palette> {
       }
     };
     img.onerror = () => res(GRAY);
-    img.src = src;
+    img.src = withToken(src);
   });
 }
 
