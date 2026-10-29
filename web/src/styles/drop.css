@@ -1,0 +1,70 @@
+.drop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  font-family: "Figtree Variable", sans-serif;
+  color: var(--text);
+}
+
+.drop-hover {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
+}
+
+.drop-hover::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border: 2px solid var(--accent);
+  border-radius: var(--r-l);
+}
+
+.drop[data-hover] .drop-hover { opacity: 1; }
+
+.drop-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--t-l);
+}
+
+.drop-sub {
+  margin: 0;
+  font-size: var(--t-s);
+  color: var(--text-2);
+}
+
+.drop-result {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--player-h, 80px) + var(--tabs-h, 0px) + 24px);
+  transform: translateX(-50%);
+  max-width: min(90vw, 480px);
+  padding: 12px 20px;
+  border-radius: var(--r-l);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  font-size: var(--t-s);
+  color: var(--text);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
+}
+
+.drop-result[data-show] { opacity: 1; }
+.drop-result:empty { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .drop-hover,
+  .drop-result { transition: none; }
+}

@@ -343,7 +343,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Decision 16 (a): audio stays in the main window, the mini window only sends commands, so playback never moves between webviews.
 
 ### Task 8: Drop overlay and import call [design]
-- [ ] status
+- [x] status
 **Objective:** Dragging files over the desktop window shows the overlay; a drop posts the paths to `/api/library/import` and shows a one-line result.
 **Write-scope:**
 `web/src/components/DropZone.tsx` (new)
