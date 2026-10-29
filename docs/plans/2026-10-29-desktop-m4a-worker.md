@@ -195,7 +195,7 @@ CONSTRAINTS: Banner never modal, never blocks playback; rendered inside <main> a
 **Why:** M3 review findings 1-6. The worker exe name is fixed now (`muse-worker`) so the installer hooks are right before the worker exists.
 
 ### Task 3: Worker dependencies and the model/freeze preflight [experiment]
-- [ ] status
+- [x] status
 **Objective:** The `embed` extra resolves with CPU torch and every worker model loads and answers once on this machine, from local dirs, and a PyInstaller onedir build of those imports runs; results recorded.
 **Write-scope:**
 `pyproject.toml`
