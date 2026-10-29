@@ -638,7 +638,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decision 15 bulk select and edit, Decision 10's ask-each-time delete, and per-row Play next / Add to queue.
 
 ### Task 18: Cover and artist picture upload, hide artist, lyrics editing entry, library sort [design]
-- [ ] status
+- [x] status
 **Objective:** The album page changes its cover, the artist page shows and changes a picture and hides the artist, the lyrics panel edits lyrics and resolves stale timings, and Songs sorts server-side.
 **Write-scope:**
 `web/src/views/AlbumTracks.tsx`

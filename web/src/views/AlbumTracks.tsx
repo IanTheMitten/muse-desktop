@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { withToken } from "../token";
+import { useMemo, useRef, useState } from "react";
 import { SelectionBar } from "../components/SelectionBar";
 import { useSelection } from "../components/selection";
 import { useTrackActions } from "../components/TrackActions";
@@ -7,7 +6,8 @@ import { TrackMenu } from "../components/TrackMenu";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import "../styles/library.css";
-import { getAlbum } from "../api";
+import { getAlbum, uploadAlbumArt } from "../api";
+import { useJobs } from "../jobs/JobsContext";
 import { BackIcon, PlayIcon, ShuffleIcon } from "../components/Icons";
 import { CoverArt } from "../components/CoverArt";
 import { TrackRow } from "../components/TrackRow";
@@ -28,6 +28,9 @@ export function AlbumTracks() {
   const { playQueue, current, playing, shuffle, toggleShuffle } = usePlayer();
   const rowids = useMemo(() => data?.tracks.map((t) => t.track_rowid) ?? [], [data]);
   const { selected, onSelect, clear } = useSelection(rowids);
+  const { bumpArt } = useJobs();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [artError, setArtError] = useState<string | null>(null);
   const { run, dialogs } = useTrackActions(() => setVersion((v) => v + 1));
 
   const hasArt = data?.tracks.some((track) => track.has_art) ?? false;
@@ -41,6 +44,17 @@ export function AlbumTracks() {
 
   const back = () =>
     window.history.state?.idx > 0 ? navigate(-1) : navigate("/library");
+
+  const changeCover = async (file: File | undefined) => {
+    if (!file || !data) return;
+    setArtError(null);
+    try {
+      await uploadAlbumArt(data.album_rowid, file);
+      bumpArt();
+    } catch (cause) {
+      setArtError(`Couldn't use that image: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
+  };
 
   const notFound = error?.includes("-> 404");
 
@@ -64,7 +78,7 @@ export function AlbumTracks() {
             <div className="album-glow" style={{ background: glow }} aria-hidden="true" />
             <div className="album-art">
               <CoverArt
-                src={withToken(`/api/albums/${data.album_rowid}/art`)}
+                src={`/api/albums/${data.album_rowid}/art`}
                 hasArt={hasArt}
                 size="hero"
                 alt={`Cover of ${data.album_name}`}
@@ -102,6 +116,22 @@ export function AlbumTracks() {
                 <ShuffleIcon aria-hidden="true" />
                 Shuffle
               </button>
+              <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
+                Change cover
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                className="vh"
+                accept="image/jpeg,image/png,image/webp"
+                tabIndex={-1}
+                aria-hidden="true"
+                onChange={(event) => {
+                  void changeCover(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+              {artError && <p className="media-note" role="alert">{artError}</p>}
             </div>
           </header>
 

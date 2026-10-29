@@ -8,9 +8,11 @@ import {
 import {
   getSyncedLyrics,
   setLyricsOffset,
+  setLyricsTimings,
   type SyncedLyrics as SyncedLyricsResponse,
   type Track,
 } from "../api";
+import { LyricsEditDialog } from "../components/LyricsEditDialog";
 import { usePlayer } from "../player/PlayerContext";
 import { useLoad } from "../useLoad";
 
@@ -104,10 +106,23 @@ function LyricsBody({
   playing: boolean;
   seek: (ms: number) => void;
 }) {
+  const [version, setVersion] = useState(0);
+  const [editing, setEditing] = useState(false);
   const { data, error, loading } = useLoad<SyncedLyricsResponse>(
     (signal) => getSyncedLyrics(track.track_rowid, signal),
-    [track.track_rowid],
+    [track.track_rowid, version],
   );
+  const refetch = () => setVersion((v) => v + 1);
+  const editor = editing && (
+    <LyricsEditDialog track={track} onClose={() => setEditing(false)} onSaved={refetch} />
+  );
+  const editBtn = (label: string) => (
+    <button type="button" className="link-btn lyrics-edit" onClick={() => setEditing(true)}>
+      {label}
+    </button>
+  );
+  const timing = (action: "keep" | "drop") => () =>
+    void setLyricsTimings(track.track_rowid, action).then(refetch, () => {});
 
   if (loading) return <p className="lyrics-note">Reading…</p>;
 
@@ -118,31 +133,52 @@ function LyricsBody({
     // a failure (PRODUCT.md's voice).
     const notFound = error?.includes("404") ?? false;
     return (
-      <p className="lyrics-note">
-        {notFound ? "No lyrics for this track." : "Could not read the lyrics."}
-      </p>
+      <>
+        <p className="lyrics-note">
+          {notFound ? "No lyrics for this track." : "Could not read the lyrics."}
+        </p>
+        {notFound && editBtn("Add lyrics")}
+        {editor}
+      </>
     );
   }
+
+  const stale = data.lrc_stale && (
+    <div className="lyrics-note lyrics-stale" role="status">
+      <p>These timings were made for the old words.</p>
+      <button type="button" className="link-btn" onClick={timing("keep")}>Keep old timings</button>
+      <button type="button" className="link-btn" onClick={timing("drop")}>Remove timings</button>
+    </div>
+  );
 
   if (!data.synced) {
     return (
       <>
         {data.plain && <p className="lyrics-note">Not synced yet</p>}
+        {stale}
         <PlainLyrics plain={data.plain} />
+        {editBtn(data.plain ? "Edit lyrics" : "Add lyrics")}
+        {editor}
       </>
     );
   }
 
   return (
-    <SyncedPanel
-      trackRowid={track.track_rowid}
-      rawLines={data.lines ?? []}
-      initialOffsetMs={data.offset_ms}
-      positionMs={positionMs}
-      durationMs={durationMs}
-      playing={playing}
-      seek={seek}
-    />
+    <>
+      {stale}
+      <SyncedPanel
+        key={version}
+        trackRowid={track.track_rowid}
+        rawLines={data.lines ?? []}
+        initialOffsetMs={data.offset_ms}
+        positionMs={positionMs}
+        durationMs={durationMs}
+        playing={playing}
+        seek={seek}
+      />
+      {editBtn("Edit lyrics")}
+      {editor}
+    </>
   );
 }
 

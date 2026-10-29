@@ -34,3 +34,14 @@
   .album-actions { justify-content: flex-start; }
   .album-tracks { padding-top: 8px; }
 }
+
+/* media edit: artist portrait, quiet actions, inline notes */
+.artist-portrait-art { display: block; width: 96px; height: 96px; border-radius: 50%; overflow: hidden; margin: 8px 0 12px; }
+.artist-portrait-art .art { width: 100%; height: 100%; }
+@media (min-width: 600px) { .artist-portrait-art { width: 128px; height: 128px; } }
+.media-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+.media-note { margin-top: 8px; font-size: var(--t-s); color: var(--text-2); }
+.album-actions .media-note { flex-basis: 100%; }
+.field select { width: 100%; min-height: 48px; padding: 0 16px; border-radius: var(--r-m); font-size: 1rem; border: 1px solid var(--hairline); background: var(--glass); color: var(--text); }
+.field select:disabled { opacity: .45; }
+@media (min-width: 760px) { .toolbar:has(#lib-sort) { grid-template-columns: minmax(0, 420px) 200px auto; } }

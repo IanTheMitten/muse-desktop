@@ -115,3 +115,7 @@
 .np .rows.sorting > li.lifted { transition: none; position: relative; z-index: 1; background: var(--ink-raised); border-radius: var(--r-s); box-shadow: 0 6px 20px rgb(0 0 0 / .35); }
 .np .rows.sorting .queue-grip { cursor: grabbing; }
 @media (prefers-reduced-motion: reduce) { .np .rows.sorting > li { transition: none; } }
+
+.lyrics-edit { margin: 4px 10px; }
+.lyrics-stale p { margin-bottom: 4px; }
+.lyrics-stale .link-btn { margin-right: 8px; }

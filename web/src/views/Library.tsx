@@ -6,6 +6,7 @@ import {
   getAlbums,
   getArtists,
   getSongs,
+  type SongSort,
   searchLibrary,
   type Artist,
   type LibraryAlbum,
@@ -32,6 +33,14 @@ import { usePlayer } from "../player/PlayerContext";
 
 type Segment = "albums" | "artists" | "songs";
 
+const SORTS: { key: string; label: string; sort: SongSort; order: "asc" | "desc" }[] = [
+  { key: "title", label: "Title", sort: "title", order: "asc" },
+  { key: "added", label: "Recently added", sort: "added", order: "desc" },
+  { key: "plays", label: "Most played", sort: "plays", order: "desc" },
+  { key: "year", label: "Year", sort: "year", order: "desc" },
+  { key: "duration", label: "Length", sort: "duration", order: "desc" },
+];
+
 const SEGMENTS: { key: Segment; label: string }[] = [
   { key: "albums", label: "Albums" },
   { key: "artists", label: "Artists" },
@@ -54,6 +63,7 @@ export function Library() {
   const tab = params.get("tab");
   const segment: Segment = tab === "artists" || tab === "songs" ? tab : "albums";
   const query = params.get("q") ?? "";
+  const sortBy = SORTS.find((s) => s.key === params.get("sort")) ?? SORTS[0];
   const [artists, setArtists] = useState<Artist[] | null>(null);
   const [albums, setAlbums] = useState<LibraryAlbum[] | null>(null);
   const [songs, setSongs] = useState<Track[]>([]);
@@ -63,9 +73,10 @@ export function Library() {
   const { playQueue, current, playing } = usePlayer();
   const { libraryVersion } = useJobs();
 
-  const update = (next: { tab?: Segment; q?: string }) => {
+  const update = (next: { tab?: Segment; q?: string; sort?: string }) => {
     const out = new URLSearchParams(params);
     if (next.tab !== undefined) out.set("tab", next.tab);
+    if (next.sort !== undefined) out.set("sort", next.sort);
     if (next.q !== undefined) {
       if (next.q) out.set("q", next.q);
       else out.delete("q");
@@ -92,11 +103,14 @@ export function Library() {
     return () => abort.abort();
   }, [libraryVersion]);
 
+  // A new sort order drops the loaded list so the effect below refetches it.
+  useEffect(() => setAllSongs(null), [sortBy]);
+
   // Every song, once, the first time the Songs tab opens.
   useEffect(() => {
     if (segment !== "songs" || allSongs) return;
     const abort = new AbortController();
-    getSongs(abort.signal)
+    getSongs(abort.signal, sortBy.sort, sortBy.order)
       .then(setAllSongs)
       .catch((cause: unknown) => {
         if (!abort.signal.aborted) {
@@ -104,7 +118,7 @@ export function Library() {
         }
       });
     return () => abort.abort();
-  }, [segment, allSongs]);
+  }, [segment, allSongs, sortBy]);
 
   useEffect(() => {
     if (segment !== "songs" || !query.trim()) {
@@ -226,6 +240,21 @@ export function Library() {
             </button>
           ))}
         </div>
+        {segment === "songs" && (
+          <div className="field">
+            <label htmlFor="lib-sort">Sort by</label>
+            <select
+              id="lib-sort"
+              value={sortBy.key}
+              disabled={searching}
+              onChange={(event) => update({ sort: event.target.value })}
+            >
+              {SORTS.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="section grid-wrap">
@@ -259,11 +288,13 @@ export function Library() {
                     <span className="artist-art">
                       <CoverArt
                         src={
-                          artist.art_album_rowid === null
-                            ? null
-                            : `/api/albums/${artist.art_album_rowid}/art`
+                          artist.has_image
+                            ? `/api/artists/${encodeURIComponent(artist.artist_name)}/image`
+                            : artist.art_album_rowid === null
+                              ? null
+                              : `/api/albums/${artist.art_album_rowid}/art`
                         }
-                        hasArt={artist.art_album_rowid !== null}
+                        hasArt={artist.has_image || artist.art_album_rowid !== null}
                         size="thumb"
                       />
                     </span>

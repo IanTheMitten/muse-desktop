@@ -1,6 +1,7 @@
 import { withToken } from "../token";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -31,9 +32,11 @@ type JobsApi = {
   artVersion: number;
   /** Bumped when a scan finishes, so Library reloads what the scan added. */
   libraryVersion: number;
+  /** Bumped after a manual cover or picture upload so every CoverArt re-requests. */
+  bumpArt: () => void;
 };
 
-const JobsContext = createContext<JobsApi>({ job: null, artVersion: 0, libraryVersion: 0 });
+const JobsContext = createContext<JobsApi>({ job: null, artVersion: 0, libraryVersion: 0, bumpArt: () => {} });
 
 export const useJobs = () => useContext(JobsContext);
 
@@ -75,6 +78,10 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     return () => source.close();
   }, []);
 
-  const api = useMemo(() => ({ job, artVersion, libraryVersion }), [job, artVersion, libraryVersion]);
+  const bumpArt = useCallback(() => setArtVersion((version) => version + 1), []);
+  const api = useMemo(
+    () => ({ job, artVersion, libraryVersion, bumpArt }),
+    [job, artVersion, libraryVersion, bumpArt],
+  );
   return <JobsContext.Provider value={api}>{children}</JobsContext.Provider>;
 }
