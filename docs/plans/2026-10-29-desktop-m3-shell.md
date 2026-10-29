@@ -287,7 +287,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 ## Phase 2 - Shell and desktop UI
 
 ### Task 6: Tauri shell core: sidecar lifecycle, boot status, token, smoke mode
-- [ ] status
+- [x] status
 **Objective:** `uv run python scripts/shell_smoke.py --build --expect mp3,flac,wav` builds and runs the shell headless and prints `SHELL-SMOKE-OK`.
 **Write-scope:**
 `web/package.json`
