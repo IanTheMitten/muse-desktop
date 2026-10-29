@@ -558,6 +558,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
    - Tests that assert files beside the audio (`audio_path.with_suffix(".lrc")`, `.lyrics.txt`) now assert `tmp_path/"lyrics"/f"{rowid}.lrc"` and `.txt`, and pass `lyrics_root=tmp_path / "lyrics"` to every `sync_batch(...)` and `run_lyrics_sync_backfill(...)` call.
    - The `lyrics_path` "manifest/path" test keeps its intent: a preset `lyrics_path` is not overwritten.
    - In `tests/test_api_lyrics_synced.py`, `_seed` writes the `.lrc` to `tmp_path/"lyrics"/f"{rowid}.lrc"`.
+5. Fix the stale comments at `muse/lyrics_sync.py:75` (names `muse.backup`) and `muse/lyrics_lrclib.py:162` (names `importer._is_instrumental`, now `tracks.is_instrumental_path`).
 **New symbols:** keyword parameter `lyrics_root: Path` on `_write_files`, `_apply`, `sync_batch`, `run_lyrics_sync_backfill`
 **Verify:** `uv run pytest -p no:cacheprovider tests/test_lyrics_sync.py tests/test_api_lyrics_synced.py tests/test_api_jobs.py` and then `uv run pytest -p no:cacheprovider`, then `grep -n "with_suffix" muse/lyrics_lrclib.py muse/api.py`. Expected: all green; grep prints nothing.
 **Forbidden:** don't change `decide_outcome` or the `manual` guard; don't touch `muse/ingest.py` (the M5 download path still writes beside its own downloads); don't touch the lifespan (Task 12).
