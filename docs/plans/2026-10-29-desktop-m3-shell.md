@@ -152,7 +152,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 ## Phase 1 - Foundations
 
 ### Task 1: Sidecar exits when the shell goes away
-- [ ] status
+- [x] status
 **Objective:** With `MUSE_PARENT_WATCH=1`, `python -m muse` shuts down cleanly once its stdin closes; without it, nothing changes.
 **Write-scope:**
 `muse/__main__.py`
