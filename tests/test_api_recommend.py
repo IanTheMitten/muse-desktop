@@ -15,25 +15,8 @@ from tests.conftest import insert_track
 
 
 def _config(tmp_path):
-    from muse.config import Config
-    return Config(
-        root=tmp_path,
-        library_db=tmp_path / "library.sqlite3",
-        manifest=tmp_path / "manifest.json",
-        catalog=tmp_path / "catalog.sqlite3",
-        audio_features=tmp_path / "features.sqlite3",
-        music_root=tmp_path / "MUSIC",
-        art_root=tmp_path / "art",
-        web_dist=tmp_path / "web",
-        backup_dir=tmp_path / "backups",
-        backup_target=None,
-        port=8080,
-        host="127.0.0.1",
-        art_backfill=False,
-        embed_batch=False,
-        content_embed=False,
-        catalog_freeze="2025-11-13",
-    )
+    from tests.conftest import make_config
+    return make_config(tmp_path)
 
 
 def route(app, path):

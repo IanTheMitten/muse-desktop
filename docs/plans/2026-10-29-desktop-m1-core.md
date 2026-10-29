@@ -287,7 +287,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 ## Phase 2 - Config, loopback server, storage foundation
 
 ### Task 5: Reshape Config around the data dir and add make_config for tests
-- [ ] status
+- [x] status
 **Objective:** `Config` describes one data dir, loopback port and token, and every test builds its config with `make_config(tmp_path)`, which keeps every path under `tmp_path`.
 **Write-scope:**
 `muse/config.py`

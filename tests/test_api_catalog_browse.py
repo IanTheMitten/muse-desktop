@@ -14,23 +14,14 @@ from fastapi.testclient import TestClient
 
 from muse.api import create_app
 from muse.catalog import EmptyCatalog
-from muse.config import Config
+from tests.conftest import make_config
 from muse.library import jobs as job_rows
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr("muse.api._open_catalog", lambda config: EmptyCatalog())
-    config = Config(
-        root=tmp_path, library_db=tmp_path / "library.sqlite3",
-        manifest=tmp_path / "manifest.json", catalog=tmp_path / "catalog.sqlite3",
-        audio_features=tmp_path / "features.sqlite3",
-        music_root=tmp_path / "MUSIC", art_root=tmp_path / "art",
-        web_dist=tmp_path / "web", backup_dir=tmp_path / "backups",
-        backup_target=None, port=8080, host="127.0.0.1",
-        art_backfill=False, embed_batch=False, content_embed=False,
-        catalog_freeze="2025-11-13",
-    )
+    config = make_config(tmp_path)
     app = create_app(config)
     with TestClient(app) as test_client:
         yield test_client, app

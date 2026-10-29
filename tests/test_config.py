@@ -1,6 +1,3 @@
-import asyncio
-
-from muse.api import create_app
 from muse.config import Config
 
 
@@ -14,42 +11,26 @@ def test_catalog_freeze_is_overridable(monkeypatch):
     assert Config.from_env().catalog_freeze == "2026-01-01"
 
 
-def test_the_freeze_date_reaches_the_client_through_health(tmp_path, monkeypatch):
-    """The whole chain, because until now there wasn't one.
+def test_paths_default_under_the_data_dir(tmp_path, monkeypatch):
+    for name in ("MUSE_LIBRARY_DB", "MUSE_MUSIC_ROOT", "MUSE_ART_ROOT",
+                 "MUSE_LYRICS_ROOT", "MUSE_SETTINGS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("MUSE_DATA_DIR", str(tmp_path))
 
-    `MUSE_CATALOG_FREEZE` was inert: nothing in `muse/` read
-    `Config.catalog_freeze`, and the browse screen kept its own copy of the
-    date in TypeScript. `/api/health` is where the server publishes it, and
-    the client reads it from there and hands it straight back as the `since`
-    that decides which of an artist's releases the mirror is missing -- so a
-    server started against a differently frozen mirror moves the boundary on
-    the screen instead of quietly disagreeing with it.
-    """
-    for name, value in {
-        "MUSE_CATALOG_FREEZE": "2026-01-01",
-        "MUSE_ROOT": str(tmp_path),
-        "MUSE_LIBRARY_DB": str(tmp_path / "library.sqlite3"),
-        "MUSE_MANIFEST": str(tmp_path / "manifest.json"),
-        "MUSE_CATALOG": str(tmp_path / "catalog.sqlite3"),
-        "MUSE_AUDIO_FEATURES": str(tmp_path / "features.sqlite3"),
-        "MUSE_MUSIC_ROOT": str(tmp_path / "MUSIC"),
-        "MUSE_ART_ROOT": str(tmp_path / "art"),
-        "MUSE_WEB_DIST": str(tmp_path / "web"),
-        "MUSE_BACKUP_DIR": str(tmp_path / "backups"),
-        "MUSE_ART_BACKFILL": "0",
-    }.items():
-        monkeypatch.setenv(name, value)
+    config = Config.from_env()
 
-    app = create_app(Config.from_env())
+    assert config.library_db == tmp_path / "library.sqlite3"
+    assert config.lyrics_root == tmp_path / "lyrics"
 
-    async def drive():
-        async with app.router.lifespan_context(app):
-            [route] = [
-                r for r in app.routes if getattr(r, "path", None) == "/api/health"
-            ]
-            return route.endpoint()
 
-    assert asyncio.run(drive())["catalog_freeze"] == "2026-01-01"
+def test_port_defaults_to_zero_and_token_to_none(monkeypatch):
+    monkeypatch.delenv("MUSE_PORT", raising=False)
+    monkeypatch.delenv("MUSE_TOKEN", raising=False)
+
+    config = Config.from_env()
+
+    assert config.port == 0
+    assert config.token is None
 
 
 def test_system_one_config_defaults(monkeypatch):

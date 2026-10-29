@@ -4,6 +4,7 @@ import time
 import pytest
 
 from muse.catalog import TrackFacts
+from muse.config import Config
 from muse.features import TrackFeatures
 from muse.library import connect
 from muse.library.tracks import index_track
@@ -127,3 +128,13 @@ def track_row(conn, rowid):
 
 def artist_names(conn, rowid):
     return json.loads(track_row(conn, rowid)["artist_names"])
+
+
+def make_config(tmp_path, **overrides) -> Config:
+    base = dict(data_dir=tmp_path, library_db=tmp_path / "library.sqlite3",
+                music_root=tmp_path / "MUSIC", art_root=tmp_path / "art",
+                lyrics_root=tmp_path / "lyrics", settings_path=tmp_path / "settings.json",
+                web_dist=tmp_path / "web", port=8080, art_backfill=False,
+                lyrics_sync=False, embed_batch=False, content_embed=False,
+                taste_retrain_at_launch=False)
+    return Config(**{**base, **overrides})

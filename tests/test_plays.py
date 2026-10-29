@@ -141,20 +141,10 @@ def test_default_state_before_anything_is_written(conn):
 
 def _app(tmp_path):
     from muse.api import create_app
-    from muse.config import Config
+    from tests.conftest import make_config
     from muse.library import db
 
-    application = create_app(Config(
-        root=tmp_path, library_db=tmp_path / "library.sqlite3",
-        manifest=tmp_path / "manifest.json",
-        catalog=tmp_path / "catalog.sqlite3",
-        audio_features=tmp_path / "features.sqlite3",
-        music_root=tmp_path / "MUSIC", art_root=tmp_path / "art",
-        web_dist=tmp_path / "web", backup_dir=tmp_path / "backups",
-        backup_target=None, port=8080, host="127.0.0.1",
-        art_backfill=False, embed_batch=False, content_embed=False,
-        catalog_freeze="2025-11-13",
-    ))
+    application = create_app(make_config(tmp_path))
     application.state.conn = db.connect(tmp_path / "library.sqlite3")
     return application
 
