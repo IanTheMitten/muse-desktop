@@ -313,7 +313,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** Installer, freeze and CI each need to know the new files; one task keeps them in step.
 
 ### Task 11: Write the align job and API tests (red) [test]
-- [ ] status
+- [x] status
 **Objective:** Two test files pin the align job runner, the timing writer and the three routes, failing only on the missing symbols.
 **Write-scope:** `tests/test_align_job.py` (new)
 `tests/test_api_align.py` (new)
