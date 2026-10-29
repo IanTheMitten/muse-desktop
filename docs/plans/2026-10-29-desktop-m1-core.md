@@ -566,7 +566,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Decision 8: LRCLIB is fetched once into the data dir, and strangers' music folders are never written.
 
 ### Task 11: Scan job and folder watcher
-- [ ] status
+- [x] status
 **Objective:** `run_scan_job` records a `scan` job with progress on the bus. `watch_folders` calls back on file changes and when a missing root appears or vanishes.
 **Write-scope:**
 `muse/jobs.py`

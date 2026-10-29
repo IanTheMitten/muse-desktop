@@ -20,6 +20,7 @@ from . import art as art_module
 from . import content_embed_batch
 from . import embed as embed_module
 from . import lyrics_lrclib as lyrics_lrclib_module
+from . import scanner
 from .ingest import DownloadResult
 from .library import art as library_art
 from .library import embeddings as library_embeddings
@@ -30,6 +31,7 @@ log = logging.getLogger("muse.jobs")
 
 ART_BACKFILL = "art_backfill"
 DOWNLOAD = "download"
+SCAN = "scan"
 
 # Enough room that a subscriber which stops reading is dropped rather than
 # stalling the job that is publishing to it.
@@ -423,6 +425,82 @@ async def run_lyrics_sync_backfill(
         conn, job_id, state=job_rows.DONE, progress=1.0, message=summary
     )
     log.info("Lyrics sync batch: %s", summary)
+    finished = job_rows.get(conn, job_id)
+    bus.publish(_event(finished))
+    return finished
+
+
+async def run_scan_job(
+    conn,
+    folders: list[Path],
+    bus: JobBus,
+    *,
+    lyrics_root: Path,
+    art_root: Path,
+    read_tags=None,
+) -> dict | None:
+    """Scan the library folders into the database, once.
+
+    Returns None without a row when a scan is already running or no folder
+    exists (an unplugged drive is not an error).
+    """
+    if job_rows.active(conn, SCAN):
+        log.info("Scan already running; not starting a second")
+        return None
+    if not any(f.is_dir() for f in folders):
+        return None
+
+    job_id = job_rows.create(conn, SCAN, {"folders": len(folders)})
+    job_rows.update(
+        conn, job_id, state=job_rows.RUNNING, message="Scanning"
+    )
+    bus.publish(_event(job_rows.get(conn, job_id)))
+
+    def on_progress(done: int, total: int, message: str) -> None:
+        progress = done / total if total else 0.0
+        text = f"Scanning · {done} of {total}"
+        job_rows.update(conn, job_id, progress=progress, message=text)
+        bus.publish_threadsafe(
+            {
+                "id": job_id,
+                "kind": SCAN,
+                "state": job_rows.RUNNING,
+                "progress": progress,
+                "message": text,
+                "payload": {"done": done, "total": total},
+            }
+        )
+
+    kwargs = {} if read_tags is None else {"read_tags": read_tags}
+    try:
+        r = await asyncio.to_thread(
+            scanner.scan,
+            conn,
+            folders,
+            lyrics_root=lyrics_root,
+            art_root=art_root,
+            on_progress=on_progress,
+            **kwargs,
+        )
+    except asyncio.CancelledError:
+        job_rows.update(
+            conn, job_id, state=job_rows.CANCELLED, message="Server stopped"
+        )
+        bus.publish(_event(job_rows.get(conn, job_id)))
+        raise
+    except Exception as error:
+        log.exception("Scan failed")
+        job_rows.update(conn, job_id, state=job_rows.ERROR, message=str(error))
+        bus.publish(_event(job_rows.get(conn, job_id)))
+        return job_rows.get(conn, job_id)
+
+    summary = f"{r.added} added, {r.moved} moved, {r.missing} missing" + (
+        f", {r.unreadable} unreadable" if r.unreadable else ""
+    )
+    job_rows.update(
+        conn, job_id, state=job_rows.DONE, progress=1.0, message=summary
+    )
+    log.info("Scan: %s", summary)
     finished = job_rows.get(conn, job_id)
     bus.publish(_event(finished))
     return finished
