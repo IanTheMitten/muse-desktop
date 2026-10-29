@@ -76,3 +76,20 @@ SHELL-SMOKE-FAIL
 - Windows: `muse/content_embed_batch.py:17` imports POSIX-only `fcntl` at module top, so the frozen sidecar crashes on import. Fix: guard it (import lazily or under `sys.platform != "win32"`, with an `msvcrt` or no-op fallback). That module belongs to the content leg retired in M4.
 - Windows: the smoke reported health=200 and media_session=True although the sidecar crashed. The health probe probably hit the shell's webview or something other than the sidecar; check that `shell_smoke.py` asserts health against the sidecar before trusting that number.
 - Re-run the Windows leg after the fcntl fix to get real codec results (WebView2 decode of mp3/flac/m4a/wav is still unconfirmed).
+
+## Re-run after the Windows fix (tag `ci-package-m3-2`)
+
+- Run: 40886552341 — https://github.com/IanTheMitten/muse-desktop/actions/runs/40886552341
+- **Conclusion: success** on macos-15 and windows-latest. Duration 2026-10-29 13:56:10Z to 14:11:43Z, about 15m33s.
+- Fix: `fcntl` import guarded in `muse/content_embed_batch.py` and `muse/lyric_tag_batch.py`; `smoke.js` now runs only on host `127.0.0.1` (on Windows the boot page is `http://tauri.localhost/`, which had produced the bogus `health=200`).
+
+| format | macos-15 can_play_type | macos-15 result | windows-latest can_play_type | windows-latest result |
+|---|---|---|---|---|
+| mp3 | maybe | decoded | probably | decoded |
+| flac | maybe | decoded | probably | decoded |
+| m4a | maybe | decoded | maybe | decoded |
+| wav | maybe | decoded | maybe | decoded |
+| ogg | probably | decoded | probably | decoded |
+| opus | probably | decoded | probably | decoded |
+
+Both legs: health=200, media_session=True (`'mediaSession' in navigator`, which says nothing about whether the system widget or media keys respond: that is the owner check on a Mac). Bundles: `dmg/Muse_0.1.0_aarch64.dmg`, `nsis/Muse_0.1.0_x64-setup.exe`.
