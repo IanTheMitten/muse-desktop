@@ -1,4 +1,9 @@
+import { useMemo, useState } from "react";
 import { withToken } from "../token";
+import { SelectionBar } from "../components/SelectionBar";
+import { useSelection } from "../components/selection";
+import { useTrackActions } from "../components/TrackActions";
+import { TrackMenu } from "../components/TrackMenu";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import "../styles/library.css";
@@ -15,11 +20,15 @@ import { useLoad } from "../useLoad";
 export function AlbumTracks() {
   const { albumRowid = "" } = useParams();
   const navigate = useNavigate();
+  const [version, setVersion] = useState(0);
   const { data, error, loading } = useLoad(
     (signal) => getAlbum(Number(albumRowid), signal),
-    [albumRowid],
+    [albumRowid, version],
   );
   const { playQueue, current, playing, shuffle, toggleShuffle } = usePlayer();
+  const rowids = useMemo(() => data?.tracks.map((t) => t.track_rowid) ?? [], [data]);
+  const { selected, onSelect, clear } = useSelection(rowids);
+  const { run, dialogs } = useTrackActions(() => setVersion((v) => v + 1));
 
   const hasArt = data?.tracks.some((track) => track.has_art) ?? false;
   const artTrack = data?.tracks.find((track) => track.has_art)?.track_rowid ?? null;
@@ -106,6 +115,9 @@ export function AlbumTracks() {
                 current={current?.track_rowid === track.track_rowid}
                 paused={!playing}
                 unplayable={unplayableReason(track)}
+                selected={selected.has(track.track_rowid)}
+                onSelect={(event) => onSelect(event, track.track_rowid)}
+                trailing={<TrackMenu track={track} onAction={(action) => run(action, [track])} />}
                 onPlay={() =>
                   playQueue(
                     playable,
@@ -118,6 +130,14 @@ export function AlbumTracks() {
           </ol>
         </div>
       )}
+      {data && selected.size > 0 && (
+        <SelectionBar
+          count={selected.size}
+          onAction={(action) => run(action, data.tracks.filter((t) => selected.has(t.track_rowid)))}
+          onClear={clear}
+        />
+      )}
+      {dialogs}
     </div>
   );
 }

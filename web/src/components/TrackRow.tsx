@@ -20,8 +20,10 @@ export function TrackRow(props: {
   variant?: "plain" | "song" | "queue" | "chart";
   leading?: ReactNode;
   trailing?: ReactNode;
+  selected?: boolean;
+  onSelect?: (event: React.MouseEvent<HTMLButtonElement>) => boolean;
 }) {
-  const { n, title, sub, durationMs, artSrc, current, paused, unplayable, onPlay, variant = "plain", leading, trailing } = props;
+  const { n, title, sub, durationMs, artSrc, current, paused, unplayable, onPlay, variant = "plain", leading, trailing, selected, onSelect } = props;
   const showArt = artSrc !== undefined && variant !== "plain";
   const playable = unplayable === null;
   const label = playable ? sub : unplayable;
@@ -33,7 +35,11 @@ export function TrackRow(props: {
         className={`row-btn row-${variant}`}
         aria-current={current ? "true" : undefined}
         aria-disabled={playable ? undefined : "true"}
-        onClick={playable ? onPlay : undefined}
+        data-selected={selected ? "" : undefined}
+        onClick={(event) => {
+          if (onSelect?.(event)) return;
+          if (playable) onPlay();
+        }}
       >
         {n !== undefined && (
           <span className="row-no">
@@ -54,6 +60,7 @@ export function TrackRow(props: {
         )}
         <span className="row-name">
           {title}
+          {selected && <span className="vh">, selected</span>}
           {label && <span className="row-sub">{label}</span>}
         </span>
         <span className="row-dur">{durationMs !== null ? fmt(durationMs) : ""}</span>

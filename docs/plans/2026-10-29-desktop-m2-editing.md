@@ -603,7 +603,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 ## Phase 5 - Library UI wiring
 
 ### Task 17: Track menu, multi-select and the selection bar [design]
-- [ ] status
+- [x] status
 **Objective:** Library > Songs and the album page offer a per-row More menu and shift/cmd-click multi-select with a bulk action bar, both driving the Task 15 dialogs.
 **Write-scope:**
 `web/src/components/TrackRow.tsx`

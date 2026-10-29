@@ -16,6 +16,10 @@ import { CoverArt } from "../components/CoverArt";
 import { CoverCard } from "../components/CoverCard";
 import { Screen } from "../components/Screen";
 import { TrackRow } from "../components/TrackRow";
+import { SelectionBar } from "../components/SelectionBar";
+import { useSelection } from "../components/selection";
+import { useTrackActions } from "../components/TrackActions";
+import { TrackMenu, type TrackAction } from "../components/TrackMenu";
 import { playableOnly, unplayableReason } from "../player/formats";
 import { count } from "../format";
 import { useJobs } from "../jobs/JobsContext";
@@ -55,6 +59,7 @@ export function Library() {
   const [songs, setSongs] = useState<Track[]>([]);
   const [allSongs, setAllSongs] = useState<Track[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchVersion, setSearchVersion] = useState(0);
   const { playQueue, current, playing } = usePlayer();
   const { libraryVersion } = useJobs();
 
@@ -115,7 +120,7 @@ export function Library() {
         }
       });
     return () => abort.abort();
-  }, [segment, query]);
+  }, [segment, query, searchVersion]);
 
   const needle = query.trim().normalize("NFD")
     .replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -144,8 +149,20 @@ export function Library() {
     [albums, needle],
   );
 
-  const shownSongs = query.trim() ? songs : (allSongs ?? []);
+  const searching = Boolean(query.trim());
+  const shownSongs = useMemo(
+    () => (searching ? songs : (allSongs ?? [])),
+    [searching, songs, allSongs],
+  );
   const playable = playableOnly(shownSongs);
+  const rowids = useMemo(() => shownSongs.map((t) => t.track_rowid), [shownSongs]);
+  const { selected, onSelect, clear } = useSelection(rowids);
+  const { run, dialogs } = useTrackActions(() => {
+    setAllSongs(null);
+    setSearchVersion((v) => v + 1);
+  });
+  const runOnSelected = (action: TrackAction) =>
+    run(action, shownSongs.filter((t) => selected.has(t.track_rowid)));
 
   const playAlbum = (album: LibraryAlbum) =>
     getAlbum(album.album_rowid)
@@ -276,6 +293,9 @@ export function Library() {
                   current={current?.track_rowid === track.track_rowid}
                   paused={!playing}
                   unplayable={unplayableReason(track)}
+                  selected={selected.has(track.track_rowid)}
+                  onSelect={(event) => onSelect(event, track.track_rowid)}
+                  trailing={<TrackMenu track={track} onAction={(action) => run(action, [track])} />}
                   onPlay={() =>
                     playQueue(
                       playable,
@@ -290,6 +310,10 @@ export function Library() {
             !error && (query.trim() ? nothing : allSongs && nothing)
           ))}
       </div>
+      {segment === "songs" && selected.size > 0 && (
+        <SelectionBar count={selected.size} onAction={runOnSelected} onClear={clear} />
+      )}
+      {dialogs}
     </Screen>
   );
 }

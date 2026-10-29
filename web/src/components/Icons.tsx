@@ -196,6 +196,14 @@ export const LibraryGlyph = (props: Props) => (
   </Icon>
 );
 
+export const MoreIcon = (props: Props) => (
+  <Icon {...props}>
+    <circle className="icon-fill" cx="5.5" cy="12" r="1.6" />
+    <circle className="icon-fill" cx="12" cy="12" r="1.6" />
+    <circle className="icon-fill" cx="18.5" cy="12" r="1.6" />
+  </Icon>
+);
+
 export const AddGlyph = (props: Props) => (
   <Icon {...props}>
     <path d="M12 5v14M5 12h14" />
