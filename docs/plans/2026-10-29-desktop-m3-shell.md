@@ -418,7 +418,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Decision 16 and Decision 3's single instance. These calls compiled and ran headless in the planning scratch shell; the hand checks are in "Owner checks".
 
 ### Task 11: Bundle config, NSIS hook, CI packaging workflow
-- [ ] status
+- [x] status
 **Objective:** The bundle carries the Windows pre-install kill hook, and `.github/workflows/package.yml` builds and smoke-tests on `macos-15` and `windows-latest`.
 **Write-scope:**
 `src-tauri/tauri.conf.json` (from Task 6: edit it; marked (new) only because it does not exist at plan time)
