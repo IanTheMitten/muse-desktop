@@ -107,3 +107,15 @@ def test_read_range_can_read_the_final_byte(tmp_path):
     audio.write_bytes(b"0123456789")
 
     assert b"".join(read_range(audio, ByteRange(9, 9))) == b"9"
+
+
+def test_media_type_for_each_extension():
+    from pathlib import Path
+
+    from muse.streaming import media_type_for
+
+    for ext, want in {".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".flac": "audio/flac",
+                      ".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg",
+                      ".xyz": "application/octet-stream"}.items():
+        assert media_type_for(Path("a" + ext)) == want
+    assert media_type_for(Path("a.MP3")) == "audio/mpeg"

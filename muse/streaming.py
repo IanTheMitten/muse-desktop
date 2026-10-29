@@ -11,7 +11,7 @@ one, and a response that satisfies a test client can still fail in the browser.
 So the parsing is pure and tested, and the behaviour it feeds is verified by
 hand on the phone.
 
-Audio is never transcoded: `.m4a` in, `.m4a` out.
+Audio is never transcoded: bytes go out exactly as stored.
 """
 
 import re
@@ -19,6 +19,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 CHUNK_SIZE = 64 * 1024
+
+MEDIA_TYPES = {
+    ".m4a": "audio/mp4",
+    ".mp3": "audio/mpeg",
+    ".flac": "audio/flac",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".opus": "audio/ogg",
+}
+
+
+def media_type_for(path: Path) -> str:
+    return MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
 
 # `bytes=0-1023`, `bytes=1024-`, `bytes=-500`. One range only: multi-range
 # responses need multipart/byteranges, no media element asks for them, and

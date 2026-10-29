@@ -1,10 +1,14 @@
 """`python -m muse` — the single command that starts the player.
 
-Binds the tailnet addresses and nothing else. See `muse/net.py` for why there
-is no fallback.
+Binds 127.0.0.1 and nothing else, on a free port unless one is configured, and
+announces it with a `MUSE_LISTENING <port>` line on stdout. Every `/api` request
+must carry a per-launch token, so other local processes cannot read the library
+(Decision 3).
 """
 
+import dataclasses
 import logging
+import secrets
 import socket
 import sys
 
@@ -12,20 +16,15 @@ import uvicorn
 
 from .api import create_app
 from .config import Config
-from .net import NoTailnetAddress, require_tailnet_addresses
 
 log = logging.getLogger("muse")
 
 
 def _listener(address: str, port: int) -> socket.socket:
     """A listening socket bound to exactly one address."""
-    family = socket.AF_INET6 if ":" in address else socket.AF_INET
-    sock = socket.socket(family, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    if family is socket.AF_INET6:
-        # Without this the v6 socket would also accept v4 on every interface,
-        # which is exactly the wide bind this app refuses to do.
-        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+    # No SO_REUSEADDR: port 0 never needs it, and on Windows it would let
+    # another process bind the same address.
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((address, port))
     sock.listen(128)
     sock.set_inheritable(True)
@@ -40,36 +39,22 @@ def main() -> int:
     )
 
     config = Config.from_env()
+    generated = config.token is None
+    config = dataclasses.replace(config, token=config.token or secrets.token_urlsafe(32))
+
     try:
-        addresses = [config.host] if config.host else require_tailnet_addresses()
-    except NoTailnetAddress as error:
-        print(f"\n{error}\n", file=sys.stderr)
+        sock = _listener("127.0.0.1", config.port)
+    except OSError as error:
+        print(f"Could not bind 127.0.0.1:{config.port} ({error})", file=sys.stderr)
         return 1
 
-    sockets = []
-    for address in addresses:
-        try:
-            sockets.append(_listener(address, config.port))
-        except OSError as error:
-            # One family failing is survivable as long as the other listens —
-            # a machine with IPv6 disabled should still serve the phone.
-            log.warning("Could not bind %s:%d (%s)", address, config.port, error)
-    if not sockets:
-        print(
-            f"\nNothing could be bound on port {config.port}. "
-            "Is another copy already running?\n",
-            file=sys.stderr,
-        )
-        return 1
+    port = sock.getsockname()[1]
+    print(f"MUSE_LISTENING {port}", flush=True)
+    if generated:
+        log.info("Open http://127.0.0.1:%d/?t=%s", port, config.token)
 
-    for address in addresses:
-        host = f"[{address}]" if ":" in address else address
-        log.info("Listening on http://%s:%d", host, config.port)
-
-    server = uvicorn.Server(
-        uvicorn.Config(create_app(config), log_level="info")
-    )
-    server.run(sockets=sockets)
+    server = uvicorn.Server(uvicorn.Config(create_app(config), log_level="info"))
+    server.run(sockets=[sock])
     return 0
 
 

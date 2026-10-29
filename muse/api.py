@@ -6,6 +6,7 @@ run that added tracks needs no coordination beyond a restart.
 """
 
 import asyncio
+import hmac
 import json
 import logging
 import sqlite3
@@ -21,6 +22,7 @@ from fastapi import Path as PathParam
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
+    JSONResponse,
     PlainTextResponse,
     StreamingResponse,
 )
@@ -62,11 +64,8 @@ from .library import tracks as library_tracks
 from .lrc import parse_lrc
 from .lyrics import read_lyrics
 from .musicbrainz import MusicBrainzClient
-from .streaming import ByteRange, Unsatisfiable, parse_range, read_range
+from .streaming import ByteRange, Unsatisfiable, media_type_for, parse_range, read_range
 from .taste import TASTE_RETRAIN
-
-# .m4a. Safari is happier with audio/mp4 than with audio/x-m4a.
-AUDIO_MEDIA_TYPE = "audio/mp4"
 
 # What a MusicBrainz id looks like, enforced on the path parameters that take
 # one. Two different id spaces sit at the same position on
@@ -589,6 +588,14 @@ def create_app(
             conn.close()
 
     app = FastAPI(title="Muse", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def require_token(request: Request, call_next):
+        if config.token and request.url.path.startswith("/api"):
+            given = request.headers.get("x-muse-token") or request.query_params.get("t") or ""
+            if not hmac.compare_digest(given.encode(), config.token.encode()):
+                return JSONResponse({"detail": "Missing or wrong token"}, status_code=401)
+        return await call_next(request)
     app.state.chart = charts.ChartCache(
         chart_fetch or charts.default_fetch, config.chart_base_url, config.chart_storefront)
 
@@ -1559,14 +1566,14 @@ def create_app(
         if byte_range is None:
             return StreamingResponse(
                 read_range(path, ByteRange(0, size - 1)),
-                media_type=AUDIO_MEDIA_TYPE,
+                media_type=media_type_for(path),
                 headers={**headers, "content-length": str(size)},
             )
 
         return StreamingResponse(
             read_range(path, byte_range),
             status_code=206,
-            media_type=AUDIO_MEDIA_TYPE,
+            media_type=media_type_for(path),
             headers={
                 **headers,
                 "content-range": byte_range.content_range(size),
