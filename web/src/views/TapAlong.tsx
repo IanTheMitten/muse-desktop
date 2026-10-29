@@ -70,6 +70,8 @@ export function TapAlong({
       if (e.key === " ") {
         e.preventDefault();
         if (!e.repeat && !isDone(stateRef.current)) press();
+        // Some engines click the focused button on Space keyup; drop focus so it can't.
+        if (document.activeElement instanceof HTMLButtonElement) document.activeElement.blur();
       } else if (e.key === "Backspace") {
         e.preventDefault();
         back();
@@ -81,10 +83,15 @@ export function TapAlong({
       e.stopImmediatePropagation();
       onCancel();
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (!ignored(e) && e.key === " ") e.preventDefault();
+    };
     window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
     window.addEventListener("keydown", onEsc, true);
     return () => {
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("keydown", onEsc, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
