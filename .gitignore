@@ -56,3 +56,8 @@ mb_lang_cache.json
 *.jsonl
 # Desktop data dir (Config.data_dir default)
 /data/
+/build/
+/src-tauri/target/
+/src-tauri/binaries/
+/src-tauri/gen/
+!tests/fixtures/smoke/*

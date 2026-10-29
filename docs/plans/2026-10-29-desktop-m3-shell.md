@@ -209,7 +209,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Decision 15 drag-drop: folders become watched folders, files are referenced in place and rescanned at launch. The UI half is Task 8.
 
 ### Task 3: Packaging tooling, smoke fixtures and smoke driver
-- [ ] status
+- [x] status
 **Objective:** One command freezes the sidecar to `src-tauri/binaries/`, one wraps the Tauri CLI with a shared target dir, and `scripts/shell_smoke.py` can drive a built shell against committed fixtures.
 **Write-scope:**
 `pyproject.toml`
