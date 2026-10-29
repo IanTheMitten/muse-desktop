@@ -195,7 +195,12 @@ CONSTRAINTS: Banner never modal, never blocks playback; rendered inside <main> a
 **Why:** M3 review findings 1-6. The worker exe name is fixed now (`muse-worker`) so the installer hooks are right before the worker exists.
 
 ### Task 3: Worker dependencies and the model/freeze preflight [experiment]
-- [ ] status
+- [!] status
+**Stuck-report:**
+cause-class: env-blocker
+attempts: 0 agent runs | owner: needs-env
+blocking: 4, 5, 14, 15, 16, 17
+detail: Step 1 disk check: 4G free on /home/i4nle3, plan requires 15G (Owner prerequisite). Not dispatched. Free disk (uv cache prune, pip cache purge, old ~/models/laya-muse-v1..v3), then re-run /autopilot.
 **Objective:** The `embed` extra resolves with CPU torch and every worker model loads and answers once on this machine, from local dirs, and a PyInstaller onedir build of those imports runs; results recorded.
 **Write-scope:**
 `pyproject.toml`
@@ -318,7 +323,7 @@ Negative result is a valid outcome.
 ## Phase 3 - Installer and wiring
 
 ### Task 8: Smart-features installer tests [test]
-- [ ] status
+- [x] status
 **Objective:** `tests/test_smart_install.py` pins download, resume, hash, disk and install-marker behaviour, red until Task 9.
 **Write-scope:**
 `tests/test_smart_install.py` (new)
