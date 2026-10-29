@@ -10,6 +10,7 @@
 .folder-remove:disabled { opacity: .45; cursor: default; }
 .folder-add { max-width: 720px; display: grid; gap: 16px; }
 .folder-add .error { margin: 8px 0 0; }
+.folder-hint { margin: 0; color: var(--text-2); font-size: var(--t-s); }
 .folder-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .set-range { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; max-width: 720px; margin-bottom: 8px; }
 .set-range label { color: var(--text); }

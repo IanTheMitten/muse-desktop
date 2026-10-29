@@ -1,7 +1,16 @@
 import { useId, useState } from "react";
 
 import { CoverArt } from "./CoverArt";
-import { LyricsIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, QueueIcon } from "./Icons";
+import {
+  LyricsIcon,
+  MiniPlayerIcon,
+  NextIcon,
+  PauseIcon,
+  PlayIcon,
+  PrevIcon,
+  QueueIcon,
+} from "./Icons";
+import { shell } from "../shell";
 import { useCardMesh } from "./Wash";
 import { duration } from "../format";
 import { getVolume, setVolume } from "../player/gain";
@@ -101,6 +110,15 @@ export function ControlBar() {
           }}
           aria-label="Volume"
         />
+        {shell && (
+          <button
+            className="icon-btn stroke"
+            onClick={() => void shell?.core.invoke("open_mini")}
+            aria-label="Open mini player"
+          >
+            <MiniPlayerIcon />
+          </button>
+        )}
         <button className="icon-btn stroke" onClick={() => show("lyrics")} aria-label="Lyrics">
           <LyricsIcon />
         </button>

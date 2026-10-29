@@ -174,6 +174,13 @@ export const LyricsIcon = (props: Props) => (
   </Icon>
 );
 
+export const MiniPlayerIcon = (props: Props) => (
+  <Icon {...props}>
+    <rect x="4" y="5" width="16" height="14" rx="2" />
+    <rect x="12" y="12" width="6" height="5" rx="1" />
+  </Icon>
+);
+
 export const HomeGlyph = (props: Props) => (
   <Icon {...props}>
     <path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z" />

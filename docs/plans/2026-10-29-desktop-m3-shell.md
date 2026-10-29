@@ -370,7 +370,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Decision 15 drag-drop, UI half; the route is Task 2. The message logic is a pure function so vitest covers it in the node environment.
 
 ### Task 9: Native folder picker and mini player button [design]
-- [ ] status
+- [x] status
 **Objective:** In the shell, Settings > Music folders offers "Choose folder…" (native picker) instead of the path field, and the control bar opens the mini window.
 **Write-scope:**
 `web/src/views/Settings.tsx`
