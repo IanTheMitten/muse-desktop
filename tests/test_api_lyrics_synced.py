@@ -27,7 +27,9 @@ def route(app, path):
 
 @pytest.fixture
 def app(tmp_path):
-    application = create_app(_config(tmp_path))
+    config = _config(tmp_path)
+    application = create_app(config)
+    application.state.config = config  # set by the lifespan, which tests don't run
     from muse.library import db
     application.state.conn = db.connect(tmp_path / "library.sqlite3")
     return application
@@ -42,7 +44,8 @@ def _seed(app, tmp_path, rowid=1, *, lrc: str | None = None, lyrics: str | None 
     if lyrics is not None:
         lyrics_path.write_text(lyrics, encoding="utf-8")
     if lrc is not None:
-        base.with_suffix(".lrc").write_text(lrc, encoding="utf-8")
+        (tmp_path / "lyrics").mkdir(exist_ok=True)
+        (tmp_path / "lyrics" / f"{rowid}.lrc").write_text(lrc, encoding="utf-8")
     app.state.conn.execute(
         "UPDATE tracks SET file_path = ?, lyrics_path = ? WHERE track_rowid = ?",
         (str(file_path), str(lyrics_path) if lyrics is not None else None, rowid),

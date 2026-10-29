@@ -533,7 +533,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Decision 9 identity and Decision 8 copy-in. The music folders stay read-only (spec lines 99-101).
 
 ### Task 10: LRCLIB writes and the synced route use the data-dir lyrics files
-- [ ] status
+- [x] status
 **Objective:** LRCLIB results are written to `lyrics_root/<rowid>.txt|.lrc`, and `/api/tracks/{id}/lyrics/synced` reads the `.lrc` from there. Nothing writes beside the audio.
 **Write-scope:**
 `muse/lyrics_lrclib.py`

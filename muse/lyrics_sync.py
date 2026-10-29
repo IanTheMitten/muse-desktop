@@ -28,7 +28,7 @@ from .lyrics_lrclib import LYRICS_SYNC
 log = logging.getLogger("muse.lyrics_sync")
 
 
-def run(conn) -> dict:
+def run(conn, lyrics_root) -> dict:
     """Run one sync-fetch pass and record it as a `lyrics_sync` job.
 
     Reaps any `lyrics_sync` job left `running` or `queued` by a process that
@@ -40,7 +40,7 @@ def run(conn) -> dict:
     already-running guard forever.
     """
     job_rows.abandon_running_of_kind(conn, LYRICS_SYNC)
-    result = asyncio.run(run_lyrics_sync_backfill(conn, JobBus()))
+    result = asyncio.run(run_lyrics_sync_backfill(conn, JobBus(), lyrics_root=lyrics_root))
     if result is None:
         # Unreachable in practice -- the reap above just cleared the only
         # thing that makes run_lyrics_sync_backfill refuse to start -- but
@@ -67,12 +67,12 @@ def main(argv: list[str] | None = None) -> int:
 
     conn = library.connect(config.library_db)
     try:
-        result = run(conn)
+        result = run(conn, config.lyrics_root)
     finally:
         conn.close()
     # A run that errored is worth a non-zero exit so `systemctl status` (once
     # this is wired to a timer) or an interactive run shows it, the same
-    # convention `muse.taste_retrain` and `muse.backup` use.
+    # convention `muse.taste_retrain` uses.
     return 0 if result["state"] == job_rows.DONE else 2
 
 

@@ -203,7 +203,7 @@ def test_pending_excludes_a_manual_track(conn):
     assert {row["track_rowid"] for row in queue} == {2}
 
 
-def test_sync_batch_never_calls_search_for_a_manual_track(conn, monkeypatch):
+def test_sync_batch_never_calls_search_for_a_manual_track(conn, monkeypatch, tmp_path):
     """Defense in depth on top of `pending()`'s own exclusion: even if the
     work queue were somehow made to include a manual row, `sync_batch`'s own
     guard must stop it before a network call is ever attempted."""
@@ -238,7 +238,7 @@ def test_sync_batch_never_calls_search_for_a_manual_track(conn, monkeypatch):
         calls.append((track_name, artist_name, album_name))
         return []
 
-    sync_batch(conn, fake_search, sleep=lambda _s: None)
+    sync_batch(conn, fake_search, lyrics_root=tmp_path / "lyrics", sleep=lambda _s: None)
 
     # Only track 2 was ever a legitimate candidate for a query; track 1's
     # manual state means it must be skipped before `fake_search` is invoked
@@ -268,15 +268,19 @@ def test_sync_batch_writes_files_and_records_state(conn, tmp_path):
 
     sleeps = []
     result = sync_batch(
-        conn, fake_search, rate_limit_seconds=0.1, sleep=sleeps.append
+        conn,
+        fake_search,
+        lyrics_root=tmp_path / "lyrics",
+        rate_limit_seconds=0.1,
+        sleep=sleeps.append,
     )
 
     assert result.considered == 1
     assert result.synced == 1
     assert sleeps == [0.1]
 
-    lrc_path = audio_path.with_suffix(".lrc")
-    lyrics_path = audio_path.with_suffix(".lyrics.txt")
+    lrc_path = tmp_path / "lyrics" / "1.lrc"
+    lyrics_path = tmp_path / "lyrics" / "1.txt"
     assert lrc_path.exists()
     assert lyrics_path.read_text(encoding="utf-8") == SYNCED_LRC_DERIVED
 
@@ -306,12 +310,12 @@ def test_sync_batch_backfills_tracks_lyrics_path_when_absent(conn, tmp_path):
     def fake_search(*, track_name, artist_name, album_name):
         return [_candidate(duration=200, plainLyrics=PLAIN_TEXT)]
 
-    sync_batch(conn, fake_search, sleep=lambda _s: None)
+    sync_batch(conn, fake_search, lyrics_root=tmp_path / "lyrics", sleep=lambda _s: None)
 
     row = conn.execute(
         "SELECT lyrics_path FROM tracks WHERE track_rowid = 1"
     ).fetchone()
-    assert row["lyrics_path"] == str(audio_path.with_suffix(".lyrics.txt"))
+    assert row["lyrics_path"] == str(tmp_path / "lyrics" / "1.txt")
 
 
 def test_sync_batch_never_overwrites_an_existing_lyrics_path(conn, tmp_path):
@@ -327,7 +331,7 @@ def test_sync_batch_never_overwrites_an_existing_lyrics_path(conn, tmp_path):
     def fake_search(*, track_name, artist_name, album_name):
         return [_candidate(duration=200, plainLyrics=PLAIN_TEXT)]
 
-    sync_batch(conn, fake_search, sleep=lambda _s: None)
+    sync_batch(conn, fake_search, lyrics_root=tmp_path / "lyrics", sleep=lambda _s: None)
 
     row = conn.execute(
         "SELECT lyrics_path FROM tracks WHERE track_rowid = 1"
@@ -335,7 +339,7 @@ def test_sync_batch_never_overwrites_an_existing_lyrics_path(conn, tmp_path):
     assert row["lyrics_path"] == "manifest/path.lyrics.txt"
 
 
-def test_sync_batch_isolates_a_decide_failure_to_one_track(conn):
+def test_sync_batch_isolates_a_decide_failure_to_one_track(conn, tmp_path):
     """A malformed LRCLIB response (a `duration` that is not a number) must
     be counted and skipped, not raised out of the batch -- the same failure
     isolation `run_embed_batch` and `art.backfill` already give their own
@@ -349,20 +353,20 @@ def test_sync_batch_isolates_a_decide_failure_to_one_track(conn):
         return [{"duration": "not-a-number", "instrumental": False,
                   "plainLyrics": None, "syncedLyrics": None}]
 
-    result = sync_batch(conn, malformed_search, sleep=lambda _s: None)
+    result = sync_batch(conn, malformed_search, lyrics_root=tmp_path / "lyrics", sleep=lambda _s: None)
 
     assert result.considered == 2
     assert result.failed == 2
 
 
-def test_sync_batch_counts_a_search_failure_without_stopping(conn):
+def test_sync_batch_counts_a_search_failure_without_stopping(conn, tmp_path):
     insert_track(conn, 1, status="done")
     insert_track(conn, 2, status="done")
 
     def flaky_search(*, track_name, artist_name, album_name):
         raise ConnectionError("lrclib is down")
 
-    result = sync_batch(conn, flaky_search, sleep=lambda _s: None)
+    result = sync_batch(conn, flaky_search, lyrics_root=tmp_path / "lyrics", sleep=lambda _s: None)
     assert result.considered == 2
     assert result.failed == 2
 
@@ -415,7 +419,11 @@ def test_run_lyrics_sync_backfill_creates_a_done_job(conn, tmp_path):
     bus = JobBus()
     job = asyncio.run(
         run_lyrics_sync_backfill(
-            conn, bus, lrclib_search=fake_search, rate_limit_seconds=0
+            conn,
+            bus,
+            lyrics_root=tmp_path / "lyrics",
+            lrclib_search=fake_search,
+            rate_limit_seconds=0,
         )
     )
 
@@ -433,7 +441,7 @@ def test_run_lyrics_sync_backfill_creates_a_done_job(conn, tmp_path):
     assert row["state"] == "plain"
 
 
-def test_run_lyrics_sync_backfill_is_a_noop_when_already_running(conn):
+def test_run_lyrics_sync_backfill_is_a_noop_when_already_running(conn, tmp_path):
     insert_track(conn, 1, status="done")
     job_rows.create(conn, LYRICS_SYNC)  # left "queued" by a prior run
 
@@ -442,7 +450,9 @@ def test_run_lyrics_sync_backfill_is_a_noop_when_already_running(conn):
 
     bus = JobBus()
     result = asyncio.run(
-        run_lyrics_sync_backfill(conn, bus, lrclib_search=fake_search)
+        run_lyrics_sync_backfill(
+            conn, bus, lyrics_root=tmp_path / "lyrics", lrclib_search=fake_search
+        )
     )
 
     assert result is None

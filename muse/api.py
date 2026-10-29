@@ -62,7 +62,7 @@ from .library import queries
 from .library import taste as library_taste
 from .library import tracks as library_tracks
 from .lrc import parse_lrc
-from .lyrics import read_lyrics
+from .lyrics import lyrics_files, read_lyrics
 from .musicbrainz import MusicBrainzClient
 from .streaming import ByteRange, Unsatisfiable, media_type_for, parse_range, read_range
 from .taste import TASTE_RETRAIN
@@ -1243,16 +1243,15 @@ def create_app(
             raise HTTPException(404, "No lyrics for that track")
 
         lines = None
-        if found["file_path"]:
-            lrc_path = Path(found["file_path"]).with_suffix(".lrc")
-            try:
-                lrc_text = lrc_path.read_text(encoding="utf-8")
-            except OSError:
-                lrc_text = None
-            if lrc_text is not None:
-                parsed = parse_lrc(lrc_text)
-                if parsed:
-                    lines = [{"ms": line.ms, "text": line.text} for line in parsed]
+        _, lrc_path = lyrics_files(app.state.config.lyrics_root, track_rowid)
+        try:
+            lrc_text = lrc_path.read_text(encoding="utf-8")
+        except OSError:
+            lrc_text = None
+        if lrc_text is not None:
+            parsed = parse_lrc(lrc_text)
+            if parsed:
+                lines = [{"ms": line.ms, "text": line.text} for line in parsed]
 
         offset_ms = library_lyrics_state.get_offset_ms(app.state.conn, track_rowid)
         return {

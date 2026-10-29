@@ -35,6 +35,7 @@ import requests
 import lyrics_quality
 from .library import lyrics_state as library_lyrics_state
 from .lrc import strip_timestamps
+from .lyrics import lyrics_files
 from .titles import normalize_title
 
 log = logging.getLogger("muse.lyrics_lrclib")
@@ -159,7 +160,7 @@ def decide_outcome(track: dict, results: list[dict]) -> SyncOutcome:
 
     `track` needs `track_name`, `artist_name`, `duration_ms`, and
     `is_instrumental` (the filename-heuristic fallback from
-    `muse.library.importer._is_instrumental`, already on the row).
+    `muse.library.tracks.is_instrumental_path`, already on the row).
     `results` is exactly what `search_lrclib` returned — this function picks
     its own candidate via `pick_best` rather than taking one pre-picked, so
     a caller only has to pass through the raw response.
@@ -226,26 +227,26 @@ _TALLY_FIELD = {
 }
 
 
-def _write_files(track: dict, outcome: SyncOutcome) -> Path | None:
-    """Write whatever `outcome` says to, and return the `.lyrics.txt` path
+def _write_files(track: dict, outcome: SyncOutcome, lyrics_root: Path) -> Path | None:
+    """Write whatever `outcome` says into `lyrics_root` (`<rowid>.lrc` /
+    `<rowid>.txt`), never beside the audio, and return the `.txt` path
     written (or None) so the caller can point `tracks.lyrics_path` at it --
     the file on disk is invisible to `read_lyrics`/the embed batch until
     something does.
     """
-    file_path = track.get("file_path")
-    if not file_path or (outcome.lrc_text is None and outcome.lyrics_text is None):
-        return None
-    base = Path(file_path)
+    txt, lrc = lyrics_files(lyrics_root, track["track_rowid"])
+    lyrics_root.mkdir(parents=True, exist_ok=True)
     if outcome.lrc_text is not None:
-        base.with_suffix(".lrc").write_text(outcome.lrc_text, encoding="utf-8")
+        lrc.write_text(outcome.lrc_text, encoding="utf-8")
     if outcome.lyrics_text is not None:
-        lyrics_path = base.with_suffix(".lyrics.txt")
-        lyrics_path.write_text(outcome.lyrics_text, encoding="utf-8")
-        return lyrics_path
+        txt.write_text(outcome.lyrics_text, encoding="utf-8")
+        return txt
     return None
 
 
-def _apply(conn, track: dict, outcome: SyncOutcome, *, checked_at: int) -> None:
+def _apply(
+    conn, track: dict, outcome: SyncOutcome, *, checked_at: int, lyrics_root: Path
+) -> None:
     """Turn one decided `SyncOutcome` into disk and database writes.
 
     Grouped into one function, called from inside the loop's own `try`, so
@@ -254,7 +255,7 @@ def _apply(conn, track: dict, outcome: SyncOutcome, *, checked_at: int) -> None:
     of the batch's -- the same failure-isolation `run_embed_batch` and
     `art.backfill` already give their own per-item work.
     """
-    lyrics_path = _write_files(track, outcome)
+    lyrics_path = _write_files(track, outcome, lyrics_root)
     if lyrics_path is not None and not track.get("lyrics_path"):
         library_lyrics_state.set_lyrics_path_if_absent(
             conn, track["track_rowid"], str(lyrics_path)
@@ -272,6 +273,7 @@ def sync_batch(
     conn,
     lrclib_search: Callable[..., list[dict]] = search_lrclib,
     *,
+    lyrics_root: Path,
     rate_limit_seconds: float = 0.35,
     sleep: Callable[[float], None] = time.sleep,
     on_progress: Callable[[int, int, str], None] | None = None,
@@ -317,7 +319,9 @@ def sync_batch(
             # filename must cost this one track, not every track still
             # queued behind it.
             outcome = decide_outcome(track, results)
-            _apply(conn, track, outcome, checked_at=checked_at)
+            _apply(
+                conn, track, outcome, checked_at=checked_at, lyrics_root=lyrics_root
+            )
         except Exception:
             log.exception(
                 "Lyrics sync failed for track %d", track["track_rowid"]

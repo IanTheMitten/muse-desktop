@@ -341,6 +341,7 @@ async def run_lyrics_sync_backfill(
     conn,
     bus: JobBus,
     *,
+    lyrics_root: Path,
     lrclib_search: Callable[..., list[dict]] = lyrics_lrclib_module.search_lrclib,
     rate_limit_seconds: float = 0.35,
 ) -> dict | None:
@@ -396,6 +397,7 @@ async def run_lyrics_sync_backfill(
             lyrics_lrclib_module.sync_batch,
             conn,
             lrclib_search,
+            lyrics_root=lyrics_root,
             rate_limit_seconds=rate_limit_seconds,
             on_progress=on_progress,
         )
