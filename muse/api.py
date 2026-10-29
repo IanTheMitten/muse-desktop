@@ -690,10 +690,11 @@ def create_app(
         saved = settings.load(app.state.config.settings_path)
         status = []
         for p in saved["music_folders"]:
+            prefix = p.rstrip(os.sep) + os.sep  # keeps a root like "/" from becoming "//"
             (n,) = app.state.conn.execute(
                 "SELECT COUNT(*) FROM tracks WHERE status = 'done'"
-                " AND removed_at IS NULL AND file_path LIKE ?",
-                (p + os.sep + "%",),
+                " AND removed_at IS NULL AND substr(file_path, 1, length(?)) = ?",
+                (prefix, prefix),
             ).fetchone()
             status.append({"path": p, "present": Path(p).is_dir(), "songs": n})
         return {**saved, "folder_status": status}

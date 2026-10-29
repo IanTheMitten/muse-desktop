@@ -2,6 +2,8 @@
 
 import time
 
+import pytest
+
 from fastapi.testclient import TestClient
 
 from muse.api import create_app
@@ -53,6 +55,29 @@ def test_valid_folder_is_saved_and_scanned(tmp_path):
         assert "Fake Song" in names
         assert client.get("/api/settings").json()["folder_status"] == [
             {"path": str(music.resolve()), "present": True, "songs": 1}]
+
+
+def test_folder_status_counts_exact_prefix(tmp_path):
+    dirs = []
+    for i, name in enumerate(["a_b", "aXb", "A_B"]):
+        d = tmp_path / name
+        d.mkdir(exist_ok=True)
+        dirs.append(d)
+        (d / "song.mp3").write_bytes(b"x" * (i + 1))
+    if len({d.resolve() for d in dirs}) < 3:
+        pytest.skip("case-insensitive filesystem")
+    with _client(tmp_path) as client:
+        r = client.put("/api/settings/music_folders",
+                       json={"folders": [str(d) for d in dirs]})
+        assert r.status_code == 200
+        deadline = time.time() + 10
+        songs = []
+        while time.time() < deadline and len(songs) < 3:
+            time.sleep(0.1)
+            songs = client.get("/api/library/songs").json()
+        assert len(songs) == 3
+        status = client.get("/api/settings").json()["folder_status"]
+        assert [f["songs"] for f in status] == [1, 1, 1]
 
 
 def test_post_scan_accepted(tmp_path):
