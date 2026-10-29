@@ -195,12 +195,7 @@ CONSTRAINTS: Banner never modal, never blocks playback; rendered inside <main> a
 **Why:** M3 review findings 1-6. The worker exe name is fixed now (`muse-worker`) so the installer hooks are right before the worker exists.
 
 ### Task 3: Worker dependencies and the model/freeze preflight [experiment]
-- [!] status
-**Stuck-report:**
-cause-class: env-blocker
-attempts: 0 agent runs | owner: needs-env
-blocking: 4, 5, 14, 15, 16, 17
-detail: Step 1 disk check: 4G free on /home/i4nle3, plan requires 15G (Owner prerequisite). Not dispatched. Free disk (uv cache prune, pip cache purge, old ~/models/laya-muse-v1..v3), then re-run /autopilot.
+- [ ] status
 **Objective:** The `embed` extra resolves with CPU torch and every worker model loads and answers once on this machine, from local dirs, and a PyInstaller onedir build of those imports runs; results recorded.
 **Write-scope:**
 `pyproject.toml`
@@ -398,12 +393,7 @@ Negative result is a valid outcome.
 **Why:** Decision 4 and the spec Data flow: install, then a library-wide embedding batch; every leg degrades to missing until then.
 
 ### Task 11: Retire universal_reco, systemone and the Jev path
-- [!] status
-**Stuck-report:**
-cause-class: bad-brief
-attempts: 0 agent runs | owner: needs-replan
-blocking: none
-detail: Verify step 3 (`pytest -m slow tests/test_content_slow.py`) drives `muse.worker_main` (Task 5) with the `embed` extra (Task 3); brief declares only Depends Task 10. Cannot go green until Tasks 3-5 land. Not dispatched. After Task 3 unparks and Tasks 4-5 are done, re-run /autopilot; either add Depends Task 5 or accept Task 11 once the slow test is green.
+- [ ] status
 **Objective:** `universal_reco/`, `muse/systemone.py` and the subprocess MERT embedder are gone; the standalone batches run through the worker; tests follow.
 **Write-scope:**
 `universal_reco/`
@@ -433,7 +423,7 @@ detail: Verify step 3 (`pytest -m slow tests/test_content_slow.py`) drives `muse
 **New symbols:** none
 **Verify:** `uv run python -c "import pathlib; print(pathlib.Path('universal_reco').exists())"` then `uv run pytest -p no:cacheprovider` then `uv run --extra embed pytest -p no:cacheprovider -m slow tests/test_content_slow.py`. Expected: `False`; full suite green; slow test passes.
 **Forbidden:** no change to `content.py`'s scoring, stats or coverage functions; don't touch `muse/api.py`; no schema migration.
-**Depends:** Task 10
+**Depends:** Task 10, Task 5
 **Why:** M1 milestone list: "retiring `universal_reco/`"; spec Decision 5 (no hosted Jev, no personal keys).
 
 ## Phase 4 - Desktop UI
