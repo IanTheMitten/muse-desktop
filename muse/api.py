@@ -44,6 +44,7 @@ from .ingest import TieredMetadataProvider, YtDlpAudioSource, build_genius_clien
 from .jobs import (
     ART_BACKFILL,
     DOWNLOAD,
+    SCAN,
     JobBus,
     run_art_backfill,
     run_lyrics_sync_backfill,
@@ -66,6 +67,7 @@ from .library import queries
 from .library import taste as library_taste
 from .library import tracks as library_tracks
 from .lrc import parse_lrc
+from .lyrics_lrclib import LYRICS_SYNC
 from .lyrics import lyrics_files, read_lyrics
 from .musicbrainz import MusicBrainzClient
 from .watch import watch_folders
@@ -437,7 +439,7 @@ def create_app(
         # next one forever. art_backfill/embed are idempotent full sweeps,
         # so reaping their queued rows too (abandon_running_of_kind's normal
         # behavior) is harmless -- the next run just re-derives from
-        # scratch. download is different: a queued-but-not-started job is
+        # scratch. scan and lyrics_sync are idempotent full sweeps too. download is different: a queued-but-not-started job is
         # exactly as safe to run after a restart as before one, so its
         # queued rows are deliberately left alone here and re-fed to the
         # worker below instead. Only its running rows (interrupted
@@ -445,6 +447,8 @@ def create_app(
         abandoned = (
             job_rows.abandon_running_of_kind(conn, ART_BACKFILL)
             + job_rows.abandon_running_of_kind(conn, embed_module.EMBED)
+            + job_rows.abandon_running_of_kind(conn, SCAN)
+            + job_rows.abandon_running_of_kind(conn, LYRICS_SYNC)
         )
         for stale_job_id in job_rows.running_ids_of_kind(conn, DOWNLOAD):
             job_rows.update(conn, stale_job_id, state=job_rows.ERROR,
@@ -519,7 +523,16 @@ def create_app(
                         log.exception("Launch taste retrain failed")
 
         app.state.run_chain = run_chain
-        app.state.chain_task = asyncio.create_task(run_chain(True))
+        chain_tasks: set[asyncio.Task] = set()
+
+        def spawn_chain(launch: bool = False) -> asyncio.Task:
+            task = asyncio.create_task(run_chain(launch))
+            chain_tasks.add(task)
+            task.add_done_callback(chain_tasks.discard)
+            return task
+
+        app.state.spawn_chain = spawn_chain
+        app.state.chain_task = spawn_chain(True)
 
         watch_task = None
         app.state.watch_stop = None
@@ -532,7 +545,7 @@ def create_app(
             app.state.watch_stop = stop = asyncio.Event()
             watch_task = asyncio.create_task(watch_folders(
                 settings.music_folders(config.settings_path),
-                lambda: asyncio.shield(run_chain(False)),
+                lambda: asyncio.shield(spawn_chain()),
                 stop=stop,
             ))
 
@@ -642,7 +655,7 @@ def create_app(
                 embed_task.cancel()
             download_worker.cancel()
             app.state.watch_stop.set()
-            for task in (watch_task, app.state.chain_task):
+            for task in (watch_task, *list(chain_tasks)):
                 task.cancel()
                 try:
                     await task
@@ -706,12 +719,12 @@ def create_app(
         saved["music_folders"] = [str(f) for f in folders]
         settings.save(cfg.settings_path, saved)
         app.state.start_watcher()
-        asyncio.create_task(app.state.run_chain(False))
+        app.state.spawn_chain()
         return _settings_view()
 
     @app.post("/api/scan", status_code=202)
     async def scan_now() -> dict:
-        asyncio.create_task(app.state.run_chain(False))
+        app.state.spawn_chain()
         return {"started": True}
 
     @app.get("/api/health")

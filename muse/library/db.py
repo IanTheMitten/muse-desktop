@@ -75,6 +75,11 @@ class SharedConnection(sqlite3.Connection):
                 cursor.close()
         return Rows(rows, lastrowid, rowcount)
 
+    def close(self) -> None:
+        # a cancelled to_thread step may still be inside a statement
+        with self._lock:
+            super().close()
+
 
 def connect(path: str | Path) -> sqlite3.Connection:
     """Open (creating if absent) the library database, migrated and ready.
