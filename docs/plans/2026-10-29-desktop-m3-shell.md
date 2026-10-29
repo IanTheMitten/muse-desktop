@@ -175,7 +175,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Verified in planning: the onefile child survives both a killed bootloader and a graceful shell exit. The shell (Task 6) drops the child's stdin at exit instead of killing it, so the temp dir is cleaned and the DB closes.
 
 ### Task 2: Drop import route and dropped songs in the scan
-- [ ] status
+- [x] status
 **Objective:** `POST /api/library/import` adds dropped folders as music folders and dropped audio files to `settings.music_files`, and the chain scans those files in place.
 **Write-scope:**
 `muse/settings.py`
