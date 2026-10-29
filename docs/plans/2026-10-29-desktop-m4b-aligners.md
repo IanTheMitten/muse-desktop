@@ -237,7 +237,7 @@ Round note: Task 2 commits a red test. Tasks 4, 5 and 6 verify with their own te
 Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own test files only; the phase gate runs the full suite.
 
 ### Task 7: Vendor schufo into the worker
-- [ ] status
+- [x] status
 **Objective:** `SchufoAligner(source).align(path, lines)` returns one start in seconds (or None) per lyric line.
 **Write-scope:** `muse/schufo.py` (new)
 **Read-context:** `docs/plans/2026-10-29-desktop-m4b-preflight.md` (from Task 1), schufo `model.py` and `align.py` at `https://raw.githubusercontent.com/schufo/lyrics-aligner/72be8a14b9126c201e0b8920513764c44ccd3f9e/` (fetch into `build/schufo-src/` with a script file; delete after), `muse/align_text.py` (from Task 3), `muse/g2p.py` (from Task 5)
