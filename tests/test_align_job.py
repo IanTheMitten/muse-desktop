@@ -82,6 +82,19 @@ async def test_unusable_and_raising_tracks_fail(conn, tmp_path):
     assert job["message"] == "Aligned 0 of 2, couldn't align 2"
 
 
+async def test_unexpected_error_fails_that_track_only(conn, tmp_path):
+    def align(path, lines):
+        if path == "/x/1.m4a":
+            raise KeyError("starts")
+        return good(path, lines)
+
+    job = await _run(conn, tmp_path, [1, 2], align)
+    assert job["state"] == "done"
+    assert job["payload"]["failed"] == [1]
+    assert job["payload"]["aligned"] == [2]
+    assert job["message"] == "Aligned 1 of 2, couldn't align 1"
+
+
 async def test_skipped_synced_is_appended(conn, tmp_path):
     job = await _run(conn, tmp_path, [1, 2], good, skipped_synced=3)
     assert job["message"] == "Aligned 2 of 2, skipped 3 already synced"

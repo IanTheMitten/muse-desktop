@@ -370,15 +370,18 @@ async def run_align_job(
             try:
                 reply = await asyncio.to_thread(align, item["file_path"], item["lines"])
                 starts = fill_starts(reply["starts"])
+                if starts is not None and len(starts) == len(item["lines"]):
+                    lyrics_edit.write_timings(
+                        conn, rowid, item["lines"], starts, lyrics_root=lyrics_root,
+                        state="aligned", track=item)
+                    payload["aligned"].append(rowid)
+                else:
+                    payload["failed"].append(rowid)
             except (WorkerError, WorkerReplyError):
-                starts = None
-            if starts is None or len(starts) != len(item["lines"]):
                 payload["failed"].append(rowid)
-            else:
-                lyrics_edit.write_timings(
-                    conn, rowid, item["lines"], starts, lyrics_root=lyrics_root,
-                    state="aligned", track=item)
-                payload["aligned"].append(rowid)
+            except Exception:
+                log.exception("Align failed for track %s", rowid)
+                payload["failed"].append(rowid)
             payload["done"] = done
             job_rows.update(conn, job_id, progress=done / total, payload=payload)
             bus.publish(_event(job_rows.get(conn, job_id)))
