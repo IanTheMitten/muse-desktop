@@ -14,6 +14,7 @@ import {
 } from "../api";
 import { RemoveDialog } from "../components/RemoveDialog";
 import { Screen } from "../components/Screen";
+import { gb, useSmart } from "../components/SmartBanner";
 import { useJobs } from "../jobs/JobsContext";
 import { getCrossfadeSeconds, setCrossfadeSeconds } from "../player/crossfade";
 import { shell } from "../shell";
@@ -42,6 +43,7 @@ export function Settings() {
         <>
           <MusicFolders data={data} setData={setData} />
           <Playback />
+          <SmartFeatures />
           <Duplicates />
           <HiddenArtists />
           <RemovedSongs />
@@ -240,6 +242,48 @@ function Playback() {
       </div>
       <p className="page-sub settings-help">
         Songs blend into each other. Off plays them back to back with no gap.
+      </p>
+    </section>
+  );
+}
+
+function SmartFeatures() {
+  const { status, installing, failed, progressText, error, install } = useSmart();
+  if (!status) return null;
+  const size = gb(status.download_bytes);
+  const line =
+    status.state === "installed"
+      ? "Installed"
+      : status.state === "unsupported"
+        ? "Not available on this computer. Smart features need a Mac with Apple silicon or Windows."
+        : installing
+          ? `Installing · ${progressText}`
+          : `Not installed · ${size} download`;
+  return (
+    <section className="section" aria-labelledby="smart-h">
+      <div className="section-head">
+        <h2 id="smart-h">Smart features</h2>
+      </div>
+      <p className="page-sub settings-help">
+        Muse listens to each song and reads its lyrics on this computer, so Radio and Muse pick
+        better next songs. Nothing leaves your computer.
+      </p>
+      <ul className="folder-list">
+        <li className="folder-row">
+          <div className="folder-info">
+            <span className="folder-path" role="status" aria-live="polite">{line}</span>
+            {failed && <span className="folder-state">{error ?? status.job?.message}</span>}
+          </div>
+          {status.state === "not_installed" && !installing && (
+            <button type="button" className="btn primary" onClick={install}>
+              {failed ? "Try again" : "Install"}
+            </button>
+          )}
+        </li>
+      </ul>
+      <p className="smart-licence">
+        Uses MERT and an audio emotion model that are free for non-commercial use only, plus CLAP,
+        MiniLM, an English emotion model and Laya.
       </p>
     </section>
   );

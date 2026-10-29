@@ -398,7 +398,12 @@ Negative result is a valid outcome.
 **Why:** Decision 4 and the spec Data flow: install, then a library-wide embedding batch; every leg degrades to missing until then.
 
 ### Task 11: Retire universal_reco, systemone and the Jev path
-- [ ] status
+- [!] status
+**Stuck-report:**
+cause-class: bad-brief
+attempts: 0 agent runs | owner: needs-replan
+blocking: none
+detail: Verify step 3 (`pytest -m slow tests/test_content_slow.py`) drives `muse.worker_main` (Task 5) with the `embed` extra (Task 3); brief declares only Depends Task 10. Cannot go green until Tasks 3-5 land. Not dispatched. After Task 3 unparks and Tasks 4-5 are done, re-run /autopilot; either add Depends Task 5 or accept Task 11 once the slow test is green.
 **Objective:** `universal_reco/`, `muse/systemone.py` and the subprocess MERT embedder are gone; the standalone batches run through the worker; tests follow.
 **Write-scope:**
 `universal_reco/`
@@ -462,7 +467,7 @@ Negative result is a valid outcome.
 **Why:** Owner request this round: the app logo becomes the website's asterisk in its colours.
 
 ### Task 13: Smart-features banner and Settings section [design]
-- [ ] status
+- [x] status
 **Objective:** The UI offers, installs and reports smart features per **Design: smart-features**.
 **Write-scope:**
 `web/src/api.ts`

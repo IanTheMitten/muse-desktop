@@ -173,7 +173,19 @@ export async function startScan(): Promise<void> {
   if (!response.ok) throw await refusal("/scan", response);
 }
 
-export const getHealth = (signal?: AbortSignal) =>
+export type SmartStatus = {
+  state: "installed" | "not_installed" | "unsupported";
+  download_bytes: number;
+  job: Job | null;
+};
+
+export const getSmartStatus = (signal?: AbortSignal) =>
+  get<SmartStatus>("/smart", signal);
+
+export const installSmartFeatures = () =>
+  send<{ job_id: number }>("POST", "/smart/install");
+
+export const getHealth =(signal?: AbortSignal) =>
   get<Health>("/health", signal);
 
 export const getArtists = (signal?: AbortSignal) =>
