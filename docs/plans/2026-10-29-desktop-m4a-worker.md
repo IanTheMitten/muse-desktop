@@ -434,7 +434,7 @@ Negative result is a valid outcome.
 ## Phase 4 - Desktop UI
 
 ### Task 12: Asterisk brand mark across icon, tray, favicon, nav and boot page [design]
-- [ ] status
+- [x] status
 **Objective:** Every brand surface shows the asterisk mark in the website palette per **Design: brand-mark**, and the generated icon set is rebuilt from the new SVGs.
 **Write-scope:**
 `src-tauri/icons/`
