@@ -138,7 +138,7 @@ Round note: Task 2 commits a red test. Tasks 4, 5 and 6 verify with their own te
 **Why:** Four later tasks build on these artifacts. A wrong load path found here costs minutes, not a phase.
 
 ### Task 2: Write the align_text tests (red) [test]
-- [ ] status
+- [x] status
 **Objective:** `tests/test_align_text.py` pins the pure alignment helpers and fails only because `muse.align_text` does not exist yet.
 **Write-scope:** `tests/test_align_text.py` (new)
 **Read-context:** `muse/lrc.py:34-80`, `muse/lyrics_lrclib.py:122-139`
