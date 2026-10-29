@@ -301,7 +301,7 @@ Negative result is a valid outcome.
 **Why:** Spec Testing strategy: "the worker protocol against a fake worker process". Test-first so Task 7 is judged against fixed behaviour.
 
 ### Task 7: Worker client and adapters
-- [ ] status
+- [x] status
 **Objective:** `muse/worker.py` passes `tests/test_worker_client.py`.
 **Write-scope:**
 `muse/worker.py` (new)
