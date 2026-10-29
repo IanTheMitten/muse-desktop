@@ -351,7 +351,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 ## Phase 3: UI, slow tests, frozen worker, docs, CI
 
 ### Task 13: Auto-align entry points and dialog [design]
-- [ ] status
+- [x] status
 **Objective:** "Auto-align lyrics" in the track menu and "Auto-align" in the selection bar start an align job, with the replace confirm and error dialog.
 **Write-scope:** `web/src/api.ts`
 `web/src/jobs/JobsContext.tsx`
@@ -402,7 +402,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** The panel is where people notice bad timings, so the fix lives there.
 
 ### Task 15: Slow tests for the real aligners [test]
-- [ ] status
+- [x] status
 **Objective:** `-m slow` runs schufo, MMS-FA and the worker `align` op on real weights and checks shapes and order.
 **Write-scope:** `tests/test_align_slow.py` (new)
 **Read-context:** `tests/test_worker_models_slow.py:1-40`, `muse/smart.py:84-115`, `docs/plans/2026-10-29-desktop-m4b-preflight.md` (from Task 1)
