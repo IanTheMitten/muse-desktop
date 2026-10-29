@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 from muse.library.queries import search
 from muse.scanner import scan
 from muse.tags import FileTags
@@ -248,3 +250,40 @@ def test_music_folder_untouched(tmp_path, conn):
     before = snap()
     e.scan()
     assert snap() == before
+
+
+def test_dangling_symlink_does_not_abort(tmp_path, conn):
+    e = env(tmp_path, conn)
+    e.file("a.mp3")
+    e.tags["a.mp3"] = ft()
+    (e.music / "b.mp3").symlink_to(tmp_path / "nowhere.mp3")
+    r = e.scan()
+    assert r.added == 1 and r.unreadable == 1
+
+
+def test_unreadable_lrc_keeps_row(tmp_path, conn):
+    if os.geteuid() == 0:
+        pytest.skip("root ignores file modes")
+    e = env(tmp_path, conn)
+    e.file("c.mp3")
+    lrc = e.music / "c.lrc"
+    lrc.write_text("[00:01.00]x")
+    lrc.chmod(0)
+    e.tags["c.mp3"] = ft()
+    try:
+        r = e.scan()
+    finally:
+        lrc.chmod(0o644)
+    (row,) = e.rows()
+    assert r.added == 1
+    assert conn.execute("SELECT 1 FROM lyrics_state WHERE track_rowid=?",
+                        (row["track_rowid"],)).fetchone() is None
+
+
+def test_overlapping_folders_scan_once(tmp_path, conn):
+    e = env(tmp_path, conn)
+    (e.music / "sub").mkdir()
+    (e.music / "sub" / "a.mp3").write_bytes(b"abc")
+    e.tags["a.mp3"] = ft()
+    r = e.scan([e.music, e.music / "sub"])
+    assert r.added == 1 and len(e.rows()) == 1

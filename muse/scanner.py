@@ -2,6 +2,7 @@
 only ever read; lyrics sidecars and embedded art are copied into app storage."""
 
 import json
+import logging
 import os
 import shutil
 import sqlite3
@@ -22,6 +23,8 @@ from .library.tracks import (
 )
 from .lrc import strip_timestamps
 from .lyrics import lyrics_files
+
+log = logging.getLogger("muse.scanner")
 
 
 @dataclass
@@ -71,29 +74,35 @@ def _insert(conn, path, st, f, now, lyrics_root, art_root, pic) -> None:
     txt = next((p for p in (path.with_name(f"{path.stem}.lyrics.txt"),
                             path.with_suffix(".txt")) if p.is_file()), None)
     has_lrc = lrc.is_file()
-    if txt or has_lrc:
-        lyrics_root.mkdir(parents=True, exist_ok=True)
-        txt_dst, lrc_dst = lyrics_files(lyrics_root, rowid)
-        if has_lrc:
-            shutil.copyfile(lrc, lrc_dst)
-        if txt:
-            shutil.copyfile(txt, txt_dst)
-        else:
-            txt_dst.write_text(
-                strip_timestamps(lrc.read_text(encoding="utf-8", errors="replace")),
-                encoding="utf-8")
-        conn.execute("UPDATE tracks SET lyrics_path = ? WHERE track_rowid = ?",
-                     (str(txt_dst), rowid))
-        lyrics_state.upsert(conn, rowid, state="synced" if has_lrc else "plain",
-                            synced=has_lrc, checked_at=now)
+    try:
+        if txt or has_lrc:
+            lyrics_root.mkdir(parents=True, exist_ok=True)
+            txt_dst, lrc_dst = lyrics_files(lyrics_root, rowid)
+            if has_lrc:
+                shutil.copyfile(lrc, lrc_dst)
+            if txt:
+                shutil.copyfile(txt, txt_dst)
+            else:
+                txt_dst.write_text(
+                    strip_timestamps(lrc.read_text(encoding="utf-8", errors="replace")),
+                    encoding="utf-8")
+            conn.execute("UPDATE tracks SET lyrics_path = ? WHERE track_rowid = ?",
+                         (str(txt_dst), rowid))
+            lyrics_state.upsert(conn, rowid, state="synced" if has_lrc else "plain",
+                                synced=has_lrc, checked_at=now)
+    except OSError as e:
+        log.warning("lyrics sidecar copy failed for %s: %s", path, e)
 
-    if pic and conn.execute("SELECT 1 FROM album_art WHERE album_rowid = ?",
-                            (album_rowid,)).fetchone() is None:
-        data, ext = pic
-        art_root.mkdir(parents=True, exist_ok=True)
-        out = art_root / f"{album_rowid}{ext}"
-        out.write_bytes(data)
-        record_cover(conn, album_rowid, str(out), source="embedded", now=now)
+    try:
+        if pic and conn.execute("SELECT 1 FROM album_art WHERE album_rowid = ?",
+                                (album_rowid,)).fetchone() is None:
+            data, ext = pic
+            art_root.mkdir(parents=True, exist_ok=True)
+            out = art_root / f"{album_rowid}{ext}"
+            out.write_bytes(data)
+            record_cover(conn, album_rowid, str(out), source="embedded", now=now)
+    except OSError as e:
+        log.warning("embedded art write failed for %s: %s", path, e)
 
 
 def scan(
@@ -133,8 +142,14 @@ def scan(
         done += 1
         if on_progress:
             on_progress(done, total, path.name)
+        if str(path) in seen:
+            continue
+        try:
+            st = path.stat()
+        except OSError:
+            res.unreadable += 1
+            continue
         seen.add(str(path))
-        st = path.stat()
         row = conn.execute("SELECT * FROM tracks WHERE file_path = ?", (str(path),)).fetchone()
         if row is not None and row["removed_at"] is not None:
             res.skipped_removed += 1
