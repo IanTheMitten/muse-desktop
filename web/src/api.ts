@@ -33,6 +33,7 @@ export type Artist = {
   /** One album of theirs that has art, so the gallery has something to draw.
    *  Null for an artist whose covers have all failed to backfill. */
   art_album_rowid: number | null;
+  has_image: boolean;
 };
 
 export type Album = {
@@ -54,12 +55,13 @@ export type Track = {
   track_no: number | null;
   disc_no: number | null;
   duration_ms: number | null;
-  status: "done" | "missing_file" | "error";
+  status: "done" | "missing_file" | "error" | "removed";
   is_instrumental: boolean;
   has_art: boolean;
   has_lyrics: boolean;
   gain_db: number | null;
   format: string | null;
+  year: number | null;
   /** The only explicit signal in the system. Null means unrated, which is not
    *  the same as indifferent. */
   rating: -1 | 1 | null;
@@ -123,6 +125,16 @@ async function refusal(path: string, response: Response): Promise<ApiError> {
   return new ApiError(path, response.status, response.statusText, detail);
 }
 
+async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const response = await apiFetch(`/api${path}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) throw await refusal(path, response);
+  return (await response.json()) as T;
+}
+
 export type Settings = {
   music_folders: string[];
   downloader_unlocked: boolean;
@@ -159,8 +171,13 @@ export const getArtists = (signal?: AbortSignal) =>
 export const getAlbums = (signal?: AbortSignal) =>
   get<LibraryAlbum[]>("/library/albums", signal);
 
-export const getSongs = (signal?: AbortSignal) =>
-  get<Track[]>("/library/songs", signal);
+export type SongSort = "title" | "added" | "plays" | "year" | "duration";
+
+export const getSongs = (
+  signal?: AbortSignal,
+  sort: SongSort = "title",
+  order: "asc" | "desc" = "asc",
+) => get<Track[]>(`/library/songs?sort=${sort}&order=${order}`, signal);
 
 export const getArtistAlbums = (artist: string, signal?: AbortSignal) =>
   get<{ artist_name: string; albums: Album[] }>(
@@ -273,6 +290,7 @@ export type SyncedLyrics = {
   lines: SyncedLyricsLine[] | null;
   plain: string | null;
   offset_ms: number;
+  lrc_stale: boolean;
 };
 
 export const getSyncedLyrics = (trackRowid: number, signal?: AbortSignal) =>
@@ -748,3 +766,93 @@ export type ChartSong = {
 
 export const getChart = (signal?: AbortSignal) =>
   get<{ songs: ChartSong[] }>("/charts/top", signal);
+
+/* --- M2 editing ---------------------------------------------------------- */
+
+export type DetailsValues = Partial<{
+  track_name: string;
+  artist_name: string;
+  album_name: string;
+  track_no: number;
+  disc_no: number;
+  year: number;
+}>;
+
+export async function saveDetails(
+  trackRowids: number[],
+  values: DetailsValues,
+): Promise<Track[]> {
+  const r = await send<{ tracks: Track[] }>("PATCH", "/tracks/details", {
+    track_rowids: trackRowids,
+    values,
+  });
+  return r.tracks;
+}
+
+export async function resetDetails(trackRowids: number[]): Promise<void> {
+  await send("POST", "/tracks/details/reset", { track_rowids: trackRowids });
+}
+
+export type RemoveResult = {
+  removed: number[];
+  failed: { track_rowid: number; error: string }[];
+};
+
+export const removeTracks = (trackRowids: number[], trash: boolean) =>
+  send<RemoveResult>("POST", "/tracks/remove", {
+    track_rowids: trackRowids,
+    trash,
+  });
+
+export async function restoreTracks(trackRowids: number[]): Promise<void> {
+  await send("POST", "/tracks/restore", { track_rowids: trackRowids });
+}
+
+export const getRemovedTracks = (signal?: AbortSignal) =>
+  get<Track[]>("/library/removed", signal);
+
+export const getDuplicates = (signal?: AbortSignal) =>
+  get<{ groups: Track[][] }>("/library/duplicates", signal);
+
+export const getHiddenArtists = (signal?: AbortSignal) =>
+  get<{ artist_name: string; hidden_at: number }[]>(
+    "/library/hidden-artists",
+    signal,
+  );
+
+export async function setArtistHidden(
+  name: string,
+  hidden: boolean,
+): Promise<void> {
+  await send("PUT", `/artists/${encodeURIComponent(name)}/hidden`, { hidden });
+}
+
+async function putFile(path: string, file: File): Promise<void> {
+  const response = await apiFetch(`/api${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!response.ok) throw await refusal(path, response);
+}
+
+export const uploadAlbumArt = (albumRowid: number, file: File) =>
+  putFile(`/albums/${albumRowid}/art`, file);
+
+export const uploadArtistImage = (name: string, file: File) =>
+  putFile(`/artists/${encodeURIComponent(name)}/image`, file);
+
+export const saveLyrics = (trackRowid: number, text: string) =>
+  send<{ lrc_stale: boolean }>("PUT", `/tracks/${trackRowid}/lyrics`, { text });
+
+export async function setLyricsTimings(
+  trackRowid: number,
+  action: "keep" | "drop",
+): Promise<void> {
+  await send("POST", `/tracks/${trackRowid}/lyrics/timings`, { action });
+}
+
+export const addToPlaylist = (playlistId: number, trackRowids: number[]) =>
+  send<PlaylistDetail>("POST", `/playlists/${playlistId}/tracks`, {
+    track_rowids: trackRowids,
+  });

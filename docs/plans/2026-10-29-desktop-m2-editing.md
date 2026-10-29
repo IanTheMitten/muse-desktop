@@ -339,7 +339,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Write-through keeps every existing query unchanged; re-applying in the scanner is what makes the override win on rescan.
 
 ### Task 8: Remove, restore and trash, plus the playlists tombstone rule
-- [ ] status
+- [x] status
 **Objective:** `muse/library/removal.py` tombstones, trashes and restores tracks, playlists hide removed tracks, and the recommender's playable set excludes them.
 **Write-scope:**
 `muse/library/removal.py` (new)
@@ -395,7 +395,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decision 15 sort and duplicate finder, Decision 10 hide artist and artist images. One file owns the reads so the API tasks only route.
 
 ### Task 10: Lyric edit and invalidation
-- [ ] status
+- [x] status
 **Objective:** `muse/library/lyrics_edit.py` saves edited lyrics into the data dir, invalidates the lyrics embedding, lyric tags and `lyrics_state`, and manages a stale `.lrc`.
 **Write-scope:**
 `muse/library/lyrics_edit.py` (new)
@@ -483,7 +483,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decisions 8 and 10 over HTTP. Revalidating art is what makes an uploaded cover appear without a hard refresh.
 
 ### Task 13: Client functions and types for the M2 routes
-- [ ] status
+- [x] status
 **Objective:** `web/src/api.ts` has typed functions for every M2 route.
 **Write-scope:**
 `web/src/api.ts`
