@@ -226,7 +226,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** M1 leftover: Play all and Shuffle queued tracks the row already labels unplayable. The runner is the M2 web test seam.
 
 ### Task 4: Red tests for queue editing and crossfade math [test]
-- [ ] status
+- [x] status
 **Objective:** `queue.test.ts` and `crossfade.test.ts` pin the pure queue and crossfade functions and fail because the modules do not exist yet.
 **Write-scope:**
 `web/src/player/queue.test.ts` (new)
@@ -286,7 +286,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 ## Phase 2 - Library layer
 
 ### Task 6: Red tests for tag overrides [test]
-- [ ] status
+- [x] status
 **Objective:** `tests/test_overrides.py` pins the override layer and fails only because `muse.library.overrides` does not exist.
 **Write-scope:**
 `tests/test_overrides.py` (new)
