@@ -50,6 +50,7 @@ def _fields(path: Path, t: "_tags.FileTags") -> dict:
         "disc_no": t.disc_no,
         "duration_ms": t.duration_ms,
         "isrc": t.isrc,
+        "year": t.year,
     }
 
 
@@ -60,13 +61,13 @@ def _insert(conn, path, st, f, now, lyrics_root, art_root, pic) -> None:
         "INSERT INTO tracks (track_rowid, track_id, origin, metadata_tier, artist_rowid,"
         " album_rowid, artist_name, artist_names, album_name, track_name, track_no, disc_no,"
         " duration_ms, isrc, file_path, is_instrumental, status, added_at, file_size,"
-        " file_mtime, format, album_key)"
+        " file_mtime, format, album_key, year)"
         " VALUES (?, NULL, 'local', 'tags', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'done',"
-        " ?, ?, ?, ?, ?)",
+        " ?, ?, ?, ?, ?, ?)",
         (rowid, album_rowid, f["artist_name"], json.dumps([f["artist_name"]]),
          f["album_name"], f["track_name"], f["track_no"], f["disc_no"], f["duration_ms"],
          f["isrc"], str(path), int(is_instrumental_path(str(path), f["track_name"])), now,
-         st.st_size, int(st.st_mtime), path.suffix.lower().lstrip("."), f["album_key"]),
+         st.st_size, int(st.st_mtime), path.suffix.lower().lstrip("."), f["album_key"], f["year"]),
     )
     index_track(conn, rowid, f["track_name"], f["artist_name"], f["album_name"])
 
@@ -169,11 +170,11 @@ def scan(
         conn.execute(
             "UPDATE tracks SET track_name=?, artist_name=?, artist_names=?, album_name=?,"
             " album_key=?, album_rowid=?, track_no=?, disc_no=?, duration_ms=?, isrc=?,"
-            " file_size=?, file_mtime=?, status='done', error=NULL WHERE track_rowid=?",
+            " year=?, file_size=?, file_mtime=?, status='done', error=NULL WHERE track_rowid=?",
             (f["track_name"], f["artist_name"], json.dumps([f["artist_name"]]),
              f["album_name"], f["album_key"], album_rowid_for_key(conn, f["album_key"]),
              f["track_no"], f["disc_no"], f["duration_ms"], f["isrc"],
-             st.st_size, int(st.st_mtime), row["track_rowid"]))
+             f["year"], st.st_size, int(st.st_mtime), row["track_rowid"]))
         index_track(conn, row["track_rowid"], f["track_name"], f["artist_name"], f["album_name"])
         res.updated += 1
 

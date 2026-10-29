@@ -682,6 +682,21 @@ def _m021_local_files(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX tracks_album_key ON tracks(album_key)")
 
 
+def _m022_edits(conn: sqlite3.Connection) -> None:
+    """Desktop Decisions 7 and 10: tag overrides, hidden artists, artist images, and the year the sort needs. Local rows lose file_mtime so the next scan re-reads every file once for its year."""
+    conn.execute(
+        "CREATE TABLE track_overrides (track_rowid INTEGER NOT NULL REFERENCES tracks(track_rowid),"
+        " field TEXT NOT NULL, value TEXT NOT NULL, updated_at INTEGER NOT NULL,"
+        " PRIMARY KEY (track_rowid, field))")
+    conn.execute(
+        "CREATE TABLE hidden_artists (artist_name TEXT PRIMARY KEY, hidden_at INTEGER NOT NULL)")
+    conn.execute(
+        "CREATE TABLE artist_images (artist_name TEXT PRIMARY KEY, art_path TEXT NOT NULL,"
+        " source TEXT NOT NULL, updated_at INTEGER NOT NULL)")
+    conn.execute("ALTER TABLE tracks ADD COLUMN year INTEGER")
+    conn.execute("UPDATE tracks SET file_mtime = NULL WHERE origin = 'local'")
+
+
 # Append only. Index in this list + 1 is the version a migration produces.
 MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
     _m001_initial,
@@ -705,6 +720,7 @@ MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
     _m019_playlists,
     _m020_reask_missing_art,
     _m021_local_files,
+    _m022_edits,
 ]
 
 LATEST_VERSION = len(MIGRATIONS)

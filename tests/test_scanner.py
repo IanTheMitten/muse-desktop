@@ -7,9 +7,10 @@ from muse.scanner import scan
 from muse.tags import FileTags
 
 
-def ft(title="Song", artist="Artist", album="Album", album_artist="Artist"):
+def ft(title="Song", artist="Artist", album="Album", album_artist="Artist",
+       year=None):
     return FileTags(title=title, artist=artist, album=album, album_artist=album_artist,
-                    track_no=1, disc_no=1, isrc=None, duration_ms=1000)
+                    track_no=1, disc_no=1, isrc=None, duration_ms=1000, year=year)
 
 
 class Env:
@@ -61,6 +62,15 @@ def test_new_file_inserts_row(tmp_path, conn):
     assert row["track_rowid"] >= 1_000_000_000
     assert row["added_at"] == 1000
     assert row["artist_names"] == '["Artist"]'
+
+
+def test_year_stored(tmp_path, conn):
+    e = env(tmp_path, conn)
+    e.file("a.mp3")
+    e.tags["a.mp3"] = ft(year=2001)
+    e.scan()
+    (row,) = e.rows()
+    assert row["year"] == 2001
 
 
 def test_missing_tags_fall_back(tmp_path, conn):

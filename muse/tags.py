@@ -19,6 +19,13 @@ class FileTags:
     disc_no: int | None
     isrc: str | None
     duration_ms: int | None
+    year: int | None = None
+
+
+def _year(value: str | None) -> int | None:
+    if value is not None and value[:4].isdigit() and 1000 <= int(value[:4]) <= 9999:
+        return int(value[:4])
+    return None
 
 
 def _num(value: str | None) -> int | None:
@@ -36,18 +43,19 @@ def read_tags(path: Path) -> FileTags | None:
             def get(key):
                 frame = tags.get(key)
                 return str(frame.text[0]) if frame is not None and frame.text else None
-            keys = ("TIT2", "TPE1", "TALB", "TPE2", "TRCK", "TPOS", "TSRC")
+            keys = ("TIT2", "TPE1", "TALB", "TPE2", "TRCK", "TPOS", "TSRC", "TDRC")
         else:
             def get(key):
                 v = tags.get(key)
                 return str(v[0]) if v else None
-            keys = ("title", "artist", "album", "albumartist", "tracknumber", "discnumber", "isrc")
-        title, artist, album, album_artist, track, disc, isrc = (get(k) for k in keys)
+            keys = ("title", "artist", "album", "albumartist", "tracknumber", "discnumber", "isrc", "date")
+        title, artist, album, album_artist, track, disc, isrc, date = (get(k) for k in keys)
         length = getattr(f.info, "length", None)
         return FileTags(
             title=title, artist=artist, album=album, album_artist=album_artist,
             track_no=_num(track), disc_no=_num(disc), isrc=isrc,
             duration_ms=round(length * 1000) if length is not None else None,
+            year=_year(date),
         )
     except Exception:
         return None

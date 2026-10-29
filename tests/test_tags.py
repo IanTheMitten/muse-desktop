@@ -1,7 +1,7 @@
 import os
 import wave
 
-from mutagen.id3 import APIC, TALB, TIT2, TPE1, TPE2, TPOS, TRCK
+from mutagen.id3 import APIC, TALB, TDRC, TIT2, TPE1, TPE2, TPOS, TRCK
 from mutagen.wave import WAVE
 
 from muse.tags import embedded_picture, read_tags
@@ -22,6 +22,7 @@ def _tagged_wav(tmp_path):
     f.tags.add(TPE2(encoding=3, text="AA"))
     f.tags.add(TRCK(encoding=3, text="3/10"))
     f.tags.add(TPOS(encoding=3, text="1/2"))
+    f.tags.add(TDRC(encoding=3, text="2019-05-03"))
     f.tags.add(APIC(encoding=3, mime="image/jpeg", type=3, desc="", data=b"\xff\xd8jpg"))
     f.save()
     return p
@@ -31,6 +32,7 @@ def test_read_tags(tmp_path):
     t = read_tags(_tagged_wav(tmp_path))
     assert (t.title, t.artist, t.album, t.album_artist) == ("Song", "Artist", "Album", "AA")
     assert (t.track_no, t.disc_no, t.duration_ms) == (3, 1, 2000)
+    assert t.year == 2019
 
 
 def test_embedded_picture(tmp_path):
