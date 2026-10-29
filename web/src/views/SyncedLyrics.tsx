@@ -12,9 +12,13 @@ import {
   type SyncedLyrics as SyncedLyricsResponse,
   type Track,
 } from "../api";
+import { AlignDialog } from "../components/AlignDialog";
+import { useSmart } from "../components/SmartBanner";
 import { LyricsEditDialog } from "../components/LyricsEditDialog";
+import { useJobs } from "../jobs/JobsContext";
 import { usePlayer } from "../player/PlayerContext";
 import { useLoad } from "../useLoad";
+import { TapAlong } from "./TapAlong";
 
 /* The design budget surface (PRD §682): typography, motion, restraint. Every
  * behavioural decision below is the PRD's, not a redesign -- this file only
@@ -76,7 +80,7 @@ export function activeLineIndex(lines: Line[], positionMs: number): number {
 }
 
 export function LyricsPanel() {
-  const { current, positionMs, durationMs, playing, seek } = usePlayer();
+  const { current, positionMs, durationMs, playing, seek, toggle } = usePlayer();
   if (!current) return <p className="lyrics-note">Nothing playing.</p>;
   return (
     // Keyed on the track: a new song is a new sync, a new offset, and a new
@@ -89,6 +93,7 @@ export function LyricsPanel() {
       durationMs={durationMs}
       playing={playing}
       seek={seek}
+      toggle={toggle}
     />
   );
 }
@@ -99,20 +104,71 @@ function LyricsBody({
   durationMs,
   playing,
   seek,
+  toggle,
 }: {
   track: Track;
   positionMs: number;
   durationMs: number;
   playing: boolean;
   seek: (ms: number) => void;
+  toggle: () => void;
 }) {
   const [version, setVersion] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [aligning, setAligning] = useState(false);
+  const [tapping, setTapping] = useState(false);
+  const [alignFailed, setAlignFailed] = useState(false);
+  const smartOn = useSmart().status?.state === "installed";
+  const { job } = useJobs();
   const { data, error, loading } = useLoad<SyncedLyricsResponse>(
     (signal) => getSyncedLyrics(track.track_rowid, signal),
     [track.track_rowid, version],
   );
   const refetch = () => setVersion((v) => v + 1);
+  const mine = job?.kind === "align" && !!job.payload?.track_rowids?.includes(track.track_rowid);
+  const alignRunning = mine && (job.state === "queued" || job.state === "running");
+  const alignDone = mine && job.state === "done";
+  useEffect(() => {
+    if (!alignDone) return;
+    setVersion((v) => v + 1);
+    setAlignFailed(!!job.payload?.failed?.includes(track.track_rowid));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alignDone, job?.id]);
+  const alignDialog = aligning && (
+    <AlignDialog tracks={[track]} onClose={() => setAligning(false)} />
+  );
+  const openAlign = () => {
+    setAlignFailed(false);
+    setAligning(true);
+  };
+  const canTap = (data?.timing_lines.length ?? 0) > 0;
+  const tapLink = canTap && (
+    <button
+      type="button"
+      className="link-btn"
+      onClick={() => {
+        setAlignFailed(false);
+        setTapping(true);
+      }}
+    >
+      Tap along
+    </button>
+  );
+  // Aligning replaces the links; a failed run leads them with a note.
+  const alignLinks = (label: string | null) =>
+    alignRunning ? (
+      <p className="lyrics-note" role="status" aria-live="polite">Aligning to the song…</p>
+    ) : (
+      <>
+        {alignFailed && (
+          <p className="lyrics-note" role="status" aria-live="polite">Couldn't align, tap along instead</p>
+        )}
+        {smartOn && label && (
+          <button type="button" className="link-btn" onClick={openAlign}>{label}</button>
+        )}
+        {tapLink}
+      </>
+    );
   const editor = editing && (
     <LyricsEditDialog track={track} onClose={() => setEditing(false)} onSaved={refetch} />
   );
@@ -143,11 +199,30 @@ function LyricsBody({
     );
   }
 
+  if (tapping) {
+    return (
+      <TapAlong
+        lines={data.timing_lines}
+        trackRowid={track.track_rowid}
+        positionMs={positionMs}
+        playing={playing}
+        seek={seek}
+        toggle={toggle}
+        onCancel={() => setTapping(false)}
+        onSaved={() => {
+          setTapping(false);
+          refetch();
+        }}
+      />
+    );
+  }
+
   const stale = data.lrc_stale && (
     <div className="lyrics-note lyrics-stale" role="status">
       <p>These timings were made for the old words.</p>
       <button type="button" className="link-btn" onClick={timing("keep")}>Keep old timings</button>
       <button type="button" className="link-btn" onClick={timing("drop")}>Remove timings</button>
+      {alignLinks("Re-align")}
     </div>
   );
 
@@ -156,9 +231,11 @@ function LyricsBody({
       <>
         {data.plain && <p className="lyrics-note">Not synced yet</p>}
         {stale}
+        {!data.lrc_stale && alignLinks("Auto-align")}
         <PlainLyrics plain={data.plain} />
         {editBtn(data.plain ? "Edit lyrics" : "Add lyrics")}
         {editor}
+        {alignDialog}
       </>
     );
   }
@@ -176,8 +253,10 @@ function LyricsBody({
         playing={playing}
         seek={seek}
       />
+      {!data.lrc_stale && alignLinks(null)}
       {editBtn("Edit lyrics")}
       {editor}
+      {alignDialog}
     </>
   );
 }

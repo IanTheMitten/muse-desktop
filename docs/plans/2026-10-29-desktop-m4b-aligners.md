@@ -382,7 +382,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** Gives Auto-align its menu and bulk paths with the owner's per-track replace rule.
 
 ### Task 14: Lyrics panel Auto-align states and Tap along mode [design]
-- [ ] status
+- [x] status
 **Objective:** The lyrics panel offers Auto-align, Re-align and Tap along, shows aligning and failure notes, and runs the tap-along mode that saves an `.lrc`.
 **Write-scope:** `web/src/views/SyncedLyrics.tsx`
 `web/src/views/TapAlong.tsx` (new)
