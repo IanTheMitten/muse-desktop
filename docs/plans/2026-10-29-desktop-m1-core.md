@@ -346,7 +346,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Spec lines 90-97 define one per-user data dir. One test helper replaces 19 hand-built configs, so later field changes touch one place.
 
 ### Task 6: Loopback entrypoint, per-launch token middleware, MIME by extension
-- [ ] status
+- [x] status
 **Objective:** `python -m muse` binds `127.0.0.1` on a free port and prints `MUSE_LISTENING <port>`. `/api` refuses requests without the token. Streams send the right MIME type per extension.
 **Write-scope:**
 `muse/__main__.py`
@@ -398,7 +398,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Decisions 3 and 12. The `MUSE_LISTENING` line lets the M3 shell learn the port without a race, and the token stops other local processes from reading the library.
 
 ### Task 7: Migration v21, settings.json module, lyric file paths, format in track fields
-- [ ] status
+- [x] status
 **Objective:** Schema v21 adds the scanner's columns. `muse/settings.py` reads and writes `settings.json` atomically. `muse/lyrics.py` names the data-dir lyric files. Track payloads carry `format`.
 **Write-scope:**
 `muse/library/schema.py`

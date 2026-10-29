@@ -1,4 +1,4 @@
-"""Reading the `.lyrics.txt` files that are already on disk.
+"""Reading the lyrics files that live in the data dir's `lyrics/`.
 
 Deliberately the whole of it. The provider chain, quality validation, the
 `lyrics_state` table, and every write of a `.lyrics.txt` or `.lrc` file now
@@ -15,6 +15,10 @@ evidence of the problem.
 """
 
 from pathlib import Path
+
+
+def lyrics_files(lyrics_root: Path, track_rowid: int) -> tuple[Path, Path]:
+    return (lyrics_root / f"{track_rowid}.txt", lyrics_root / f"{track_rowid}.lrc")
 
 # A byte-order mark at the start of a file is a byte, not a lyric. Left in, it
 # renders as a stray glyph before the first word.

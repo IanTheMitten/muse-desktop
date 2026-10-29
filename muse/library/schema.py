@@ -671,6 +671,17 @@ def _m020_reask_missing_art(conn: sqlite3.Connection) -> None:
     conn.execute("DELETE FROM album_art WHERE art_path IS NULL")
 
 
+def _m021_local_files(conn: sqlite3.Connection) -> None:
+    """The folder scanner's identity columns (desktop Decision 9) and the tombstone M2's delete sets (Decision 10)."""
+    conn.execute("ALTER TABLE tracks ADD COLUMN file_size INTEGER")
+    conn.execute("ALTER TABLE tracks ADD COLUMN file_mtime INTEGER")
+    conn.execute("ALTER TABLE tracks ADD COLUMN format TEXT")
+    conn.execute("ALTER TABLE tracks ADD COLUMN album_key TEXT")
+    conn.execute("ALTER TABLE tracks ADD COLUMN removed_at INTEGER")
+    conn.execute("CREATE INDEX tracks_file_path ON tracks(file_path)")
+    conn.execute("CREATE INDEX tracks_album_key ON tracks(album_key)")
+
+
 # Append only. Index in this list + 1 is the version a migration produces.
 MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
     _m001_initial,
@@ -693,6 +704,7 @@ MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
     _m018_retire_archetypes,
     _m019_playlists,
     _m020_reask_missing_art,
+    _m021_local_files,
 ]
 
 LATEST_VERSION = len(MIGRATIONS)

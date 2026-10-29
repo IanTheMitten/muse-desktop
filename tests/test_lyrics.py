@@ -71,3 +71,9 @@ def test_reading_does_not_touch_the_file(tmp_path):
 
     after = path.stat()
     assert (after.st_mtime_ns, after.st_size) == (before.st_mtime_ns, before.st_size)
+
+
+def test_lyrics_files_names_txt_and_lrc(tmp_path):
+    from muse.lyrics import lyrics_files
+
+    assert lyrics_files(tmp_path, 7) == (tmp_path / "7.txt", tmp_path / "7.lrc")

@@ -26,6 +26,7 @@ TRACK_FIELDS = """
     art_path IS NOT NULL AS has_art,
     lyrics_path IS NOT NULL AS has_lyrics,
     gain_db,
+    format,
     -- A correlated subquery rather than a join: every one of these queries
     -- would otherwise need its own LEFT JOIN, and over 723 rows the difference
     -- is unmeasurable. It rides along so a rating is visible everywhere a

@@ -303,3 +303,11 @@ def test_migration_20_forgets_missing_art_only(raw, monkeypatch):
     migrate(raw)
 
     assert [r[0] for r in raw.execute("SELECT album_rowid FROM album_art")] == [2]
+
+
+def test_migrate_adds_the_local_file_columns(raw):
+    migrate(raw)
+    cols = {r["name"] for r in raw.execute("PRAGMA table_info(tracks)")}
+    assert {"file_size", "file_mtime", "format", "album_key", "removed_at"} <= cols
+    idx = {r["name"] for r in raw.execute("PRAGMA index_list(tracks)")}
+    assert {"tracks_file_path", "tracks_album_key"} <= idx
