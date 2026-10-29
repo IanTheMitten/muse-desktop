@@ -530,7 +530,7 @@ Negative result is a valid outcome.
 **Why:** Decision 4: a second frozen binary per OS. Proven on Linux before CI spends macOS minutes.
 
 ### Task 15: CI worker job
-- [ ] status
+- [x] status
 **Objective:** `.github/workflows/package.yml` gains a `worker` job on `macos-15` and `windows-latest` that freezes, smoke-tests and uploads the worker zip.
 **Write-scope:**
 `.github/workflows/package.yml`
