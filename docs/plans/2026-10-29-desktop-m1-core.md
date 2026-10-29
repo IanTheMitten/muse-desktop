@@ -445,7 +445,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 ## Phase 3 - Scanner, lyrics in the data dir, watcher
 
 ### Task 8: Red tests for tag reading and the folder scanner [test]
-- [ ] status
+- [x] status
 **Objective:** `tests/test_tags.py` and `tests/test_scanner.py` encode every scanner rule below and fail only because `muse/tags.py` and `muse/scanner.py` do not exist.
 **Write-scope:**
 `tests/test_tags.py` (new)
