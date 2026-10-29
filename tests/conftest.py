@@ -6,6 +6,7 @@ import pytest
 from muse.catalog import TrackFacts
 from muse.features import TrackFeatures
 from muse.library import connect
+from muse.library.tracks import _index_track
 
 
 @pytest.fixture
@@ -118,15 +119,16 @@ def make_features(track_id, valence=0.5, energy=0.5, danceability=0.5,
 
 def insert_track(conn, rowid, *, track_id="auto", status="done", album_rowid=20,
                  artist_name="Some Artist", album_name="Some Album",
-                 track_name="Some Song", duration_ms=180_000, added_at=None):
+                 track_name="Some Song", duration_ms=180_000, added_at=None,
+                 isrc=None, track_no=1, disc_no=1, file_path="auto"):
     """A library row, straight in. Faster and clearer than importing a manifest
     when the test is about something downstream of the import."""
     conn.execute(
         "INSERT INTO tracks (track_rowid, track_id, origin, metadata_tier,"
         "  artist_rowid, album_rowid, artist_name, artist_names, album_name,"
         "  track_name, track_no, disc_no, duration_ms, file_path, status,"
-        "  added_at)"
-        " VALUES (?,?,'catalog','catalog',10,?,?,?,?,?,1,1,?,?,?,?)",
+        "  added_at, isrc)"
+        " VALUES (?,?,'catalog','catalog',10,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             rowid,
             f"spotify{rowid}" if track_id == "auto" else track_id,
@@ -135,12 +137,17 @@ def insert_track(conn, rowid, *, track_id="auto", status="done", album_rowid=20,
             json.dumps([artist_name]),
             album_name,
             track_name,
+            track_no,
+            disc_no,
             duration_ms,
-            f"MUSIC/{rowid}.m4a" if status == "done" else None,
+            (f"MUSIC/{rowid}.m4a" if status == "done" else None)
+            if file_path == "auto" else file_path,
             status,
             added_at if added_at is not None else int(time.time()),
+            isrc,
         ),
     )
+    _index_track(conn, rowid, track_name, artist_name, album_name)
     return rowid
 
 

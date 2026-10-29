@@ -6,12 +6,11 @@ a late heartbeat reopens, produces a log that looks fine and trains the wrong
 model.
 """
 
-from conftest import FakeCatalog, make_manifest, make_record
+from conftest import insert_track
 
 from muse.library import (
     close_span,
     heartbeat,
-    import_manifest,
     open_span,
     read_state,
     sweep_stale,
@@ -20,8 +19,7 @@ from muse.library import (
 
 
 def a_track(conn, rowid=1):
-    import_manifest(make_manifest(make_record(rowid)), FakeCatalog(), conn)
-    return rowid
+    return insert_track(conn, rowid)
 
 
 def span(conn, play_id):

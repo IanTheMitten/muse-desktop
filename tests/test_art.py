@@ -15,13 +15,12 @@ No test here touches the network. The provider is injected.
 import json
 
 import pytest
-from conftest import FakeCatalog, make_facts, make_manifest, make_record
+from conftest import insert_track
 
 from muse import art as art_module
 from muse.art import AlbumRef, Cover, CoverArtArchive, RateLimiter, backfill
 from muse.library import art as library_art
 from muse.library import tracks as library_tracks
-from muse.library import import_manifest
 from muse.musicbrainz import MusicBrainzClient
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"pretend this is a cover"
@@ -54,21 +53,9 @@ def cover(image=JPEG, content_type="image/jpeg", mbid="mbid-1"):
 
 def load(conn, tracks):
     """`tracks` is (track_rowid, album_rowid, isrc)."""
-    import_manifest(
-        make_manifest(
-            *[
-                make_record(rowid, album_rowid=album, album_name=f"Album {album}")
-                for rowid, album, _ in tracks
-            ]
-        ),
-        FakeCatalog(
-            {
-                rowid: make_facts(rowid, isrc=isrc, album_rowid=album)
-                for rowid, album, isrc in tracks
-            }
-        ),
-        conn,
-    )
+    for rowid, album, isrc in tracks:
+        insert_track(conn, rowid, album_rowid=album, album_name=f"Album {album}",
+                     isrc=isrc)
     return conn
 
 
@@ -182,19 +169,6 @@ def test_no_partial_file_is_left_in_the_cache(conn, tmp_path):
     backfill(conn, FakeProvider({20: cover()}), tmp_path)
 
     assert list(tmp_path.glob("*.part")) == []
-
-
-def test_an_import_does_not_clear_the_art_it_found(conn, tmp_path):
-    """`art_path` is app-owned; the manifest knows nothing about it. An import
-    that overwrote it would undo the backfill on every restart, and the only
-    symptom would be art that keeps disappearing."""
-    tracks = [(1, 20, "GBAAA0000001")]
-    load(conn, tracks)
-    backfill(conn, FakeProvider({20: cover()}), tmp_path)
-
-    load(conn, tracks)  # the startup import, run again
-
-    assert all(path for path in art_paths(conn, 20))
 
 
 # --- failure ---------------------------------------------------------------

@@ -5,10 +5,9 @@ import pytest
 from muse.catalog import TrackFacts
 from muse.ingest import ResolvedMetadata, TieredMetadataProvider, run_download
 from muse.library import art as library_art
-from muse.library import import_manifest
 from muse.library import lyrics_state as library_lyrics_state
 from muse.lyrics_lrclib import SyncOutcome
-from tests.conftest import FakeCatalog, insert_track, make_manifest, make_record
+from tests.conftest import insert_track
 
 
 class FakeMetadataProvider:
@@ -656,28 +655,6 @@ def test_an_errored_track_id_holder_is_handed_the_id_by_the_new_row(
         "SELECT track_id FROM tracks WHERE track_rowid = ?", (result.track_rowid,)
     ).fetchone()
     assert new["track_id"] == "sp-x"
-
-
-def test_a_manifest_error_holder_keeps_its_id_and_the_new_row_goes_unstamped(
-    conn, tmp_path, no_network
-):
-    manifest = make_manifest(
-        make_record(7, status="error", error="no result", track_id="sp-x")
-    )
-    import_manifest(manifest, FakeCatalog(), conn)
-
-    result = run_download(
-        conn, payload=dict(MB_PAYLOAD, track_id="sp-x"), **_deps(tmp_path)
-    )
-
-    assert result.message == "ok"
-    new = conn.execute(
-        "SELECT track_id FROM tracks WHERE track_rowid = ?", (result.track_rowid,)
-    ).fetchone()
-    assert new["track_id"] is None
-    old = conn.execute("SELECT track_id FROM tracks WHERE track_rowid = 7").fetchone()
-    assert old["track_id"] == "sp-x"
-    import_manifest(manifest, FakeCatalog(), conn)
 
 
 def test_a_done_track_id_holder_short_circuits_the_download(

@@ -6,9 +6,8 @@ or rudely: a listener's text being treated as query syntax. Unquoted, a stray
 `"` is a 500 and a bare `NOT` quietly changes what the search means.
 """
 
-from conftest import FakeCatalog, make_manifest, make_record
+from conftest import insert_track
 
-from muse.library import import_manifest
 from muse.library.queries import search
 
 LIBRARY = [
@@ -21,17 +20,9 @@ LIBRARY = [
 
 
 def load(conn):
-    import_manifest(
-        make_manifest(
-            *[
-                make_record(rowid, track_name=name, artist_name=artist,
-                            album_name=album)
-                for rowid, name, artist, album in LIBRARY
-            ]
-        ),
-        FakeCatalog(),
-        conn,
-    )
+    for rowid, name, artist, album in LIBRARY:
+        insert_track(conn, rowid, track_name=name, artist_name=artist,
+                     album_name=album)
     return conn
 
 

@@ -8,19 +8,16 @@ from now when it is being trained on.
 """
 
 import pytest
-from conftest import FakeCatalog, make_manifest, make_record
+from conftest import insert_track
 
-from muse.library import get_rating, import_manifest, set_rating
+from muse.library import get_rating, set_rating
 from muse.library.queries import album_tracks, health, track, tracks_by_rowid
 from muse.library.ratings import counts
 
 
 def load(conn, *rowids):
-    import_manifest(
-        make_manifest(*[make_record(rowid) for rowid in rowids]),
-        FakeCatalog(),
-        conn,
-    )
+    for rowid in rowids:
+        insert_track(conn, rowid)
     return conn
 
 

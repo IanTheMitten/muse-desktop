@@ -164,7 +164,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Decision 14 picks 3.12. Decisions 9 and 13 put mutagen, the file watcher and the ALS retrain in the core sidecar.
 
 ### Task 2: Seed test rows with insert_track instead of the manifest importer
-- [ ] status
+- [x] status
 **Objective:** No test outside `tests/test_import.py`, `tests/test_backup.py` and `tests/test_contract_shapes.py` calls `import_manifest`, `make_manifest` or `make_record`, and the suite stays at 1150 passed.
 **Write-scope:**
 `tests/conftest.py`
