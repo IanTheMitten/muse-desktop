@@ -634,7 +634,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
    Each step is wrapped in `try/except Exception: log.exception(...)`, so one failure never skips the rest.
 3. Launch: `app.state.chain_task = asyncio.create_task(run_chain(True))`.
 4. The watcher:
-   - Define `def start_watcher()`, stored as `app.state.start_watcher`. If a watcher is running, it first sets that watcher's own stop `Event`, then cancels its task. Each watcher gets its own fresh `asyncio.Event` kept on `app.state.watch_stop`. It then starts `watch_folders(settings.music_folders(config.settings_path), lambda: run_chain(False), stop=<fresh Event>)`.
+   - Define `def start_watcher()`, stored as `app.state.start_watcher`. If a watcher is running, it first sets that watcher's own stop `Event`, then cancels its task. Each watcher gets its own fresh `asyncio.Event` kept on `app.state.watch_stop`. It then starts `watch_folders(settings.music_folders(config.settings_path), lambda: asyncio.shield(run_chain(False)), stop=<fresh Event>)`.
    - Start it at launch.
    - Shutdown sets `app.state.watch_stop` first (so awatch's thread exits without waiting for `rust_timeout`), then cancels the watcher and chain tasks and awaits them, swallowing `CancelledError`, before `conn.close()`.
 5. Routes:
