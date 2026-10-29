@@ -11,6 +11,7 @@ dependencies = [
     "watchfiles",
     "implicit",
     "numpy",
+    "send2trash>=2.1.0",
 ]
 
 # Only `muse.embed`'s real encoders need these — ~0.8 GB of CLAP weights and

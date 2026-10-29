@@ -4,7 +4,8 @@ Not queries -- a playlist keeps the tracks it was saved with, so a taste
 retrain never reshuffles one. A track appearing twice is allowed, which is why
 `position` and not `track_rowid` is the key. Deleting a track drops it from
 every playlist (cascade) and leaves a gap in positions, which order alone
-tolerates.
+tolerates. A removed track (tombstone, status 'removed') keeps its playlist
+rows but is hidden on read, so restoring it puts it back in place.
 """
 
 import sqlite3
@@ -49,6 +50,7 @@ def _covers(conn: sqlite3.Connection, playlist_id: int) -> list[int]:
         "SELECT t.track_rowid, t.album_rowid FROM playlist_tracks pt"
         " JOIN tracks t ON t.track_rowid = pt.track_rowid"
         " WHERE pt.playlist_id = ? AND t.art_path IS NOT NULL"
+        " AND t.status != 'removed'"
         " ORDER BY pt.position", (playlist_id,)
     ):
         seen.setdefault(row["album_rowid"], row["track_rowid"])
@@ -60,11 +62,12 @@ def _covers(conn: sqlite3.Connection, playlist_id: int) -> list[int]:
 def summaries(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         "SELECT p.id, p.name, p.created_at, p.updated_at,"
-        "       COUNT(pt.position) AS track_count,"
+        "       COUNT(t.track_rowid) AS track_count,"
         "       COALESCE(SUM(t.duration_ms), 0) AS runtime_ms"
         " FROM playlists p"
         " LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id"
         " LEFT JOIN tracks t ON t.track_rowid = pt.track_rowid"
+        "  AND t.status != 'removed'"
         " GROUP BY p.id ORDER BY p.updated_at DESC, p.id DESC"
     ).fetchall()
     return [{**dict(r), "cover_track_rowids": _covers(conn, r["id"])} for r in rows]
@@ -79,9 +82,31 @@ def get(conn: sqlite3.Connection, playlist_id: int) -> dict | None:
         f"SELECT {TRACK_FIELDS} FROM tracks"
         " JOIN (SELECT position, track_rowid AS pt_rowid FROM playlist_tracks"
         "       WHERE playlist_id = ?) ON pt_rowid = tracks.track_rowid"
+        " WHERE tracks.status != 'removed'"
         " ORDER BY position", (playlist_id,)
     ).fetchall()
     return {**head, "tracks": [_track(r) for r in rows]}
+
+
+def append(
+    conn: sqlite3.Connection,
+    playlist_id: int,
+    track_rowids: list[int],
+    *,
+    now: int | None = None,
+) -> bool:
+    """False if the playlist is missing. Unknown track raises IntegrityError."""
+    if not conn.execute("SELECT 1 FROM playlists WHERE id = ?", (playlist_id,)).fetchone():
+        return False
+    at = now if now is not None else int(time.time())
+    start = conn.execute(
+        "SELECT COALESCE(MAX(position) + 1, 0) FROM playlist_tracks WHERE playlist_id = ?",
+        (playlist_id,)).fetchone()[0]
+    conn.executemany(
+        "INSERT INTO playlist_tracks (playlist_id, position, track_rowid) VALUES (?, ?, ?)",
+        [(playlist_id, start + i, t) for i, t in enumerate(track_rowids)])
+    conn.execute("UPDATE playlists SET updated_at = ? WHERE id = ?", (at, playlist_id))
+    return True
 
 
 def rename(
