@@ -462,7 +462,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** CLAUDE.md requires CONTEXT.md to change when terms do; M4 executors read these first.
 
 ### Task 13: Run the CI packaging matrix [experiment]
-- [ ] status
+- [x] status
 **Objective:** The `package` workflow runs on macOS and Windows, and its results are recorded in `docs/plans/2026-10-29-desktop-m3-ci-results.md`.
 **Write-scope:**
 `docs/plans/2026-10-29-desktop-m3-ci-results.md` (new)
