@@ -13,6 +13,7 @@ import sqlite3
 import time
 from pathlib import Path
 
+from ..align_text import build_lrc
 from ..lyrics import lyrics_files
 from . import lyrics_state
 
@@ -93,3 +94,25 @@ def drop_timings(
         checked_at=int(time.time()) if now is None else now,
     )
     return True
+
+
+def write_timings(
+    conn: sqlite3.Connection,
+    track_rowid: int,
+    lines: list[str],
+    starts_ms: list[int],
+    *,
+    lyrics_root: Path,
+    state: str,
+    track: dict,
+    now: int | None = None,
+) -> None:
+    lrc = lyrics_files(lyrics_root, track_rowid)[1]
+    lyrics_root.mkdir(parents=True, exist_ok=True)
+    tmp = lrc.with_suffix(".tmp")
+    tmp.write_text(build_lrc(lines, starts_ms, track), encoding="utf-8")
+    os.replace(tmp, lrc)
+    lyrics_state.upsert(
+        conn, track_rowid, state=state, synced=True,
+        checked_at=int(time.time()) if now is None else now, lrc_offset_ms=0,
+    )

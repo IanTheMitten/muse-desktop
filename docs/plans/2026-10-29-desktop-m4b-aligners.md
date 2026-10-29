@@ -329,7 +329,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** The job and routes carry the owner's skip and replace rules; pin them before the code.
 
 ### Task 12: Implement the align job, the timing writer and the routes
-- [ ] status
+- [x] status
 **Objective:** POST `/api/tracks/align`, PUT `/api/tracks/{track_rowid}/lyrics/lrc` and `timing_lines` on the synced route work, and Task 11's tests pass.
 **Write-scope:** `muse/library/jobs.py`
 `muse/library/lyrics_edit.py`
