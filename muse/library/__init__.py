@@ -5,7 +5,6 @@ module in the system with write access to a database.
 """
 
 from .db import connect
-from .importer import ImportResult, import_manifest, load_manifest
 from .plays import (
     FULL_LISTEN,
     PARTIAL,
@@ -27,7 +26,6 @@ __all__ = [
     "PARTIAL",
     "SKIP",
     "UNKNOWN",
-    "ImportResult",
     "accept_state_write",
     "classify_play",
     "close_span",
@@ -35,8 +33,6 @@ __all__ = [
     "current_version",
     "get_rating",
     "heartbeat",
-    "import_manifest",
-    "load_manifest",
     "migrate",
     "open_span",
     "read_state",

@@ -15,8 +15,7 @@ import json
 import sqlite3
 import time
 
-from ..titles import same_title
-from .importer import _index_track
+from ..titles import normalize_title, same_title
 
 LOCAL_ROWID_FLOOR = 1_000_000_000
 
@@ -232,7 +231,7 @@ def write_pending(
             recording_mbid, release_mbid, now,
         ),
     )
-    _index_track(conn, track_rowid, track_name, artist_name, album_name)
+    index_track(conn, track_rowid, track_name, artist_name, album_name)
     conn.commit()
 
 
@@ -268,40 +267,44 @@ def mark_done(
     conn.commit()
 
 
-def repair_joined_credits(conn: sqlite3.Connection, catalog) -> int:
-    """Split catalog-tier credits stored as one `" & "`-joined name.
+# `06 - Some Song - Inst.m4a`. LRCLIB carries an explicit instrumental boolean
+# and replaces this heuristic in slice 4.
+_INSTRUMENTAL_MARKERS = (" - inst.", " - instrumental.")
 
-    In-app catalog downloads once stored the mirror's credit line
-    ("Justin Bieber & Ed Sheeran") as `artist_name` and as a one-element
-    `artist_names`, so the library listed every collaboration as an artist of
-    its own. This rewrites each such row to the convention every other path
-    already follows -- first credited artist as `artist_name`, all of them in
-    `artist_names` -- using the mirror's own artist list, never by splitting
-    the string, because "Simon & Garfunkel" is one artist. A row the mirror
-    lists one artist for, or does not know, is left as it is.
 
-    Returns how many rows were rewritten. Cheap to run at every start: once
-    repaired a row no longer matches, and the only ones asked about again are
-    genuine single artists with an ampersand in their name.
+def is_instrumental_path(file_path: str | None, track_name: str) -> bool:
+    haystack = (file_path or track_name or "").lower()
+    return any(marker in haystack for marker in _INSTRUMENTAL_MARKERS)
+
+
+def index_track(
+    conn: sqlite3.Connection,
+    rowid: int,
+    track_name: str,
+    artist_name: str,
+    album_name: str,
+) -> None:
+    """Refresh the FTS row for a track.
+
+    Delete-then-insert rather than update, because `tracks_fts` is a standalone
+    FTS5 table keyed by `rowid` and re-running the import must not accumulate
+    duplicate index entries.
+
+    The `norm_*` columns are search entries only. Nothing displays them.
     """
-    rows = conn.execute(
-        "SELECT track_rowid FROM tracks"
-        " WHERE metadata_tier = 'catalog'"
-        "   AND artist_name LIKE '% & %'"
-        "   AND json_array_length(artist_names) = 1"
-        "   AND artist_names ->> 0 = artist_name"
-    ).fetchall()
-    repaired = 0
-    for row in rows:
-        track = catalog.track_by_rowid(row["track_rowid"])
-        names = (track or {}).get("artist_list") or []
-        if len(names) < 2:
-            continue
-        conn.execute(
-            "UPDATE tracks SET artist_name = ?, artist_names = ?"
-            " WHERE track_rowid = ?",
-            (names[0], json.dumps(names), row["track_rowid"]),
-        )
-        repaired += 1
-    conn.commit()
-    return repaired
+    conn.execute("DELETE FROM tracks_fts WHERE rowid = ?", (rowid,))
+    conn.execute(
+        "INSERT INTO tracks_fts"
+        "  (rowid, track_name, artist_name, album_name,"
+        "   norm_track_name, norm_artist_name, norm_album_name)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            rowid,
+            track_name,
+            artist_name,
+            album_name,
+            normalize_title(track_name),
+            normalize_title(artist_name),
+            normalize_title(album_name),
+        ),
+    )

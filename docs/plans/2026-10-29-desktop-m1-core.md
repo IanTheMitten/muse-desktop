@@ -188,7 +188,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Task 3 deletes the importer. Tests that only used it to seed rows must survive that deletion unchanged in meaning.
 
 ### Task 3: Strip the mirror, manifest, contract and backup code
-- [ ] status
+- [x] status
 **Objective:** The fork has no mirror reader, manifest importer, Cadence contract or backup module, and the remaining suite is green.
 **Write-scope:**
 `muse/api.py`

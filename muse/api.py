@@ -30,13 +30,11 @@ from pydantic import BaseModel, Field, field_validator
 from . import embed as embed_module
 from . import library
 from .art import ChainedArtProvider, CoverArtArchive, ItunesArt, YtdlpThumbnailArt
-from .catalog import EmptyCatalog, SqliteCatalog
+from .catalog import EmptyCatalog
 from .config import Config
 from . import arc_engine, charts, discover, nearest, reco, recommend, request_spec
 from .content import CONTENT_EMBED
-from .contract import CONTRACT_VERSION, ContractVersion
 from .embed import ClapAudioEncoder, MerAudioVAEncoder, MiniLmLyricsEncoder, TextVAEncoder
-from .features import EmptyFeatures, SqliteFeatures
 from .feedback import feedback_score
 from .ingest import TieredMetadataProvider, YtDlpAudioSource, build_genius_client, run_download
 from .jobs import (
@@ -267,17 +265,8 @@ async def _sweep_forever(conn) -> None:
 
 
 def _open_catalog(config: Config):
-    """The mirrors are optional at startup.
-
-    Without them the import lands rows with no duration or ISRC rather than
-    failing, which keeps the app runnable on a machine that does not carry
-    47 GB of SQLite.
-    """
-    if not config.catalog.exists():
-        log.warning("Catalog mirror not found at %s; importing without it",
-                    config.catalog)
-        return EmptyCatalog()
-    return SqliteCatalog(config.catalog)
+    """No mirror in the desktop fork; kept as the seam tests monkeypatch."""
+    return EmptyCatalog()
 
 
 def _ytdlp_thumbnail_search(artist_name: str, album_name: str) -> str | None:
@@ -324,22 +313,6 @@ def _ytdlp_probe_info(query_or_url: str) -> dict | None:
         return info
     except Exception:
         return None
-
-
-def _open_features(config: Config):
-    """The features mirror is optional for the same reason the catalog is.
-
-    Without it the dashboard's mood surfaces are empty and everything else —
-    browsing, search, playback, history — is untouched. Degrade in quality,
-    never in availability.
-    """
-    if not config.audio_features.exists():
-        log.warning(
-            "Audio-features mirror not found at %s; mood surfaces will be empty",
-            config.audio_features,
-        )
-        return EmptyFeatures()
-    return SqliteFeatures(config.audio_features)
 
 
 def _release_for_group(mb, release_group_mbid: str) -> dict | None:
@@ -449,42 +422,6 @@ def create_app(
 
         version = library.current_version(conn)
         log.info("Library at %s, schema version %d", config.library_db, version)
-
-        if config.manifest.exists():
-            catalog = _open_catalog(config)
-            result = library.import_manifest(
-                library.load_manifest(config.manifest),
-                catalog,
-                conn,
-                root=config.root,
-            )
-            log.info(
-                "Imported manifest: %d new, %d updated, %s",
-                result.inserted,
-                result.updated,
-                result.by_status,
-            )
-        else:
-            log.warning("No manifest at %s; nothing to import", config.manifest)
-
-        # Collaborations an older download stored as one joined artist name.
-        repaired = library_tracks.repair_joined_credits(conn, _open_catalog(config))
-        if repaired:
-            log.info("Split %d joined artist credit(s)", repaired)
-
-        # What the library sounds like, copied out of the mirror once per
-        # track, ever. First start spends about a second on 723 lookups; every
-        # start after that asks about nothing, because a track the mirror had
-        # no answer for is remembered as asked.
-        sync = library_features.sync_features(conn, _open_features(config))
-        if sync.asked:
-            log.info(
-                "Audio features: asked about %d track(s), stored %d, %d not in "
-                "the mirror",
-                sync.asked,
-                sync.stored,
-                sync.without,
-            )
 
         # A job left `running` by a killed process would otherwise block the
         # next one forever. art_backfill/embed are idempotent full sweeps,
@@ -703,14 +640,6 @@ def create_app(
                 ),
             },
         }
-
-    @app.get("/api/contract")
-    def contract() -> ContractVersion:
-        """The Cadence contract version (docs/contracts/cadence.md).
-
-        Cadence reads a 404 here as the pre-contract baseline.
-        """
-        return ContractVersion(version=CONTRACT_VERSION)
 
     @app.get("/api/dashboard")
     def dashboard() -> dict:

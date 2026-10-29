@@ -6,7 +6,7 @@ import pytest
 from muse.catalog import TrackFacts
 from muse.features import TrackFeatures
 from muse.library import connect
-from muse.library.tracks import _index_track
+from muse.library.tracks import index_track
 
 
 @pytest.fixture
@@ -49,39 +49,6 @@ def make_facts(rowid, duration_ms=180_000, isrc="GBAAA1234567", disc_no=1,
         track_no=track_no,
         album_rowid=album_rowid,
     )
-
-
-def make_manifest(*records):
-    return {
-        "version": 1,
-        "created_at": "2026-01-01T00:00:00",
-        "updated_at": "2026-01-01T00:00:00",
-        "downloads": {str(r["track_rowid"]): r for r in records},
-    }
-
-
-def make_record(track_rowid, status="done", file_path=None, **overrides):
-    record = {
-        "track_rowid": track_rowid,
-        "track_id": f"spotify{track_rowid}",
-        "artist_rowid": 10,
-        "album_rowid": 20,
-        "artist_name": "Some Artist",
-        "artist_names": ["Some Artist"],
-        "album_name": "Some Album",
-        "track_name": "Some Song",
-        "track_no": 1,
-        "disc_no": 1,
-        "file_path": file_path,
-        "lyrics_path": None,
-        "source_query": "some artist some song",
-        "source_site_id": "abc123",
-        "status": status,
-        "error": None,
-        "downloaded_at": "2026-01-01T00:00:00",
-    }
-    record.update(overrides)
-    return record
 
 
 class FakeFeatures:
@@ -147,7 +114,7 @@ def insert_track(conn, rowid, *, track_id="auto", status="done", album_rowid=20,
             isrc,
         ),
     )
-    _index_track(conn, rowid, track_name, artist_name, album_name)
+    index_track(conn, rowid, track_name, artist_name, album_name)
     return rowid
 
 

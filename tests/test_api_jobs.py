@@ -222,75 +222,6 @@ def test_retry_of_error_track_via_api(client):
     assert Path(track["file_path"]).exists()
 
 
-def test_post_jobs_track_kind_resolves_via_real_metadata_provider(tmp_path, monkeypatch):
-    """Regression test: kind="track" payloads only ever carried a bare
-    track_rowid, but TieredMetadataProvider's catalog tier indexes
-    payload["artist_name"]/["album_name"]/["track_name"] directly with no
-    fallback -- a KeyError, silently caught by run_download_job and
-    surfaced only as state="error". Every existing test injected a fake
-    metadata_provider that ignores its payload, so this was never caught.
-    This test does NOT inject metadata_provider -- create_app builds the
-    real TieredMetadataProvider against a real (tiny) catalog.sqlite3, so
-    the actual create_job -> catalog.track_by_rowid -> resolve() path
-    runs end to end.
-    """
-    import muse.ingest as ingest_mod
-    from muse.lyrics_lrclib import SyncOutcome
-
-    monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
-    monkeypatch.setattr(
-        ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
-    )
-
-    catalog_path = tmp_path / "catalog.sqlite3"
-    _write_catalog_db(catalog_path)
-    config = Config(
-        root=tmp_path, library_db=tmp_path / "library.sqlite3",
-        manifest=tmp_path / "manifest.json", catalog=catalog_path,
-        audio_features=tmp_path / "features.sqlite3",
-        music_root=tmp_path / "MUSIC", art_root=tmp_path / "art",
-        web_dist=tmp_path / "web", backup_dir=tmp_path / "backups",
-        backup_target=None, port=8080, host="127.0.0.1",
-        art_backfill=False, embed_batch=False, content_embed=False,
-        catalog_freeze="2025-11-13",
-    )
-
-    application = create_app(
-        config,
-        audio_source=FakeAudioSource(),
-        genius_client=None,
-        art_provider=FakeArtProvider(),
-        # Stub encoders for the same reason `art_provider` is a fake: the
-        # defaults are the real CLAP/MiniLM/MER/TextVA, and `run_download`'s
-        # final step is an embed backfill that runs whether or not
-        # `config.embed_batch` is set. Without these the test reaches Hugging
-        # Face for ~1 GB of weights, and the download job it is asserting on
-        # is still `running` when the fixture tears the connection down.
-        audio_encoder=StubAudioEncoder(),
-        lyrics_encoder=StubLyricsEncoder(),
-        audio_va_encoder=StubAudioVAEncoder(),
-        lyrics_va_encoder=StubLyricsVAEncoder(),
-    )
-    with TestClient(application) as test_client:
-        failed = _failed_download(application.state.conn, CATALOG_RETRY_PAYLOAD)
-        response = test_client.post(f"/api/jobs/{failed}/retry")
-        assert response.status_code == 200
-        job_id = response.json()["job_ids"][0]
-
-        status = _wait(test_client, job_id)
-        assert status["state"] == "done", status.get("message")
-
-        track = application.state.conn.execute(
-            "SELECT * FROM tracks WHERE track_rowid = 100"
-        ).fetchone()
-        assert track["status"] == "done"
-        assert track["metadata_tier"] == "catalog"
-        assert track["artist_name"] == "Radiohead"
-        assert track["album_name"] == "OK Computer"
-        assert track["track_name"] == "Airbag"
-
-
 def test_post_jobs_url_kind_resolves_via_real_ytdlp_probe(tmp_path, monkeypatch):
     """Regression test: create_app wired TieredMetadataProvider's yt-dlp
     tier with ytdlp_info=None, so resolve()'s `if self._ytdlp_info is not
@@ -432,16 +363,6 @@ def _local_rows(application):
     ).fetchall()
 
 
-def test_an_mb_job_with_an_isrc_stamps_the_mirrors_track_id(stamp_client):
-    test_client, application = stamp_client
-
-    response = test_client.post("/api/jobs", json=dict(MB_PAYLOAD, isrc="GBAAA1234567"))
-    status = _wait(test_client, response.json()["job_ids"][0])
-
-    assert status["state"] == "done", status.get("message")
-    assert [r["track_id"] for r in _local_rows(application)] == ["tr1"]
-
-
 def test_a_client_sent_track_id_is_not_trusted(stamp_client):
     test_client, application = stamp_client
 
@@ -452,32 +373,3 @@ def test_a_client_sent_track_id_is_not_trusted(stamp_client):
 
     assert status["state"] == "done", status.get("message")
     assert [r["track_id"] for r in _local_rows(application)] == [None]
-
-
-def test_an_mb_job_whose_track_id_is_already_done_is_skipped(stamp_client):
-    test_client, application = stamp_client
-    insert_track(application.state.conn, 7, track_id="tr1", status="done")
-
-    response = test_client.post("/api/jobs", json=dict(MB_PAYLOAD, isrc="GBAAA1234567"))
-    status = _wait(test_client, response.json()["job_ids"][0])
-
-    assert status["state"] == "done"
-    assert status["message"] == "already in library"
-    assert _local_rows(application) == []
-
-
-def test_an_mb_job_whose_track_id_holder_errored_downloads_anew(stamp_client):
-    test_client, application = stamp_client
-    insert_track(application.state.conn, 7, track_id="tr1", status="error")
-    application.state.conn.execute("UPDATE tracks SET origin='local' WHERE track_rowid=7")
-    application.state.conn.commit()
-
-    response = test_client.post("/api/jobs", json=dict(MB_PAYLOAD, isrc="GBAAA1234567"))
-    status = _wait(test_client, response.json()["job_ids"][0])
-
-    assert status["state"] == "done", status.get("message")
-    assert sorted(r["track_id"] or "" for r in _local_rows(application)) == ["", "tr1"]
-    old = application.state.conn.execute(
-        "SELECT track_id FROM tracks WHERE track_rowid = 7"
-    ).fetchone()
-    assert old["track_id"] is None
