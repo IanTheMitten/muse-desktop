@@ -506,7 +506,7 @@ Negative result is a valid outcome.
 ## Phase 5 - Worker packaging
 
 ### Task 14: Freeze the worker and smoke it locally
-- [ ] status
+- [x] status
 **Objective:** `scripts/freeze_worker.py` builds `build/worker-dist/muse-worker/` and a zip, and `scripts/worker_smoke.py` proves the frozen worker answers hello, mert, clap_audio, minilm and laya on a fixture.
 **Write-scope:**
 `scripts/freeze_worker.py` (new)
