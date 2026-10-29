@@ -57,43 +57,16 @@ def seed(conn):
                               lyrics_hash=None)
 
 
-def test_missing_embed_extra_returns_503(app, monkeypatch):
-    """The route must degrade, not fail (principle 4).
-
-    The missing extra is *simulated*, not relied on. An earlier version of
-    this test asserted the 503 by letting the real encoder fail to import,
-    which passed only because this machine had no `embed` extra -- and the
-    moment one was installed the test started constructing a real CLAP model,
-    downloading ~800 MB of weights inside the default suite, and failing.
-    A test whose meaning depends on how the machine was provisioned is not
-    testing the route."""
-    import muse.api
-
-    def no_extra():
-        raise ImportError("No module named 'torch'")
-
-    monkeypatch.setattr(muse.api, "ClapAudioEncoder", no_extra)
+def test_not_installed_returns_503(app):
+    """No worker and no injected encoder: the route degrades, it does not
+    start a model."""
     with pytest.raises(HTTPException) as raised:
         route(app, "/api/library/search/vibe")(q="anything")
     assert raised.value.status_code == 503
-    assert "embed" in str(raised.value.detail)
+    assert "smart features" in str(raised.value.detail)
 
 
-def test_an_injected_encoder_is_used_instead_of_constructing_clap(app, monkeypatch):
-    """The guard the test above lost when it stopped depending on the
-    environment. Constructing CLAP costs ~70 s and ~800 MB before it does
-    anything, so the default suite must never reach for it.
-
-    Asserted by making construction itself fail, not by inspecting
-    `sys.modules`: that is process-global, so any earlier test in the run
-    could satisfy or violate it and this test would be reporting on
-    someone else's behaviour."""
-    import muse.api
-
-    def explode():
-        raise AssertionError("the route constructed a real CLAP encoder")
-
-    monkeypatch.setattr(muse.api, "ClapAudioEncoder", explode)
+def test_an_injected_encoder_is_used_instead_of_the_worker(app):
     app.state.text_encoder = FakeTextEncoder()
     out = route(app, "/api/library/search/vibe")(q="bright")
     assert out["results"] == [] or out["results"]

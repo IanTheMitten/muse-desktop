@@ -362,7 +362,7 @@ Negative result is a valid outcome.
 **Why:** Decision 4: hash-pinned manifest shipped with the app, resumable downloads into `models/`.
 
 ### Task 10: Wire the worker and installer into the app
-- [ ] status
+- [x] status
 **Objective:** The chain runs embed, MERT and Laya through the worker when `ml_on`; `/api/smart` and `/api/smart/install` work; vibe search uses the worker; config and health follow Assumptions.
 **Write-scope:**
 `muse/config.py`

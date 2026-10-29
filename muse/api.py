@@ -32,14 +32,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from . import embed as embed_module
-from . import settings, taste_retrain
+from . import content_embed_batch, lyric_tag_batch, settings, smart, taste_retrain
 from . import library
 from .art import ChainedArtProvider, CoverArtArchive, ItunesArt, YtdlpThumbnailArt
 from .catalog import EmptyCatalog
 from .config import Config
 from . import arc_engine, charts, discover, nearest, reco, recommend, request_spec
 from .content import CONTENT_EMBED
-from .embed import ClapAudioEncoder, MerAudioVAEncoder, MiniLmLyricsEncoder, TextVAEncoder
 from .feedback import feedback_score
 from .ingest import TieredMetadataProvider, YtDlpAudioSource, build_genius_client, run_download
 from .jobs import (
@@ -54,6 +53,7 @@ from .jobs import (
     run_download_job,
     run_download_worker,
     run_embed_backfill,
+    run_smart_install,
 )
 from .library import art as library_art
 from .library import content as library_content
@@ -73,6 +73,17 @@ from .lyrics_lrclib import LYRICS_SYNC
 from .lyrics import lyrics_files, read_lyrics
 from .musicbrainz import MusicBrainzClient
 from .watch import watch_folders
+from .worker import (
+    LAYA_MODEL,
+    WorkerAudioEncoder,
+    WorkerAudioVAEncoder,
+    WorkerClient,
+    WorkerContentEmbedder,
+    WorkerLyricsEncoder,
+    WorkerLyricsVAEncoder,
+    worker_ask,
+    worker_command,
+)
 from .tags import AUDIO_EXTENSIONS
 from .streaming import ByteRange, Unsatisfiable, media_type_for, parse_range, read_range
 from .taste import TASTE_RETRAIN
@@ -463,6 +474,7 @@ def create_app(
     chart_fetch=None,
     taste_trainer=None,
     read_tags=None,
+    worker_client=None,
 ) -> FastAPI:
     """`art_provider` is injectable so tests never reach MusicBrainz. `mb` is
     the one MusicBrainz client this process gets, injectable for the same
@@ -475,6 +487,7 @@ def create_app(
     touching yt-dlp, MusicBrainz, or Genius."""
     config = config or Config.from_env()
     bus = JobBus()
+    install_tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -495,6 +508,8 @@ def create_app(
         # reason: tests must never reach the network.
         resolved_mb = mb or MusicBrainzClient()
         app.state.mb = resolved_mb
+        app.state.worker = worker_client or WorkerClient(
+            worker_command(config.models_dir, config.worker_cmd))
         loop = asyncio.get_running_loop()
         bus.attach(loop)
 
@@ -515,6 +530,7 @@ def create_app(
             + job_rows.abandon_running_of_kind(conn, embed_module.EMBED)
             + job_rows.abandon_running_of_kind(conn, SCAN)
             + job_rows.abandon_running_of_kind(conn, LYRICS_SYNC)
+            + job_rows.abandon_running_of_kind(conn, smart.SMART_INSTALL)
         )
         for stale_job_id in job_rows.running_ids_of_kind(conn, DOWNLOAD):
             job_rows.update(conn, stale_job_id, state=job_rows.ERROR,
@@ -546,6 +562,21 @@ def create_app(
         # at startup (Decision 5 C).
         # One instance: one 3 s floor between iTunes requests for the whole process.
         itunes_art = ItunesArt()
+
+        # Factories, not instances: `run_embed_backfill` calls them inside its
+        # worker thread. The real ones are thin clients of the ML worker
+        # process; the models never load in this one.
+        def _audio_encoder():
+            return audio_encoder or WorkerAudioEncoder(app.state.worker)
+
+        def _lyrics_encoder():
+            return lyrics_encoder or WorkerLyricsEncoder(app.state.worker)
+
+        def _audio_va_encoder():
+            return audio_va_encoder or WorkerAudioVAEncoder(app.state.worker)
+
+        def _lyrics_va_encoder():
+            return lyrics_va_encoder or WorkerLyricsVAEncoder(app.state.worker)
 
         # Scan, lyrics, art, then a stale retrain, one step at a time: the
         # shared connection cannot hold two transactions at once.
@@ -581,6 +612,27 @@ def create_app(
                         )
                     except Exception:
                         log.exception("Art backfill failed")
+                if config.embed_batch or smart.installed(config.models_dir):
+                    app.state.worker.begin()
+                    try:
+                        await run_embed_backfill(
+                            conn, _audio_encoder, _lyrics_encoder, bus,
+                            _audio_va_encoder, _lyrics_va_encoder,
+                        )
+                    except Exception:
+                        log.exception("Embed backfill failed")
+                    try:
+                        await asyncio.to_thread(
+                            content_embed_batch.run, conn,
+                            WorkerContentEmbedder(app.state.worker))
+                    except Exception:
+                        log.exception("Content embed failed")
+                    try:
+                        await asyncio.to_thread(
+                            lyric_tag_batch.run, conn,
+                            worker_ask(app.state.worker), LAYA_MODEL)
+                    except Exception:
+                        log.exception("Lyric tagging failed")
                 if launch and config.taste_retrain_at_launch:
                     try:
                         last = job_rows.last(conn, TASTE_RETRAIN, state=job_rows.DONE)
@@ -618,38 +670,6 @@ def create_app(
 
         app.state.start_watcher = start_watcher
         start_watcher()
-
-        # The embed batch, in the background, never in a request -- same
-        # reasoning as the art backfill. Off by default (config.embed_batch):
-        # unlike art, this can run to ~14 minutes over the whole library and
-        # the real encoders need optional, heavy dependencies.
-        #
-        # Factories, not instances: `ClapAudioEncoder()` alone is ~70 s of
-        # model load, and `run_embed_backfill` already runs the batch itself
-        # inside `asyncio.to_thread`. Constructing the encoder here instead
-        # of there would block this event loop for that whole load -- every
-        # concurrent request stalls -- defeating the point of backgrounding
-        # it at all.
-        def _audio_encoder():
-            return audio_encoder or ClapAudioEncoder()
-
-        def _lyrics_encoder():
-            return lyrics_encoder or MiniLmLyricsEncoder()
-
-        def _audio_va_encoder():
-            return audio_va_encoder or MerAudioVAEncoder()
-
-        def _lyrics_va_encoder():
-            return lyrics_va_encoder or TextVAEncoder()
-
-        embed_task = None
-        if config.embed_batch:
-            embed_task = asyncio.create_task(
-                run_embed_backfill(
-                    conn, _audio_encoder, _lyrics_encoder, bus,
-                    _audio_va_encoder, _lyrics_va_encoder,
-                )
-            )
 
         # The download worker: one consumer for the app's lifetime, fed by
         # POST /api/jobs below and by whatever this restart found still
@@ -695,16 +715,14 @@ def create_app(
             }
 
         # MERT over freshly downloaded tracks, once the download queue
-        # drains. Behind `config.content_embed` (MUSE_CONTENT_EMBED) because
-        # that flag already means "this host is the one that runs the
-        # content batch" -- /api/health reports it as `expected_on_this_
-        # host` -- and a host without `universal_reco/.venv` must not shell
-        # out to a batch that can only fail. The nightly timer stays the
-        # backstop on either kind of host.
+        # drains. Only when the ML worker is usable (installed, or
+        # `embed_batch` for dev): otherwise it could only fail.
         content_backfill = None
-        if config.content_embed:
+        if config.embed_batch or smart.installed(config.models_dir):
             async def content_backfill():
-                return await run_content_backfill(conn, config.library_db)
+                app.state.worker.begin()
+                return await run_content_backfill(
+                    conn, config.library_db, WorkerContentEmbedder(app.state.worker))
 
         download_worker = asyncio.create_task(
             run_download_worker(conn, download_queue, run_download,
@@ -718,11 +736,9 @@ def create_app(
             yield
         finally:
             sweeper.cancel()
-            if embed_task is not None:
-                embed_task.cancel()
             download_worker.cancel()
             app.state.watch_stop.set()
-            for task in (watch_task, *list(chain_tasks)):
+            for task in (watch_task, *list(chain_tasks), *list(install_tasks)):
                 task.cancel()
                 try:
                     await task
@@ -731,6 +747,7 @@ def create_app(
             # Cancelling a to_thread task leaves its thread running, and it
             # would query the connection closed on the next line (segfault).
             await warm_home
+            await asyncio.to_thread(app.state.worker.stop)
             conn.close()
 
     app = FastAPI(title="Muse", lifespan=lifespan)
@@ -846,6 +863,38 @@ def create_app(
         app.state.spawn_chain()
         return {"started": True}
 
+    def _smart_view() -> dict:
+        cfg = app.state.config
+        job = job_rows.active(app.state.conn, smart.SMART_INSTALL) or job_rows.last(
+            app.state.conn, smart.SMART_INSTALL)
+        return {**smart.status(cfg.models_dir, smart.load_manifest(), smart.host_triple()),
+                "job": job}
+
+    @app.get("/api/smart")
+    def get_smart() -> dict:
+        return _smart_view()
+
+    @app.post("/api/smart/install", status_code=202)
+    async def install_smart() -> dict:
+        if _smart_view()["state"] != "not_installed" or job_rows.active(
+                app.state.conn, smart.SMART_INSTALL):
+            raise HTTPException(409, "Smart features cannot be installed now")
+
+        async def go() -> None:
+            job = await run_smart_install(
+                app.state.conn, bus, config.models_dir, smart.load_manifest(),
+                smart.host_triple(), session=getattr(app.state, "smart_session", None))
+            if job["state"] == job_rows.DONE:
+                app.state.spawn_chain()
+
+        task = asyncio.create_task(go())
+        install_tasks.add(task)
+        task.add_done_callback(install_tasks.discard)
+        # One yield runs the task up to its first thread hop, past the
+        # synchronous job-row insert, so the 202 can name the job.
+        await asyncio.sleep(0)
+        return {"job_id": job_rows.last(app.state.conn, smart.SMART_INSTALL)["id"]}
+
     @app.get("/api/health")
     def health() -> dict:
         """Everything true about this deployment rather than this library.
@@ -874,7 +923,7 @@ def create_app(
             },
             "content": {
                 **library_content.coverage(app.state.conn),
-                "expected_on_this_host": app.state.config.content_embed,
+                "smart_installed": smart.installed(app.state.config.models_dir),
                 "last_batch_at": (
                     last_content_batch["updated_at"] if last_content_batch else None
                 ),
@@ -1021,10 +1070,10 @@ def create_app(
         fusing would mean inventing query-side values for five legs. A
         single-leg search is the honest shape.
 
-        It is also the only route in this app that needs torch. If the
-        `embed` extra is not installed it returns 503 rather than failing at
-        import, which keeps the rest of the app working on a machine that
-        cannot run CLAP -- degrade in quality, never in availability. The
+        It is also the only route that runs a model inside a request, through
+        the ML worker. Without smart features installed it returns 503, which
+        keeps the rest of the app working -- degrade in quality, never in
+        availability. The
         results are exploratory: §504's own spot-check found text-to-audio
         retrieval visibly noisier than audio-to-audio.
         """
@@ -1033,15 +1082,10 @@ def create_app(
 
         encoder = getattr(app.state, "text_encoder", None)
         if encoder is None:
-            try:
-                encoder = ClapAudioEncoder()
-            except ImportError as exc:
-                raise HTTPException(
-                    503,
-                    "Vibe search needs the 'embed' extra (uv sync --extra"
-                    f" embed): {exc}",
-                ) from exc
-            app.state.text_encoder = encoder
+            if not (config.embed_batch or smart.installed(config.models_dir)):
+                raise HTTPException(503, "Vibe search needs smart features")
+            app.state.worker.begin()
+            encoder = WorkerAudioEncoder(app.state.worker)
 
         query = encoder.encode_text(q)
         scored = []

@@ -9,7 +9,6 @@ since `/api/health` takes no request parameters.
 import asyncio
 
 from muse.api import create_app
-from muse.config import Config
 from tests.conftest import make_config
 from muse.content import CONTENT_EMBED, STUB_CONTENT_MODEL
 from muse.embed import pack_vector
@@ -25,16 +24,6 @@ def _config(tmp_path, **overrides):
 def _health(app):
     [route] = [r for r in app.routes if getattr(r, "path", None) == "/api/health"]
     return route.endpoint()
-
-
-def test_content_embed_is_off_unless_asked_for(monkeypatch):
-    monkeypatch.delenv("MUSE_CONTENT_EMBED", raising=False)
-    assert Config.from_env().content_embed is False
-
-
-def test_content_embed_turns_on_from_the_environment(monkeypatch):
-    monkeypatch.setenv("MUSE_CONTENT_EMBED", "1")
-    assert Config.from_env().content_embed is True
 
 
 def test_health_reports_content_coverage_and_last_batch_at(tmp_path):
@@ -71,7 +60,7 @@ def test_health_reports_content_coverage_and_last_batch_at(tmp_path):
         "embedded": 1,
         "track_count": 1,
         "computed_at": 950,
-        "expected_on_this_host": False,
+        "smart_installed": False,
         "last_batch_at": 1000,
         "last_run_at": 1200,
         "last_run_state": "error",
@@ -93,15 +82,18 @@ def test_health_reports_no_last_batch_before_any_run(tmp_path):
         "embedded": 0,
         "track_count": None,
         "computed_at": None,
-        "expected_on_this_host": False,
+        "smart_installed": False,
         "last_batch_at": None,
         "last_run_at": None,
         "last_run_state": None,
     }
 
 
-def test_health_reports_content_expected_when_flag_is_on(tmp_path):
-    app = create_app(_config(tmp_path, content_embed=True))
+def test_health_reports_smart_installed_from_the_marker(tmp_path):
+    config = _config(tmp_path)
+    config.models_dir.mkdir()
+    (config.models_dir / "installed.json").write_text('{"manifest_version": 1, "triple": "t"}')
+    app = create_app(config)
 
     async def drive():
         async with app.router.lifespan_context(app):
@@ -110,4 +102,4 @@ def test_health_reports_content_expected_when_flag_is_on(tmp_path):
 
     result = asyncio.run(drive())
 
-    assert result["content"]["expected_on_this_host"] is True
+    assert result["content"]["smart_installed"] is True

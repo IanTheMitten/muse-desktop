@@ -134,7 +134,8 @@ def make_config(tmp_path, **overrides) -> Config:
     base = dict(data_dir=tmp_path, library_db=tmp_path / "library.sqlite3",
                 music_root=tmp_path / "MUSIC", art_root=tmp_path / "art",
                 lyrics_root=tmp_path / "lyrics", settings_path=tmp_path / "settings.json",
-                web_dist=tmp_path / "web", port=8080, art_backfill=False,
-                lyrics_sync=False, embed_batch=False, content_embed=False,
+                web_dist=tmp_path / "web", models_dir=tmp_path / "models",
+                port=8080, art_backfill=False,
+                lyrics_sync=False, embed_batch=False,
                 taste_retrain_at_launch=False)
     return Config(**{**base, **overrides})
