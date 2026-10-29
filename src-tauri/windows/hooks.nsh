@@ -2,4 +2,14 @@
 !macro NSIS_HOOK_PREINSTALL
   nsExec::Exec 'taskkill /F /T /IM muse-core.exe'
   Pop $0
+  nsExec::Exec 'taskkill /F /T /IM muse-worker.exe'
+  Pop $0
+!macroend
+
+; Same lock on uninstall: a running exe would be left behind.
+!macro NSIS_HOOK_PREUNINSTALL
+  nsExec::Exec 'taskkill /F /T /IM muse-core.exe'
+  Pop $0
+  nsExec::Exec 'taskkill /F /T /IM muse-worker.exe'
+  Pop $0
 !macroend

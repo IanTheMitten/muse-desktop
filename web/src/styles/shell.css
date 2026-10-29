@@ -75,7 +75,12 @@
 @media (min-width: 1024px) {
   :root { --rail: 232px; --player-h: 88px; }
   .nav { padding-inline: 16px; }
-  .nav-brand { display: block; font-weight: 800; font-size: var(--t-l); letter-spacing: -0.02em; padding: 4px 12px 24px; }
+  .nav-brand { display: inline-flex; align-items: center; align-self: start; gap: 4px; font-weight: 750; font-size: var(--t-l); letter-spacing: -0.04em; padding: 4px 12px 24px; }
+  .nav-brand .brand-mark { width: 0.8em; height: 0.8em; color: #f5b9dc; }
+  :root[data-theme="light"] .nav-brand .brand-mark { color: #a8437a; }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .nav-brand .brand-mark { color: #a8437a; }
+  }
   .tab { grid-auto-flow: column; justify-content: start; gap: 14px; min-height: 48px; padding-inline: 12px; font-size: var(--t-m); }
   .tab[aria-current="page"] { background: var(--hairline); }
   .tab[aria-current="page"] .tab-label { text-decoration: none; }

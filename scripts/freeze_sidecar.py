@@ -27,8 +27,10 @@ def main() -> int:
         "--workpath", str(ROOT / "build" / "pyinstaller"),
         "--specpath", str(ROOT / "build" / "pyinstaller"),
         "--add-data", f"{dist}{os.pathsep}web/dist",
+        "--add-data", f"{ROOT / 'muse' / 'smart_manifest.json'}{os.pathsep}muse",
         "--collect-submodules", "uvicorn",
         "--collect-submodules", "muse",
+        *[a for m in ("torch", "transformers", "sentence_transformers", "laya", "av") for a in ("--exclude-module", m)],
     ])
     return 0
 

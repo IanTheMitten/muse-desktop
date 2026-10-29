@@ -66,6 +66,7 @@ pub fn open_mini(app: AppHandle) -> Result<(), String> {
     };
     let port = port.ok_or("Muse is still starting")?;
     let url = format!("http://127.0.0.1:{port}/mini").parse().map_err(|e| format!("{e}"))?;
+    let h = app.clone();
     WebviewWindowBuilder::new(&app, "mini", WebviewUrl::External(url))
         .title("Muse")
         .inner_size(400.0, 96.0)
@@ -74,7 +75,7 @@ pub fn open_mini(app: AppHandle) -> Result<(), String> {
         .always_on_top(true)
         .skip_taskbar(true)
         .initialization_script(format!("window.__MUSE_TOKEN__ = \"{token}\";"))
-        .on_navigation(|url| crate::allowed_origin(url))
+        .on_navigation(move |url| crate::allowed_origin(url, crate::current_port(&h)))
         .build()
         .map_err(|e| e.to_string())?;
     Ok(())

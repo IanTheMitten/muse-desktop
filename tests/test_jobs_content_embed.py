@@ -169,7 +169,7 @@ def test_the_lock_is_held_for_the_duration_of_the_run_and_released_after(
     observed = {}
     real_run = content_embed_batch.run
 
-    def probing_run(conn, embedder=None):
+    def probing_run(conn, embedder):
         probe_fd = os.open(probe_path, os.O_CREAT | os.O_RDWR)
         try:
             fcntl.flock(probe_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)

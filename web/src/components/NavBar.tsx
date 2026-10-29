@@ -4,6 +4,7 @@ import { getSettings } from "../api";
 import { useLoad } from "../useLoad";
 import {
   AddGlyph,
+  BrandMark,
   HomeGlyph,
   LibraryGlyph,
   MuseIcon,
@@ -31,7 +32,7 @@ export function NavBar() {
   const tabs = data?.downloader_unlocked ? [...TABS, ADD, SETTINGS] : [...TABS, SETTINGS];
   return (
     <nav className="nav" aria-label="Sections">
-      <span className="nav-brand">Muse</span>
+      <span className="nav-brand">muse<BrandMark /></span>
       {tabs.map((tab) => (
         <NavLink key={tab.to} to={tab.to} end={tab.end} className="tab">
           {tab.icon}

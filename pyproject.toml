@@ -14,15 +14,17 @@ dependencies = [
     "send2trash>=2.1.0",
 ]
 
-# Only `muse.embed`'s real encoders need these — ~0.8 GB of CLAP weights and
-# a torch wheel. Everything else, including the default test run, runs
+# Worker only: the frozen ML worker (and dev/slow tests) import these; the
+# sidecar never does. Everything else, including the default test run, runs
 # against the stub encoders and never imports this group.
 [project.optional-dependencies]
 embed = [
-    "torch",
-    "transformers",
-    "sentence-transformers",
+    "torch==2.15.0",
+    "transformers==5.22.0",
+    "sentence-transformers==6.2.0",
     "numpy",
+    "av==19.0.2",
+    "laya==0.3.20",
 ]
 # Only muse/ingest.py's real providers need these — yt-dlp for audio, mutagen
 # for m4a tagging, lyricsgenius for the Genius lyrics fallback. Everything
@@ -43,6 +45,14 @@ dev = [
 ]
 package = ["pyinstaller==6.22.3"]
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -55,5 +65,5 @@ testpaths = ["tests"]
 addopts = "-q -m 'not slow'"
 asyncio_mode = "auto"
 markers = [
-    "slow: needs the real CLAP/MiniLM encoders (the `embed` extra), the real ALS trainer (the `taste` extra), or universal_reco's own virtualenv (`uv sync --project universal_reco`); run explicitly with -m slow",
+    "slow: needs the real CLAP/MiniLM encoders (the `embed` extra), the real ALS trainer (the `taste` extra), or the real MERT worker (all in the `embed` extra); run explicitly with -m slow",
 ]

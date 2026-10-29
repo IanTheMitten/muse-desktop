@@ -11,7 +11,7 @@ from muse import lyric_tags as L
 from muse.library import embeddings as library_embeddings
 from muse.library import jobs as job_rows
 from muse.library import lyric_tags as store
-from muse.systemone import SystemOneError
+from muse.worker import WorkerReplyError
 from tests.conftest import insert_track
 
 TEXT = "\n".join(["we sing it loud tonight", "hands up to the sky now",
@@ -70,7 +70,7 @@ def test_one_failing_song_does_not_stop_the_batch(conn, tmp_path):
 
     def flaky(state, groups):
         if "unique last line for two" in state.get("lyrics", ""):
-            raise SystemOneError("boom")
+            raise WorkerReplyError("boom")
         return ask(state, groups)
 
     job = B.run(conn, flaky, "jev-test")
@@ -83,7 +83,7 @@ def test_an_outage_ends_the_run_as_error(conn, tmp_path):
         _track(conn, tmp_path, rid)
 
     def down(state, groups):
-        raise SystemOneError("down")
+        raise WorkerReplyError("down")
 
     job = B.run(conn, down, "jev-test")
     assert job["state"] == job_rows.ERROR
@@ -183,19 +183,9 @@ def test_import_links_an_mb_file_whose_track_already_landed(conn, tmp_path):
     assert store.find_set(conn, track_rowid=1)["lyrics_hash"] == "EZ"
 
 
-def test_main_without_a_key_refuses(monkeypatch, tmp_path):
-    monkeypatch.setenv("MUSE_LIBRARY_DB", str(tmp_path / "library.sqlite3"))
-    monkeypatch.delenv("JEV_API_KEY", raising=False)
-    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    from muse.library import connect
-    connect(tmp_path / "library.sqlite3").close()
-    assert B.main([]) == 1
-
-
 def test_main_exits_3_when_the_lock_is_held(monkeypatch, tmp_path):
     db = tmp_path / "library.sqlite3"
     monkeypatch.setenv("MUSE_LIBRARY_DB", str(db))
-    monkeypatch.setenv("JEV_API_KEY", "k")
     from muse.library import connect
     connect(db).close()
     fd = os.open(B.lock_path(db), os.O_CREAT | os.O_RDWR, 0o644)

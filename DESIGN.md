@@ -351,14 +351,30 @@ The components that exist, and what each one does.
   player says what was added (for example "Added 1 folder and 2 songs"), then
   fades after 2.5 s.
 - **Boot page** (`src-tauri/boot/index.html`). The shell's first screen, before
-  the UI loads: "Starting Muse" on `--bg`, light or dark by system setting. If
-  the server fails to start it shows "Muse couldn't start", the log path and the
-  last log lines in a monospace block.
-- **App icon and tray glyph** (`src-tauri/icons/icon.svg`). Three rounded white
-  bars of different heights on a `#121117` rounded square washed with four soft
-  radial colours (plum, ember, teal, ochre), the record's-hues idea in small.
-  The macOS tray glyph (`tray-template.svg`) is the same three bars in black, a
-  template image; other platforms use the app icon.
+  the UI loads: the asterisk mark in the brand gradient above "Starting Muse" on
+  `--bg`, light or dark by system setting. Dark is `#24142c` (cards `#2f1c38`),
+  light is `#f4f3f6`. If the server fails to start it shows "Muse couldn't
+  start", the log path and the last log lines in a monospace block.
+- **App icon and tray glyph** (`src-tauri/icons/icon.svg`). Phosphor's six-arm
+  asterisk filled with a linear gradient from `#f5b9dc` (top left) to `#ffdb8c`
+  (bottom right) on a `#28172f` rounded tile with one soft `#7a4b8f` radial
+  glow, the same starburst as the project website in small. The macOS tray
+  glyph (`tray-template.svg`) is the same asterisk in black, a template image;
+  other platforms use the app icon. These colours are for brand surfaces only
+  (icon, tray, favicon, wordmark, boot page); the in-app theme stays
+  record-drenched (§1).
+- **Nav wordmark** (`NavBar`, `.nav-brand`, `BrandMark`). In the wide nav rail
+  (1024px and up) the lowercase word "muse" in weight 750 with letter-spacing
+  `-0.04em`, followed by the asterisk at 0.8em: `#f5b9dc` in dark, `#a8437a`
+  in light.
+- **Smart features** (`SmartBanner`, `SmartFeatures` in Settings). The banner is
+  one `--glass` line above the page: "Smart features aren't installed" with what
+  they do, the download size, a primary Install and a quiet Not now (until the
+  next launch). While installing, an accent fill grows behind the text and a
+  percent replaces the buttons; a failure offers Try again. It is never a
+  modal, and is hidden on Settings. The Settings section is a titled block
+  with one status row (Installed, Not installed with its size, Installing with
+  progress, or "Not available on this computer") and a small licence note.
 - **Job strip** (`JobProgress`). A fixed strip above the player showing cover
   art fetch progress ("Fetching cover art · n of m") and, briefly, the result.
 - **Week bars** (`WeekBars`). Seven bars, one series, no legend; an empty week

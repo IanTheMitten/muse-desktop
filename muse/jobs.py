@@ -13,14 +13,17 @@ needs to.
 import asyncio
 import logging
 import random
+import shutil
 from collections.abc import Callable
 from pathlib import Path
+
+import requests
 
 from . import art as art_module
 from . import content_embed_batch
 from . import embed as embed_module
 from . import lyrics_lrclib as lyrics_lrclib_module
-from . import scanner
+from . import scanner, smart
 from .ingest import DownloadResult
 from .library import art as library_art
 from .library import embeddings as library_embeddings
@@ -301,7 +304,52 @@ async def run_embed_backfill(
     return finished
 
 
-async def run_content_backfill(conn, library_db: Path) -> dict | None:
+async def run_smart_install(
+    conn,
+    bus: JobBus,
+    models_dir: Path,
+    manifest: dict,
+    triple: str | None,
+    *,
+    session=None,
+    disk_free=None,
+) -> dict:
+    """Download the weights and the worker into `models_dir`, as a
+    `smart_install` job. Returns the finished job row."""
+    job_id = job_rows.create(conn, smart.SMART_INSTALL, {})
+    job_rows.update(conn, job_id, state=job_rows.RUNNING, message="Starting")
+    bus.publish(_event(job_rows.get(conn, job_id)))
+
+    def on_progress(done: int, total: int) -> None:
+        message = f"{done / 1e9:.1f} of {total / 1e9:.1f} GB"
+        job_rows.update(conn, job_id, progress=done / total, message=message)
+        bus.publish_threadsafe({
+            "id": job_id, "kind": smart.SMART_INSTALL, "state": job_rows.RUNNING,
+            "progress": done / total, "message": message, "payload": {},
+        })
+
+    try:
+        await asyncio.to_thread(
+            smart.install, models_dir, manifest, triple, session=session,
+            on_progress=on_progress, disk_free=disk_free or shutil.disk_usage,
+        )
+    except asyncio.CancelledError:
+        job_rows.update(conn, job_id, state=job_rows.CANCELLED, message="Server stopped")
+        bus.publish(_event(job_rows.get(conn, job_id)))
+        raise
+    except Exception as error:
+        log.exception("Smart features install failed")
+        message = ("Download server unreachable"
+                   if isinstance(error, requests.ConnectionError) else str(error))
+        job_rows.update(conn, job_id, state=job_rows.ERROR, message=message)
+    else:
+        job_rows.update(conn, job_id, state=job_rows.DONE, progress=1.0, message="Installed")
+    finished = job_rows.get(conn, job_id)
+    bus.publish(_event(finished))
+    return finished
+
+
+async def run_content_backfill(conn, library_db: Path, embedder) -> dict | None:
     """Embed any track with no MERT content vector, right after a download.
 
     The nightly `muse-content-embed.timer` already picks new tracks up, so
@@ -328,7 +376,7 @@ async def run_content_backfill(conn, library_db: Path) -> dict | None:
         with content_embed_batch.exclusive(library_db) as acquired:
             if not acquired:
                 return None
-            return content_embed_batch.run(conn)
+            return content_embed_batch.run(conn, embedder)
 
     try:
         return await asyncio.to_thread(_work)
