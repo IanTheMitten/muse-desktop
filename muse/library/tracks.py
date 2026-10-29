@@ -71,6 +71,21 @@ def album_rowid_for_release(conn: sqlite3.Connection, release_mbid: str) -> int:
     return LOCAL_ROWID_FLOOR if highest is None else highest + 1
 
 
+def album_rowid_for_key(conn: sqlite3.Connection, album_key: str) -> int:
+    """The `album_rowid` every scanned track with this `album_key` shares."""
+    row = conn.execute(
+        "SELECT album_rowid FROM tracks WHERE album_key = ? AND album_rowid IS NOT NULL LIMIT 1",
+        (album_key,),
+    ).fetchone()
+    if row is not None:
+        return row["album_rowid"]
+    highest = conn.execute(
+        "SELECT MAX(album_rowid) AS m FROM tracks WHERE album_rowid >= ?",
+        (LOCAL_ROWID_FLOOR,),
+    ).fetchone()["m"]
+    return LOCAL_ROWID_FLOOR if highest is None else highest + 1
+
+
 def find_done(
     conn: sqlite3.Connection,
     *,

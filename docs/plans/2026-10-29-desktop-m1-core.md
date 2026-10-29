@@ -489,7 +489,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Decision 9's identity and Decision 8's copy-in rules are the riskiest logic in M1. Pinning them first keeps the implementer honest.
 
 ### Task 9: Implement tag reading and the folder scanner
-- [ ] status
+- [x] status
 **Objective:** `muse/tags.py` and `muse/scanner.py` make Task 8's tests pass.
 **Write-scope:**
 `muse/tags.py` (new)
