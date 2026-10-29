@@ -255,7 +255,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** The English aligner; vendoring keeps one pinned, patched copy instead of an unmaintained 2021 dependency.
 
 ### Task 8: Add the MMS-FA aligner
-- [ ] status
+- [x] status
 **Objective:** `MmsAligner(source).align(path, lines, lang3)` returns one start in seconds (or None) per lyric line.
 **Write-scope:** `muse/mms_align.py` (new)
 **Read-context:** `docs/plans/2026-10-29-desktop-m4b-preflight.md` (from Task 1), `muse/mert.py:1-60` (model-load style), `muse/ctc_align.py` (from Task 4), this plan's Assumptions "No ctc-forced-aligner package"
