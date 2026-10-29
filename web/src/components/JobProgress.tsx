@@ -28,13 +28,16 @@ export function JobProgress() {
 
   if (!job || (!running && !showFinished)) return null;
 
-  const done = job.payload?.done;
-  const total = job.payload?.albums;
-  const label = running
-    ? total
-      ? `Fetching cover art · ${done ?? 0} of ${total}`
-      : "Fetching cover art"
-    : (job.message ?? "Cover art finished");
+  const done = job.payload?.done ?? 0;
+  const art = job.payload?.albums;
+  const scan = job.payload?.total;
+  let label: string;
+  if (!running) label = job.message ?? "Finished";
+  else if (job.kind === "scan") label = scan ? `Scanning · ${done} of ${scan}` : "Scanning";
+  else if (job.kind === "lyrics_sync") label = "Fetching lyrics";
+  else if (job.kind === "art_backfill") {
+    label = art ? `Fetching cover art · ${done} of ${art}` : "Fetching cover art";
+  } else label = job.message ?? "Working";
 
   return (
     <div className="job-strip" role="status" aria-live="polite">
@@ -52,7 +55,7 @@ export function JobProgress() {
         aria-valuenow={Math.round(job.progress * 100)}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="Cover art backfill"
+        aria-label={label}
       >
         <div
           className="job-strip-fill"

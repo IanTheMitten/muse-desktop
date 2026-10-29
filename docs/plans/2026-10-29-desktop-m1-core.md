@@ -657,7 +657,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Spec launch flow (lines 550-557) and Decision 13's retrain-at-launch. The single lock exists because the shared connection cannot hold two transactions at once.
 
 ### Task 13: Settings screen with Music folders, nav entry, scan-aware job strip [design]
-- [ ] status
+- [x] status
 **Objective:** `/settings` lists, adds and removes music folders and shows scan progress. The nav has Settings and shows Add only when unlocked. The job strip names scan and lyrics jobs by kind, and Library reloads when a scan ends.
 **Write-scope:**
 `web/src/views/Settings.tsx` (new)

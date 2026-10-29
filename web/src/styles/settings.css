@@ -1,0 +1,14 @@
+/* Settings: one column, hairline-separated rows, no cards. Tokens only. */
+.settings-help { max-width: 60ch; margin: 0 0 16px; }
+.settings-empty { margin: 0 0 20px; }
+.folder-list { list-style: none; margin: 0 0 24px; padding: 0; max-width: 720px; border-top: 1px solid var(--hairline); }
+.folder-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--hairline); }
+.folder-info { display: grid; gap: 2px; min-width: 0; }
+.folder-path { color: var(--text); overflow-wrap: anywhere; font-feature-settings: "tnum" 1; }
+.folder-state { color: var(--text-2); font-size: var(--t-s); }
+.folder-remove { flex: none; min-height: 44px; padding-inline: 12px; color: var(--text-2); font-weight: 600; font-size: var(--t-s); }
+.folder-remove:disabled { opacity: .45; cursor: default; }
+.folder-add { max-width: 720px; display: grid; gap: 16px; }
+.folder-add .error { margin: 8px 0 0; }
+.folder-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.folder-scan { min-height: 1.45em; margin: 16px 0 0; color: var(--text-2); font-size: var(--t-s); }

@@ -20,6 +20,7 @@ import { Library } from "./views/Library";
 import { Add } from "./views/Add";
 import { Home } from "./views/Home";
 import { Muse } from "./views/Muse";
+import { Settings } from "./views/Settings";
 import { Playlists } from "./views/Playlists";
 import { PlaylistDetail } from "./views/PlaylistDetail";
 import { Wash } from "./components/Wash";
@@ -27,6 +28,7 @@ import "./styles/shell.css";
 import "./styles/wash.css";
 import "./styles/cards.css";
 import "./styles/np.css";
+import "./styles/settings.css";
 
 /* PlayerProvider is above BrowserRouter on purpose. The audio element it
  * renders must outlive every route change — that is the whole point. Moving it
@@ -57,6 +59,7 @@ export function App() {
                       somewhere that answers the same question. */}
                   <Route path="/search" element={<Navigate to="/library" replace />} />
                   <Route path="/add" element={<Add />} />
+                  <Route path="/settings" element={<Settings />} />
                   <Route path="/muse" element={<Muse />} />
                   <Route path="/playlists" element={<Playlists />} />
                   <Route path="/playlists/:playlistId" element={<PlaylistDetail />} />

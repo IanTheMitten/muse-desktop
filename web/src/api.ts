@@ -59,6 +59,7 @@ export type Track = {
   has_art: boolean;
   has_lyrics: boolean;
   gain_db: number | null;
+  format: string | null;
   /** The only explicit signal in the system. Null means unrated, which is not
    *  the same as indifferent. */
   rating: -1 | 1 | null;
@@ -90,8 +91,8 @@ export type AlbumDetail = {
 export class ApiError extends Error {
   readonly status: number;
 
-  constructor(path: string, status: number, statusText?: string) {
-    super(`${path} -> ${status}${statusText ? ` ${statusText}` : ""}`);
+  constructor(path: string, status: number, statusText?: string, detail?: string) {
+    super(detail || `${path} -> ${status}${statusText ? ` ${statusText}` : ""}`);
     this.name = "ApiError";
     this.status = status;
   }
@@ -109,6 +110,42 @@ export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
     throw new ApiError(path, response.status, response.statusText);
   }
   return (await response.json()) as T;
+}
+
+async function refusal(path: string, response: Response): Promise<ApiError> {
+  let detail: string | undefined;
+  try {
+    const body = (await response.json()) as { detail?: unknown };
+    if (typeof body.detail === "string") detail = body.detail;
+  } catch {
+    /* no JSON body: fall back to the status line */
+  }
+  return new ApiError(path, response.status, response.statusText, detail);
+}
+
+export type Settings = {
+  music_folders: string[];
+  downloader_unlocked: boolean;
+  folder_status: { path: string; present: boolean; songs: number }[];
+};
+
+export const getSettings = (signal?: AbortSignal) =>
+  get<Settings>("/settings", signal);
+
+export async function putMusicFolders(folders: string[]): Promise<Settings> {
+  const path = "/settings/music_folders";
+  const response = await apiFetch(`/api${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folders }),
+  });
+  if (!response.ok) throw await refusal(path, response);
+  return (await response.json()) as Settings;
+}
+
+export async function startScan(): Promise<void> {
+  const response = await apiFetch("/api/scan", { method: "POST" });
+  if (!response.ok) throw await refusal("/scan", response);
 }
 
 export const getHealth = (signal?: AbortSignal) =>

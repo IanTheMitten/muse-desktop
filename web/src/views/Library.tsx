@@ -17,6 +17,7 @@ import { CoverCard } from "../components/CoverCard";
 import { Screen } from "../components/Screen";
 import { TrackRow } from "../components/TrackRow";
 import { count } from "../format";
+import { useJobs } from "../jobs/JobsContext";
 import { usePlayer } from "../player/PlayerContext";
 
 /* Browse and search are one place. The whole library is fetched once and
@@ -54,6 +55,7 @@ export function Library() {
   const [allSongs, setAllSongs] = useState<Track[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { playQueue, current, playing } = usePlayer();
+  const { libraryVersion } = useJobs();
 
   const update = (next: { tab?: Segment; q?: string }) => {
     const out = new URLSearchParams(params);
@@ -65,8 +67,10 @@ export function Library() {
     setParams(out, { replace: true });
   };
 
-  // Both lists, once, on open. Neither is asked for again.
+  // Both lists on open, and again when a scan ends. The song list is dropped
+  // so the Songs tab refetches it too.
   useEffect(() => {
+    if (libraryVersion > 0) setAllSongs(null);
     const abort = new AbortController();
     Promise.all([getArtists(abort.signal), getAlbums(abort.signal)])
       .then(([loadedArtists, loadedAlbums]) => {
@@ -80,7 +84,7 @@ export function Library() {
         }
       });
     return () => abort.abort();
-  }, []);
+  }, [libraryVersion]);
 
   // Every song, once, the first time the Songs tab opens.
   useEffect(() => {

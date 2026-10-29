@@ -163,6 +163,13 @@ export const HomeGlyph = (props: Props) => (
   </Icon>
 );
 
+export const SettingsGlyph = (props: Props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" />
+  </Icon>
+);
+
 export const LibraryGlyph = (props: Props) => (
   <Icon {...props}>
     <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
