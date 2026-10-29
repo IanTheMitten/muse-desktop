@@ -281,7 +281,7 @@ Negative result is a valid outcome.
 **Why:** Decision 4: one worker hosts every model behind the JSON-line protocol `muse/content.py` already used, grown from one model to all.
 
 ### Task 6: Worker client tests [test]
-- [ ] status
+- [x] status
 **Objective:** `tests/test_worker_client.py` pins the client and adapter behaviour against a fake worker script, red until Task 7.
 **Write-scope:**
 `tests/test_worker_client.py` (new)
