@@ -20,6 +20,7 @@ import {
   type Track,
 } from "../api";
 import { attachGain, resumeGainContext, setGain } from "./gain";
+import { append, insertNext, move, nextIndex, removeAt } from "./queue";
 import {
   PAUSE_TIMEOUT_MS,
   beatSpan,
@@ -55,6 +56,9 @@ type PlayerApi = {
   restored: boolean;
   playQueue: (tracks: Track[], startIndex: number, from?: PlayingFrom) => void;
   enqueue: (tracks: Track[]) => void;
+  playNext: (tracks: Track[]) => void;
+  moveInQueue: (from: number, to: number) => void;
+  removeFromQueue: (at: number) => void;
   clearQueue: () => void;
   toggle: () => void;
   next: () => void;
@@ -299,11 +303,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const enqueue = useCallback(
     (tracks: Track[]) => {
-      setQueue((existing) => [...existing, ...tracks]);
+      if (queueRef.current.length === 0) {
+        playQueue(tracks, 0, { kind: "track", label: "Queue" });
+        return;
+      }
+      setQueue((q) => append(q, tracks));
       remember(tracks.map((track) => track.track_rowid));
     },
-    [remember],
+    [remember, playQueue],
   );
+
+  const playNext = useCallback(
+    (tracks: Track[]) => {
+      if (queueRef.current.length === 0) {
+        playQueue(tracks, 0, { kind: "track", label: "Queue" });
+        return;
+      }
+      setQueue((q) => insertNext(q, indexRef.current, tracks));
+      remember(tracks.map((track) => track.track_rowid));
+    },
+    [remember, playQueue],
+  );
+
+  const removeFromQueue = useCallback((at: number) => {
+    setQueue((q) => removeAt(q, indexRef.current, at));
+  }, []);
+
+  const moveInQueue = useCallback((from: number, to: number) => {
+    setQueue((q) => move(q, indexRef.current, from, to));
+  }, []);
 
   const clearQueue = useCallback(() => {
     autoplay.current = false;
@@ -325,17 +353,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (closingReason.current !== "track_end") {
       closingReason.current = "user_next";
     }
-    setIndex((at) => {
-      if (queue.length === 0) return at;
-      if (shuffle) {
-        if (queue.length === 1) return at;
-        let pick = at;
-        while (pick === at) pick = Math.floor(Math.random() * queue.length);
-        return pick;
-      }
-      if (at + 1 < queue.length) return at + 1;
-      return repeat === "all" ? 0 : at;
-    });
+    setIndex((at) => nextIndex(queue.length, at, { shuffle, repeat }));
   }, [queue.length, shuffle, repeat]);
 
   const previous = useCallback(() => {
@@ -812,14 +830,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const api = useMemo<PlayerApi>(
     () => ({
       queue, index, current, playing, positionMs, durationMs, shuffle, repeat,
-      restored, playQueue, enqueue, clearQueue, toggle, next, previous, seek,
+      restored, playQueue, enqueue, playNext, moveInQueue, removeFromQueue,
+      clearQueue, toggle, next, previous, seek,
       toggleShuffle, cycleRepeat, rate,
       radio: radioSeed != null,
       radioBusy, radioNote, reasonsFor,
       mood, setMood, retryMuse, playingFrom, isMusePick,
     }),
     [queue, index, current, playing, positionMs, durationMs, shuffle, repeat,
-     restored, playQueue, enqueue, clearQueue, toggle, next, previous, seek,
+     restored, playQueue, enqueue, playNext, moveInQueue, removeFromQueue,
+     clearQueue, toggle, next, previous, seek,
      toggleShuffle, cycleRepeat, rate,
      radioSeed, radioBusy, radioNote,
      reasonsFor,
