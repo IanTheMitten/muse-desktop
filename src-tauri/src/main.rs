@@ -5,7 +5,10 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::{Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder};
+mod tray;
+
+use tauri::{Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -44,22 +47,18 @@ fn smoke_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<(), 
     Ok(())
 }
 
-fn allowed_origin(url: &tauri::Url) -> bool {
+pub(crate) fn allowed_origin(url: &tauri::Url) -> bool {
     url.scheme() == "tauri" || matches!(url.host_str(), Some("tauri.localhost") | Some("127.0.0.1"))
 }
 
 fn main() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.show();
-                let _ = w.unminimize();
-                let _ = w.set_focus();
-            }
+            tray::show_main(app.clone());
         }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![boot_status, smoke_report])
+        .invoke_handler(tauri::generate_handler![boot_status, smoke_report, tray::open_mini, tray::show_main])
         .setup(|app| {
             let data_dir = match std::env::var_os("MUSE_DATA_DIR") {
                 Some(d) => PathBuf::from(d),
@@ -109,6 +108,35 @@ fn main() {
                 token,
                 child: Some(child),
             }));
+
+            tray::build(app.handle())?;
+
+            let handle = app.handle().clone();
+            let hider = window.clone();
+            window.on_window_event(move |event| {
+                let WindowEvent::CloseRequested { api, .. } = event else { return };
+                let (ready, data_dir) = {
+                    let s = handle.state::<Mutex<Shell>>();
+                    let s = s.lock().unwrap();
+                    (s.port.is_some(), s.data_dir.clone())
+                };
+                if !ready {
+                    return;
+                }
+                api.prevent_close();
+                let _ = hider.hide();
+                let marker = data_dir.join(".tray-notice-shown");
+                if !marker.exists() && std::fs::write(&marker, "").is_ok() {
+                    let place = if cfg!(target_os = "macos") { "menu bar" } else { "tray" };
+                    handle
+                        .dialog()
+                        .message(format!(
+                            "Muse is still playing in the {place}. To quit, choose Quit Muse from its menu."
+                        ))
+                        .title("Muse")
+                        .show(|_| {});
+                }
+            });
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -167,10 +195,15 @@ fn main() {
         .expect("error while building Muse");
 
     app.run(|handle, event| {
-        if let RunEvent::Exit = event {
-            // drop closes the sidecar's stdin; never kill (onefile bootloader would orphan its child)
-            let child = handle.state::<Mutex<Shell>>().lock().unwrap().child.take();
-            drop(child);
+        match event {
+            RunEvent::Exit => {
+                // drop closes the sidecar's stdin; never kill (onefile bootloader would orphan its child)
+                let child = handle.state::<Mutex<Shell>>().lock().unwrap().child.take();
+                drop(child);
+            }
+            #[cfg(target_os = "macos")]
+            RunEvent::Reopen { .. } => tray::show_main(handle.clone()),
+            _ => {}
         }
     });
 }

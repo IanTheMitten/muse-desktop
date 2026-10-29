@@ -397,7 +397,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 ## Phase 3 - Tray, windows and packaging
 
 ### Task 10: Tray, mini window command, close to tray, single instance
-- [ ] status
+- [x] status
 **Objective:** The shell has the tray menu, `open_mini`/`show_main`, hide-on-close with a one-time notice, dock reopen and second-launch focus, and the smoke still passes.
 **Write-scope:**
 `src-tauri/src/main.rs` (from Task 6: edit it; marked (new) only because it does not exist at plan time)
