@@ -1,7 +1,7 @@
 """Nightly taste-embedding retrain: `python -m muse.taste_retrain`.
 
-Standalone, like `muse.backup` -- run from a systemd timer
-(`deploy/muse-taste-retrain.timer`), not from the app process. It opens its
+Runs as a `taste_retrain` job at launch when the last retrain is over a day
+old, or standalone with `uv run python -m muse.taste_retrain`. It opens its
 own connection with `library.connect`, the same one the API does, and goes
 through the same `library.jobs` bookkeeping every other job kind uses, so
 `/api/health` and `/api/jobs` see this run the same way they see any other.
@@ -29,7 +29,7 @@ def run(conn, trainer: TasteTrainer | None = None) -> dict:
 
     Reaps any `taste_retrain` job left `running` or `queued` by a process
     that died before creating its own -- a fresh process invocation (this
-    is a systemd oneshot, never a long-lived loop) is exactly the situation
+    is a one-shot process, never a long-lived loop) is exactly the situation
     `abandon_running_of_kind` exists for: anything non-terminal from before
     this call can only be a crashed prior run, not a live one, since this
     process did not exist a moment ago to have started it.
@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         conn.close()
     # A retrain that errored is worth a non-zero exit so `systemctl status`
-    # shows it, the same convention `muse.backup` uses for a failed push.
+    # shows it, the same convention every job uses for a failure.
     return 0 if result["state"] == job_rows.DONE else 2
 
 

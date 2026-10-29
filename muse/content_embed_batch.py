@@ -1,8 +1,7 @@
 """Library-wide MERT content embed: `python -m muse.content_embed_batch`.
 
-Standalone, like `muse.taste_retrain` and `muse.backup` -- run from a systemd
-timer (`deploy/muse-content-embed.timer`), not from the app process. It opens
-its own connection with `library.connect`, the same one the API does, and goes
+Standalone, like `muse.taste_retrain`: run it with
+`uv run python -m muse.content_embed_batch`. It opens its own connection with `library.connect`, the same one the API does, and goes
 through the same `library.jobs` bookkeeping every other job kind uses, so
 `/api/health` and `/api/jobs` see this run the same way they see any other.
 
@@ -107,7 +106,7 @@ def _try_acquire_lock(path: Path) -> int | None:
 def exclusive(library_db: Path):
     """Hold the batch lock for the body, or yield False if someone else has it.
 
-    Public because this batch now has two callers, not one: the systemd
+    Public because this batch now has two callers, not one: the standalone
     oneshot below, and `jobs.run_content_backfill` inside the long-lived API
     process after a download. They are separate processes, so only an
     OS-level lock can keep them apart -- and `run()` calls
@@ -148,7 +147,7 @@ def run(conn, embedder: ContentEmbedder | None = None) -> dict:
 
     Reaps any `content_embed` job left `running` or `queued` by a process
     that died before creating its own -- a fresh process invocation (this is
-    a systemd oneshot, never a long-lived loop) is exactly the situation
+    a one-shot process, never a long-lived loop) is exactly the situation
     `abandon_running_of_kind` exists for. Safe to call directly, as the
     tests do, with no filesystem side effect of its own: the exclusion that
     actually matters -- keeping two of these processes from running at once
@@ -235,8 +234,7 @@ def main(argv: list[str] | None = None) -> int:
             conn.close()
 
     # A batch that errored is worth a non-zero exit so `systemctl status`
-    # shows it, the same convention `muse.backup` and `muse.taste_retrain`
-    # already use.
+    # shows it, the same convention `muse.taste_retrain` already uses.
     return 0 if result["state"] == job_rows.DONE else 2
 
 
