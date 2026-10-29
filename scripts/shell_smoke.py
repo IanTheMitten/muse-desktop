@@ -19,10 +19,14 @@ FIXTURES = ROOT / "tests" / "fixtures" / "smoke"
 
 
 def sidecar_running() -> bool:
+    names = ("muse-core", "muse-worker")
     if sys.platform == "win32":
-        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq muse-core.exe"], capture_output=True, text=True).stdout
-        return "muse-core.exe" in out
-    return subprocess.run(["pgrep", "-x", "muse-core"], capture_output=True).returncode == 0
+        for n in names:
+            out = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {n}.exe"], capture_output=True, text=True).stdout
+            if f"{n}.exe" in out:
+                return True
+        return False
+    return any(subprocess.run(["pgrep", "-x", n], capture_output=True).returncode == 0 for n in names)
 
 
 def start_xvfb():

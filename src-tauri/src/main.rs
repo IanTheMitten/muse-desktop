@@ -49,8 +49,16 @@ fn smoke_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<(), 
     Ok(())
 }
 
-pub(crate) fn allowed_origin(url: &tauri::Url) -> bool {
-    url.scheme() == "tauri" || matches!(url.host_str(), Some("tauri.localhost") | Some("127.0.0.1"))
+pub(crate) fn allowed_origin(url: &tauri::Url, port: Option<u16>) -> bool {
+    url.scheme() == "tauri"
+        || url.host_str() == Some("tauri.localhost")
+        || (url.scheme() == "http" && url.host_str() == Some("127.0.0.1") && port.is_some() && url.port() == port)
+}
+
+pub(crate) fn current_port(app: &tauri::AppHandle) -> Option<u16> {
+    let s = app.try_state::<Mutex<Shell>>()?;
+    let s = s.lock().unwrap();
+    if s.failed { None } else { s.port }
 }
 
 fn main() {
@@ -64,7 +72,7 @@ fn main() {
         .setup(|app| {
             let data_dir = match std::env::var_os("MUSE_DATA_DIR") {
                 Some(d) => PathBuf::from(d),
-                None => app.path().app_data_dir()?,
+                None => app.path().app_local_data_dir()?,
             };
             std::fs::create_dir_all(&data_dir)?;
             let log_path = data_dir.join("muse.log");
@@ -81,12 +89,13 @@ fn main() {
                 script.push_str(include_str!("smoke.js"));
             }
 
+            let nav_handle = app.handle().clone();
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Muse")
                 .inner_size(1200.0, 800.0)
                 .min_inner_size(360.0, 560.0)
                 .initialization_script(script)
-                .on_navigation(|url| allowed_origin(url))
+                .on_navigation(move |url| allowed_origin(url, current_port(&nav_handle)))
                 .build()?;
 
             let mut env = HashMap::new();
@@ -149,12 +158,23 @@ fn main() {
                             Some(String::from_utf8_lossy(b).trim_end().to_string())
                         }
                         CommandEvent::Terminated(p) => {
-                            let s = handle.state::<Mutex<Shell>>();
-                            let mut s = s.lock().unwrap();
-                            if s.port.is_none() {
+                            let died_after_start = {
+                                let s = handle.state::<Mutex<Shell>>();
+                                let mut s = s.lock().unwrap();
+                                let after_start = s.port.take().is_some();
                                 s.failed = true;
                                 let code = p.code.map_or("none".to_string(), |c| c.to_string());
                                 push_line(&mut s, format!("Muse stopped (exit code {code})"));
+                                after_start
+                            };
+                            if died_after_start {
+                                if let Some(m) = handle.get_webview_window("mini") {
+                                    let _ = m.close();
+                                }
+                                let boot = if cfg!(windows) { "http://tauri.localhost/index.html" } else { "tauri://localhost/index.html" };
+                                if let Ok(url) = boot.parse() {
+                                    let _ = window.navigate(url);
+                                }
                             }
                             None
                         }
@@ -164,10 +184,13 @@ fn main() {
                     if let Some(f) = log.as_mut() {
                         let _ = writeln!(f, "{text}");
                     }
-                    let port = text.strip_prefix("MUSE_LISTENING ").and_then(|p| p.trim().parse::<u16>().ok());
+                    let mut port = text.strip_prefix("MUSE_LISTENING ").and_then(|p| p.trim().parse::<u16>().ok());
                     {
                         let s = handle.state::<Mutex<Shell>>();
                         let mut s = s.lock().unwrap();
+                        if s.failed {
+                            port = None; // late port after failure: logged, never adopted
+                        }
                         push_line(&mut s, text);
                         if let Some(p) = port {
                             s.port = Some(p);

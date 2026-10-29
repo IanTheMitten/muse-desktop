@@ -166,7 +166,7 @@ CONSTRAINTS: Banner never modal, never blocks playback; rendered inside <main> a
 **Why:** M3 review: the mini window's rule killed page scroll everywhere (owner report), and a parent-folder drop lost the whole gesture.
 
 ### Task 2: Shell hardening: port-pinned guard, sidecar death, local data dir, uninstall hook, torch-free sidecar
-- [ ] status
+- [x] status
 **Objective:** The shell only navigates to its own sidecar port, returns to the failed boot page when the sidecar dies after start, ignores a late port after failure, stores data in local app data, kills `muse-core` and `muse-worker` on install and uninstall, and the sidecar freeze excludes ML packages.
 **Write-scope:**
 `src-tauri/src/main.rs`

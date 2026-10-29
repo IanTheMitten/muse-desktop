@@ -29,6 +29,7 @@ def main() -> int:
         "--add-data", f"{dist}{os.pathsep}web/dist",
         "--collect-submodules", "uvicorn",
         "--collect-submodules", "muse",
+        *[a for m in ("torch", "transformers", "sentence_transformers", "laya", "av") for a in ("--exclude-module", m)],
     ])
     return 0
 
