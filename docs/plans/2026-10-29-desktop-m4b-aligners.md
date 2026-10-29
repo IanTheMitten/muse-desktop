@@ -439,7 +439,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Result (run 2026-10-29):** `ok hello`, `ok minilm`, `ok align`, `WORKER-SMOKE-OK`, no freeze flags added. DEVIATION: `--weights` must be `build/ci-weights/weights` (fetch_weights writes `<out>/weights/<key>`); the path in Verify fails align with "Aligner weights missing".
 
 ### Task 17: Document aligners, tap-along and licences [docs]
-- [ ] status
+- [x] status
 **Objective:** README, CONTEXT.md, CLAUDE.md and DESIGN.md describe Auto-align, tap-along, the align op and job, and every new licence.
 **Write-scope:** `README.md`
 `CONTEXT.md`

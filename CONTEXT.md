@@ -37,8 +37,26 @@ _Avoid_: Sidecar (that is the API server), backend.
 `PROTOCOL = 1`. One JSON object per stdin line, `{"id": <int>, "op": <str>, ...}`;
 one reply per stdout line, `{"id": <int>, "ok": <result>}` or
 `{"id": <int|null>, "error": "<message>"}`. Ops: `hello`, `clap_audio`,
-`clap_text`, `minilm`, `audio_va`, `lyrics_va`, `mert`, `laya`. stdout carries
+`clap_text`, `minilm`, `audio_va`, `lyrics_va`, `mert`, `laya`, `align`. stdout carries
 only protocol lines; stdin EOF ends the worker.
+
+**Auto-align**:
+The user-triggered job (`POST /api/tracks/align`, job kind `align`) that times a
+track's lyrics to its audio through the worker's `align` op and writes an `.lrc`
+sidecar in the data dir, with `lyrics_state` `aligned`. Never runs on its own.
+_Avoid_: Transcribe (the lyrics are given, nothing is recognised), sync (that is
+the LRCLIB lyrics backfill).
+
+**Aligner**:
+The model behind Auto-align: schufo (English) or MMS-FA (every other language),
+chosen per track by the worker from the detected language.
+_Avoid_: Transcriber.
+
+**Tap along**:
+The manual way to time lyrics: play the song and stamp each line as it starts
+(`web/src/views/TapAlong.tsx`), saved through `PUT /api/tracks/{id}/lyrics/lrc`
+with `lyrics_state` `manual`. Needs no smart features.
+_Avoid_: Karaoke (it times lines, not words).
 
 **Smart features**:
 The ML legs and Laya lyric tags together: the embed backfill, the MERT content

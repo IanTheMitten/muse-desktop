@@ -209,12 +209,15 @@ a handler (see the torch rule above).
 
 **Jobs** (`muse/jobs.py`, `muse/library/jobs.py`) are the one mechanism for
 long-running background work — `download`, `scan`, `art_backfill`, `embed`,
-`taste_retrain` — all recorded as rows in the `jobs` table so `/api/health`
+`taste_retrain`, `align` — all recorded as rows in the `jobs` table so `/api/health`
 and `/api/jobs` see every kind uniformly, whether it ran inside the API
 process or as a standalone `python -m muse.taste_retrain` run.
 `JobBus` is an in-process SSE fan-out (`/api/jobs/stream`) and only exists
 inside the long-lived API process — the standalone retrain has no live progress
 bar for this reason.
+The `align` job (`run_align_job`) calls the worker's `align` op; `muse/align_text.py`,
+`muse/ctc_align.py` and `muse/g2p.py` are pure, `muse/schufo.py` and
+`muse/mms_align.py` run in the worker only.
 
 **`plays` stores physical fact, never interpretation** (ADR 0001):
 `ended_reason` is recorded exactly as the client reports it

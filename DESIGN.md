@@ -340,6 +340,17 @@ The components that exist, and what each one does.
 - **Mini player** (`ControlBar`) and **Now Playing** (`NowPlayingSheet`, §7).
 - **Lyrics** (`SyncedLyrics`). Synced lines with an offset popover
   (`role="dialog"` on `--ink-raised`).
+- **Auto-align** (`SyncedLyrics`, `AlignDialog`). A quiet link in the lyrics
+  panel, shown only with smart features installed. While a job runs the links
+  are replaced by one status line, "Aligning to the song…". A failed run leads
+  the links with "Couldn't align, tap along instead".
+- **Tap along** (`TapAlong`). The lyrics become the score: the line to stamp is
+  full strength with the accent cue dot, stamped lines dim and carry their time
+  (tenths, `0:42.1`), upcoming lines sit between. One full-width accent pill,
+  64px high, says Tap, then Save timings when every line is stamped. Space or
+  the pill stamps the cue line, Backspace undoes, Escape cancels (and does not
+  close Now Playing). Each stamp is the playback position minus 150 ms. Undo,
+  Start over and Cancel sit below as 44px secondary buttons.
 - **Mini window** (`MiniWindow`, `/mini`, desktop shell only). A 400x96
   always-on-top window with no decorations: the record's card wash over `--ink`,
   a 64px cover that brings the main window back, title and artist on one line
