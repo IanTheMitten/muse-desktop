@@ -440,7 +440,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 ## Phase 4 - Proof and docs
 
 ### Task 12: Desktop shell docs [docs]
-- [ ] status
+- [x] status
 **Objective:** README, CLAUDE.md, CONTEXT.md and DESIGN.md describe the shell, packaging and the new surfaces as built.
 **Write-scope:**
 `README.md`

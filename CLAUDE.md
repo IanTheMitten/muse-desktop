@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Muse desktop — a local music player and recommender for your own music
 folders, with no account and no server. One FastAPI process serves the
-React UI and the API on loopback; a Tauri shell (later milestones) wraps it
+React UI and the API on loopback; a Tauri shell (`src-tauri/`) wraps it
 in a native window. It plays the folders you point it at, recommends what to
 play next from audio/lyrics/emotion/taste, shows and repairs lyrics, and
 fetches cover art. This repo is the public fork of the owner's private
@@ -32,6 +32,18 @@ uv run python -m muse.arc_eval       # offline arc harness, read-only
 uv sync --project universal_reco     # the content leg's own venv (retired in M4)
 uv run python -m muse.content_embed_batch  # library-wide MERT content-embed batch
 ```
+
+Desktop shell (from repo root; needs Rust and `web/node_modules`):
+```sh
+uv run --group package python scripts/freeze_sidecar.py   # PyInstaller sidecar -> src-tauri/binaries/muse-core-<triple>
+bash scripts/tauri.sh dev                                 # shell in dev mode
+bash scripts/tauri.sh build --debug --no-bundle           # debug binary, no installer
+uv run python scripts/shell_smoke.py --build --expect mp3,flac,wav   # headless build + smoke, prints SHELL-SMOKE-OK
+```
+`scripts/tauri.sh` runs the Tauri CLI with one shared `CARGO_TARGET_DIR`
+(`~/.cache/muse-tauri-target`) so worktrees do not each build their own copy.
+CI (`.github/workflows/package.yml`: `workflow_dispatch` and tags `v*`,
+`ci-package-*`) packages macOS and Windows and does not use the wrapper.
 
 `universal_reco/` is a decoupled sibling project with its own `pyproject.toml`,
 lockfile, and virtualenv; `muse` never imports it. `muse/content.py` shells out
@@ -75,6 +87,25 @@ The watcher (`muse/watch.py`) and `POST /api/scan` take the same lock by
 calling the same chain. `muse/scanner.py` reads tags (`muse/tags.py`, mutagen,
 read-only) and upserts tracks; a file that disappears gets `status = 'missing_file'`
 rather than a deleted row, and a row with `removed_at` set is never revived.
+
+**The desktop shell** (`src-tauri/`) starts on a local boot page
+(`src-tauri/boot/index.html`) that polls the `boot_status` command. It spawns
+the frozen sidecar (`scripts/freeze_sidecar.py`) with a random per-launch
+`MUSE_TOKEN`, and when the sidecar prints `MUSE_LISTENING <port>` navigates the
+main window to `http://127.0.0.1:<port>/`; each window's `on_navigation` allows
+only the boot origin and `127.0.0.1`. The token reaches the UI as
+`window.__MUSE_TOKEN__` from an initialization script, which `web/src/token.ts`
+prefers over `?t=`. The shell never kills the sidecar: it drops the child on
+exit, which closes its stdin, and with `MUSE_PARENT_WATCH=1` `muse/__main__.py`
+exits on that EOF. One capability (`src-tauri/capabilities/default.json`,
+remote `http://127.0.0.1:*`) covers the boot page and the loopback pages; app
+commands (`boot_status`, `smoke_report`, `open_mini`, `show_main`) are declared
+in `build.rs` through `AppManifest` and granted as `allow-<command>`. Web code
+reaches `window.__TAURI__` only through `web/src/shell.ts` (`undefined` in a
+browser). Events: `muse:command` (`toggle`/`next`/`previous`, tray or mini
+window to main), `muse:now` (main to mini) and `muse:hello` (mini to main). The
+data dir is `MUSE_DATA_DIR` or Tauri's `app_data_dir()`; sidecar output goes to
+`<data dir>/muse.log`. Dropped files and folders go to `POST /api/library/import`.
 
 **One data dir.** `muse/config.py` (`Config.from_env`) puts every path under
 `MUSE_DATA_DIR` (default `./data`), each overridable on its own:

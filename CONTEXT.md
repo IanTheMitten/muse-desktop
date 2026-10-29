@@ -13,6 +13,39 @@ everything it writes: `library.sqlite3`, `lyrics/`, `art/`, `downloads/`,
 it; they stay where the user keeps them and are never written.
 _Avoid_: Library (that is the tracks table, not the directory).
 
+**Shell**:
+The Tauri app in `src-tauri/` that gives Muse a native window, tray and mini
+window. It starts the sidecar and loads the UI from it over loopback; the
+library, playback state and audio stay in the sidecar and the main window's
+webview.
+_Avoid_: Wrapper, client (the UI is served by the sidecar, not by the shell).
+
+**Sidecar**:
+The frozen Python server (`muse-core`, built by `scripts/freeze_sidecar.py`)
+that the shell spawns: `python -m muse` with the web UI bundled in.
+_Avoid_: Backend, worker (the ML worker is an M4 thing).
+
+**Parent watch**:
+With `MUSE_PARENT_WATCH=1`, the sidecar reads stdin on a daemon thread
+(`muse/__main__.py`); at EOF, meaning the shell exited or crashed, it asks
+uvicorn to stop and, 10 s later, calls `os._exit(0)`. It is how the sidecar
+dies with the shell without the shell killing it.
+
+**Mini window**:
+The always-on-top 400x96 window at `/mini` (`web/src/views/MiniWindow.tsx`),
+opened from the tray. A remote: it mirrors `muse:now`, sends `muse:command`,
+and has no audio element or player context. Its user-facing label is "Mini
+player".
+_Avoid_: Mini player in code and docs (that is `ControlBar`, DESIGN.md §9).
+
+**Dropped song** (`music_files`):
+An audio file dropped onto the main window, recorded in the `music_files` list
+in `settings.json` through `POST /api/library/import` and read in place. It is
+rescanned on every chain run and never watched. A dropped folder instead becomes
+a watched music folder. A file already inside a music folder or already listed
+counts as `already`.
+_Avoid_: Imported song (nothing is copied).
+
 **Music folder**:
 A directory the user adds in settings (`PUT /api/settings/music_folders`) to be
 scanned and watched. Stored in `settings.json`. Must be absolute, must exist,
