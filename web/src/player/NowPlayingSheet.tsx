@@ -17,6 +17,7 @@ import { Wash } from "../components/Wash";
 import { duration } from "../format";
 import { LyricsPanel } from "../views/SyncedLyrics";
 import { getVolume, setVolume } from "./gain";
+import { unplayableReason } from "./formats";
 import { usePlayer } from "./PlayerContext";
 import { useSheet, type SheetOpen } from "./SheetContext";
 
@@ -363,7 +364,7 @@ function UpNext({
               sub={track.artist_name}
               durationMs={track.duration_ms}
               artSrc={track.has_art ? `/api/tracks/${track.track_rowid}/art` : null}
-              playable={track.playable}
+              unplayable={unplayableReason(track)}
               onPlay={() => onPlay(at)}
             />
           ))}

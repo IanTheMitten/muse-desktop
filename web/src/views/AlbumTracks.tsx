@@ -6,6 +6,7 @@ import { getAlbum } from "../api";
 import { BackIcon, PlayIcon, ShuffleIcon } from "../components/Icons";
 import { CoverArt } from "../components/CoverArt";
 import { TrackRow } from "../components/TrackRow";
+import { unplayableReason } from "../player/formats";
 import { useCardMesh } from "../components/Wash";
 import { count, runtime } from "../format";
 import { usePlayer } from "../player/PlayerContext";
@@ -104,7 +105,7 @@ export function AlbumTracks() {
                 durationMs={track.duration_ms}
                 current={current?.track_rowid === track.track_rowid}
                 paused={!playing}
-                playable={track.playable}
+                unplayable={unplayableReason(track)}
                 onPlay={() =>
                   playQueue(
                     playable,

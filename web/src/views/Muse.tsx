@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { CoverArt } from "../components/CoverArt";
 import { TrackRow } from "../components/TrackRow";
+import { unplayableReason } from "../player/formats";
 import { FeelPicker, useFeel } from "../muse/FeelPicker";
 import { MakePlaylist } from "../muse/MakePlaylist";
 import { usePlayer } from "../player/PlayerContext";
@@ -57,7 +58,7 @@ export function Muse() {
                       sub={isMusePick(t.track_rowid) ? `${t.artist_name} · Muse` : t.artist_name}
                       durationMs={t.duration_ms}
                       artSrc={t.has_art ? `/api/tracks/${t.track_rowid}/art` : null}
-                      playable={t.playable}
+                      unplayable={unplayableReason(t)}
                       onPlay={() => playQueue(queue, index + 1 + i, playingFrom ?? undefined)}
                     />
                   ))}

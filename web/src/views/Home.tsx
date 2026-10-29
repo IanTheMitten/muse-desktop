@@ -17,6 +17,7 @@ import { CoverCard } from "../components/CoverCard";
 import { PlayIcon } from "../components/Icons";
 import { Screen } from "../components/Screen";
 import { TrackRow } from "../components/TrackRow";
+import { unplayableReason } from "../player/formats";
 import { WeekBars } from "../components/WeekBars";
 import { useCardMesh } from "../components/Wash";
 import { count } from "../format";
@@ -133,7 +134,7 @@ export function Home() {
                   artSrc={trackArt(t)}
                   current={current?.track_rowid === t.track_rowid}
                   paused={!playing}
-                  playable={t.playable}
+                  unplayable={unplayableReason(t)}
                   onPlay={() => playTracks(dash.on_repeat, i, "On repeat")}
                 />
               ))}
@@ -154,7 +155,7 @@ export function Home() {
                     artSrc={trackArt(s.track)}
                     current={current?.track_rowid === s.track.track_rowid}
                     paused={!playing}
-                    playable={s.track.playable}
+                    unplayable={unplayableReason(s.track)}
                     onPlay={() =>
                       playTracks(chartTracks, chartTracks.indexOf(s.track!), "Top songs right now")
                     }
@@ -234,7 +235,7 @@ export function Home() {
                     artSrc={trackArt(t)}
                     current={current?.track_rowid === t.track_rowid}
                     paused={!playing}
-                    playable={t.playable}
+                    unplayable={unplayableReason(t)}
                     onPlay={() => playTracks(dash.sounds_like.tracks, i, `Sounds like ${dash.sounds_like.seed!.track_name}`)}
                   />
                 ))}
@@ -256,7 +257,7 @@ export function Home() {
                   artSrc={trackArt(t)}
                   current={current?.track_rowid === t.track_rowid}
                   paused={!playing}
-                  playable={t.playable}
+                  unplayable={unplayableReason(t)}
                   onPlay={() => playTracks(dash.forgotten, i, "Forgotten")}
                 />
               ))}

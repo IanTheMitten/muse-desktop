@@ -16,6 +16,7 @@ import { CoverArt } from "../components/CoverArt";
 import { CoverCard } from "../components/CoverCard";
 import { Screen } from "../components/Screen";
 import { TrackRow } from "../components/TrackRow";
+import { unplayableReason } from "../player/formats";
 import { count } from "../format";
 import { useJobs } from "../jobs/JobsContext";
 import { usePlayer } from "../player/PlayerContext";
@@ -274,7 +275,7 @@ export function Library() {
                   artSrc={track.has_art ? `/api/tracks/${track.track_rowid}/art` : null}
                   current={current?.track_rowid === track.track_rowid}
                   paused={!playing}
-                  playable={track.playable}
+                  unplayable={unplayableReason(track)}
                   onPlay={() =>
                     playQueue(
                       playable,

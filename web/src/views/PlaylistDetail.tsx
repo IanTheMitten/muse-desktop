@@ -6,6 +6,7 @@ import "../styles/playlists.css";
 import { deletePlaylist, getPlaylist, renamePlaylist } from "../api";
 import { BackIcon, PlayIcon, ShuffleIcon } from "../components/Icons";
 import { TrackRow } from "../components/TrackRow";
+import { unplayableReason } from "../player/formats";
 import { usePlayer } from "../player/PlayerContext";
 import { useLoad } from "../useLoad";
 import { Mosaic, playlistMeta } from "./Playlists";
@@ -169,7 +170,7 @@ export function PlaylistDetail() {
                 durationMs={track.duration_ms}
                 current={current?.track_rowid === track.track_rowid}
                 paused={!playing}
-                playable={track.playable}
+                unplayable={unplayableReason(track)}
                 onPlay={() =>
                   playQueue(
                     playable,

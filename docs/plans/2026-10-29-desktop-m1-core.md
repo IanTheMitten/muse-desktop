@@ -712,7 +712,7 @@ CONSTRAINTS: WCAG AA. aria-disabled stays. The label must be in the accessible n
 **Why:** Decision 9: the user picks folders under Settings, Music folders. Decision 11: Add is hidden until unlocked. The job strip would otherwise call a scan "Fetching cover art".
 
 ### Task 14: "Format not supported" and "File missing" row labels [design]
-- [ ] status
+- [x] status
 **Objective:** A track whose format the webview cannot play shows "Format not supported on this Mac" (or "PC") and cannot be started. A missing file still shows "File missing".
 **Write-scope:**
 `web/src/player/formats.ts` (new)

@@ -13,13 +13,14 @@ export function TrackRow(props: {
   artSrc?: string | null;
   current?: boolean;
   paused?: boolean;
-  playable: boolean;
+  unplayable: string | null;
   onPlay: () => void;
   variant?: "plain" | "song" | "queue" | "chart";
 }) {
-  const { n, title, sub, durationMs, artSrc, current, paused, playable, onPlay, variant = "plain" } = props;
+  const { n, title, sub, durationMs, artSrc, current, paused, unplayable, onPlay, variant = "plain" } = props;
   const showArt = artSrc !== undefined && variant !== "plain";
-  const label = playable ? sub : "File missing";
+  const playable = unplayable === null;
+  const label = playable ? sub : unplayable;
   return (
     <li className={paused ? "paused" : undefined}>
       <button
