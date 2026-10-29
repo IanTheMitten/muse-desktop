@@ -517,7 +517,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 ## Phase 4 - Player engine, dialogs, queue UI
 
 ### Task 14: Gapless and crossfade with two audio elements
-- [ ] status
+- [x] status
 **Objective:** The next deterministic track is preloaded and started just before the current one ends, with an optional equal-power crossfade, and the outgoing play span closes as `track_end` at the handoff position.
 **Write-scope:**
 `web/src/player/gain.ts`
@@ -544,7 +544,7 @@ CONSTRAINTS: WCAG AA. Range uses the existing `.range` class with `--p` fill, la
 **Why:** Decision 15 option (a): near-gapless with two elements and the existing gain stage. The span closes at the fade start so `plays` records where the track physically stopped.
 
 ### Task 15: Edit, remove, add-to-playlist and lyrics dialogs [design]
-- [ ] status
+- [x] status
 **Objective:** Four dialog components exist and call the Task 13 client functions.
 **Write-scope:**
 `web/src/components/Dialog.tsx` (new)
