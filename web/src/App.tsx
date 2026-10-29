@@ -10,6 +10,7 @@ import {
 import { ControlBar } from "./components/ControlBar";
 import { JobProgress } from "./components/JobProgress";
 import { NavBar } from "./components/NavBar";
+import { ShellBridge } from "./components/ShellBridge";
 import { JobsProvider } from "./jobs/JobsContext";
 import { NowPlayingSheet } from "./player/NowPlayingSheet";
 import { PlayerProvider } from "./player/PlayerContext";
@@ -42,6 +43,7 @@ export function App() {
   return (
     <JobsProvider>
       <PlayerProvider>
+        <ShellBridge />
         <BrowserRouter>
           <SheetProvider>
             <Wash where="app" />

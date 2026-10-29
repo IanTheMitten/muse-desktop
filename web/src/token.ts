@@ -1,6 +1,9 @@
 const KEY = "muse-token";
 
 function boot(): string | null {
+  // the desktop shell's init script (Decision 3)
+  const injected = (window as unknown as { __MUSE_TOKEN__?: string }).__MUSE_TOKEN__;
+  if (injected) return injected;
   const url = new URL(location.href);
   const t = url.searchParams.get("t");
   if (t) {

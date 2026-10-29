@@ -261,7 +261,7 @@ CONSTRAINTS: icon: rounded rect x=100 y=100 width=824 height=824 rx=185, transpa
 **Why:** Task 6 needs the icon sources and the boot page to build. The `boot_status` shape is fixed in Assumptions, so this runs before the Rust exists.
 
 ### Task 5: Web shell bridge and injected token
-- [ ] status
+- [x] status
 **Objective:** The UI reads the shell's injected token, and the main window answers tray and mini-window events through one `ShellBridge` component.
 **Write-scope:**
 `web/src/shell.ts` (new)
