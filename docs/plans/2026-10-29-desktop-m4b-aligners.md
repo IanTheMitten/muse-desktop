@@ -420,7 +420,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** Characterizes the real models end to end; accuracy is owner check 3.
 
 ### Task 16: Freeze the worker locally and smoke align
-- [ ] status
+- [x] status
 **Objective:** The frozen Linux worker answers `hello`, `minilm` and `align` from a weights dir.
 **Write-scope:** `scripts/freeze_worker.py`
 **Read-context:** `scripts/freeze_worker.py`, `scripts/worker_smoke.py`, `docs/plans/2026-10-29-desktop-m4b-preflight.md` (from Task 1)
@@ -436,6 +436,7 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Forbidden:** no source edits outside `scripts/freeze_worker.py`; no onefile; don't run a web build at the same time.
 **Depends:** Task 9, Task 10
 **Why:** PyInstaller misses package data silently; the frozen exe is what users run.
+**Result (run 2026-10-29):** `ok hello`, `ok minilm`, `ok align`, `WORKER-SMOKE-OK`, no freeze flags added. DEVIATION: `--weights` must be `build/ci-weights/weights` (fetch_weights writes `<out>/weights/<key>`); the path in Verify fails align with "Aligner weights missing".
 
 ### Task 17: Document aligners, tap-along and licences [docs]
 - [ ] status
