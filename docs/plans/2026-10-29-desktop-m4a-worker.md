@@ -223,7 +223,7 @@ Negative result is a valid outcome.
 ## Phase 2 - Worker core
 
 ### Task 4: PyAV decode, local-dir encoders and MERT in muse
-- [ ] status
+- [x] status
 **Objective:** Real encoders load from a `source` dir and decode with PyAV; MERT lives in `muse/mert.py`; none of it imports torch or av at module import.
 **Write-scope:**
 `muse/audio_decode.py` (new)

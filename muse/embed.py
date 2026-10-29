@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from . import audio_decode
 from .library import embeddings as library_embeddings
 from .library import features as library_features
 from .lyrics import read_lyrics
@@ -237,38 +238,18 @@ CLAP_WINDOW_FRACTIONS = (0.25, 0.5, 0.75)
 
 
 def _probe_duration_seconds(audio_path: Path) -> float:
-    import subprocess
-
-    output = subprocess.run(
-        [
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path),
-        ],
-        capture_output=True, text=True, check=True,
-    )
-    return float(output.stdout.strip())
+    return audio_decode.duration_seconds(audio_path)
 
 
 def _decode_window(
     audio_path: Path, start_seconds: float, duration_seconds: float,
     sample_rate: int = CLAP_SAMPLE_RATE,
 ):
-    """One window as mono float32 PCM at `sample_rate`, via ffmpeg — the
-    PRD's chosen decode path, and the only one that reads every codec
-    already in this library without a second audio dependency."""
-    import subprocess
-
-    import numpy as np
-
-    result = subprocess.run(
-        [
-            "ffmpeg", "-v", "error", "-ss", str(max(0.0, start_seconds)),
-            "-t", str(duration_seconds), "-i", str(audio_path),
-            "-ac", "1", "-ar", str(sample_rate), "-f", "f32le", "-",
-        ],
-        capture_output=True, check=True,
+    """One window as mono float32 PCM at `sample_rate`, via PyAV (no ffmpeg
+    on PATH in the frozen worker)."""
+    return audio_decode.decode_mono(
+        audio_path, sample_rate, max(0.0, start_seconds), duration_seconds
     )
-    return np.frombuffer(result.stdout, dtype=np.float32)
 
 
 class ClapAudioEncoder:
@@ -282,14 +263,15 @@ class ClapAudioEncoder:
 
     model_name = CLAP_MODEL
 
-    def __init__(self):
+    def __init__(self, source: Path | None = None):
         import torch
         from transformers import ClapModel, ClapProcessor
 
+        src = str(source) if source else self.model_name
         self._torch = torch
-        self._model = ClapModel.from_pretrained(self.model_name)
+        self._model = ClapModel.from_pretrained(src)
         self._model.eval()
-        self._processor = ClapProcessor.from_pretrained(self.model_name)
+        self._processor = ClapProcessor.from_pretrained(src)
 
     def encode_text(self, text: str) -> list[float]:
         """A free-text query in the same space as the audio vectors.
@@ -343,10 +325,10 @@ class MiniLmLyricsEncoder:
 
     model_name = MINILM_MODEL
 
-    def __init__(self):
+    def __init__(self, source: Path | None = None):
         from sentence_transformers import SentenceTransformer
 
-        self._model = SentenceTransformer(self.model_name)
+        self._model = SentenceTransformer(str(source) if source else self.model_name)
 
     def encode(self, text: str) -> list[float]:
         vector = self._model.encode(text, normalize_embeddings=True)
@@ -357,7 +339,7 @@ AUDIO_VA_SAMPLE_RATE = 16_000  # what the wav2vec2 msp-dim checkpoint expects
 AUDIO_VA_WINDOW_SECONDS = 10
 
 
-def _build_audio_va_model(model_name: str):
+def _build_audio_va_model(model_name: str, source: Path | None = None):
     """Load the msp-dim checkpoint into a locally-defined regression head.
 
     audeering ships weights and a `config.json` naming
@@ -391,9 +373,12 @@ def _build_audio_va_model(model_name: str):
     # `classifier.out_proj.weight` is [3, 1024] — the three msp-dim outputs
     # (arousal, dominance, valence) over wav2vec2-large's 1024-wide hidden
     # state.
-    with safe_open(
-        hf_hub_download(model_name, "model.safetensors"), framework="pt"
-    ) as checkpoint:
+    weights = (
+        source / "model.safetensors" if source
+        else hf_hub_download(model_name, "model.safetensors")
+    )
+    model_name = str(source) if source else model_name
+    with safe_open(weights, framework="pt") as checkpoint:
         num_labels, hidden_size = (
             checkpoint.get_slice("classifier.out_proj.weight").get_shape()
         )
@@ -486,14 +471,16 @@ class MerAudioVAEncoder:
 
     model_name = AUDIO_VA_MODEL
 
-    def __init__(self):
+    def __init__(self, source: Path | None = None):
         import torch
         from transformers import Wav2Vec2FeatureExtractor
 
         self._torch = torch
-        self._model = _build_audio_va_model(self.model_name)
+        self._model = _build_audio_va_model(self.model_name, source)
         self._model.eval()
-        self._processor = Wav2Vec2FeatureExtractor.from_pretrained(self.model_name)
+        self._processor = Wav2Vec2FeatureExtractor.from_pretrained(
+            str(source) if source else self.model_name
+        )
 
     def encode(self, audio_path: Path) -> tuple[float, float]:
         duration = _probe_duration_seconds(audio_path)
@@ -544,11 +531,12 @@ class TextVAEncoder:
 
     model_name = LYRICS_VA_MODEL
 
-    def __init__(self):
+    def __init__(self, source: Path | None = None):
         from transformers import pipeline
 
         self._classifier = pipeline(
-            "text-classification", model=self.model_name, top_k=None
+            "text-classification",
+            model=str(source) if source else self.model_name, top_k=None,
         )
         # Ask the model how much it can take rather than hard-coding 512:
         # this checkpoint allows 514 positions, two of which are the special
