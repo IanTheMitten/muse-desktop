@@ -174,7 +174,7 @@ cd web && npm test
 
 ## Licenses
 
-Muse's own code is licensed as stated in this repository.
+Muse's own code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
 
 Smart features download models that are free for non-commercial use only:
 
