@@ -310,10 +310,11 @@ def run_download(
     if metadata is None:
         return DownloadResult(status="error", message="could not resolve metadata")
 
-    resolved_rowid = track_rowid or lock(lambda: library_tracks.next_local_rowid(conn))
     origin = "catalog" if track_rowid is not None else "local"
 
     def _claim_and_write():
+        # Allocate and write in one lock call so a waiting scan cannot take the rowid.
+        rowid = track_rowid or library_tracks.next_local_rowid(conn)
         meta = metadata
         # Plan Assumption 1: a done/missing_file holder of this Spotify id means
         # "already in library"; a local error holder is a failed attempt, so
@@ -322,10 +323,10 @@ def run_download(
         # this attempt downloads without the stamp.
         if meta.track_id is not None:
             holder = library_tracks.claim_track_id(conn, meta.track_id)
-            if holder is not None and holder["track_rowid"] != resolved_rowid:
+            if holder is not None and holder["track_rowid"] != rowid:
                 if holder["status"] != "error":
                     return DownloadResult(status="done", message="already in library",
-                                          track_rowid=holder["track_rowid"]), meta, None
+                                          track_rowid=holder["track_rowid"]), meta, None, rowid
                 meta = replace(meta, track_id=None)
 
         # A post-freeze album has no catalog album_rowid, and a null one is not
@@ -343,7 +344,7 @@ def run_download(
         # NOT NULL`, so a row carrying the mbid with a null album would be
         # invisible to it and the next track would allocate a second album.
         library_tracks.write_pending(
-            conn, track_rowid=resolved_rowid, origin=origin,
+            conn, track_rowid=rowid, origin=origin,
             metadata_tier=meta.metadata_tier,
             artist_name=meta.artist_name, artist_names=meta.artist_names,
             album_name=meta.album_name, track_name=meta.track_name,
@@ -354,9 +355,9 @@ def run_download(
             recording_mbid=meta.recording_mbid,
             release_mbid=meta.release_mbid,
         )
-        return None, meta, album
+        return None, meta, album, rowid
 
-    early, metadata, album_rowid = lock(_claim_and_write)
+    early, metadata, album_rowid, resolved_rowid = lock(_claim_and_write)
     if early is not None:
         return early
 

@@ -793,6 +793,37 @@ def test_the_fetch_runs_outside_the_lock_and_the_writes_inside(
     assert state["calls"] >= 2
 
 
+def test_a_scan_between_lock_calls_cannot_take_the_download_rowid(
+    conn, tmp_path, no_network
+):
+    from muse.library import tracks as library_tracks
+
+    inserted = []
+    state = {"n": 0}
+
+    def under_lock(fn):
+        state["n"] += 1
+        if state["n"] > 1:
+            rowid = library_tracks.next_local_rowid(conn)
+            insert_track(conn, rowid, track_id=None, track_name="Scanned",
+                         file_path=str(tmp_path / f"s{state['n']}.m4a"))
+            inserted.append((rowid, str(tmp_path / f"s{state['n']}.m4a")))
+        return fn()
+
+    result = run_download(
+        conn, payload={"url": "https://x", "artist_name": "A", "track_name": "T"},
+        under_lock=under_lock, **_staged_deps(tmp_path, FakeAudioSource(tmp_path)),
+    )
+
+    assert result.status == "done"
+    assert result.track_rowid not in [r for r, _ in inserted]
+    for rowid, path in inserted:
+        row = conn.execute(
+            "SELECT track_name, file_path FROM tracks WHERE track_rowid = ?", (rowid,)
+        ).fetchone()
+        assert row["track_name"] == "Scanned" and row["file_path"] == path
+
+
 def test_a_scan_between_the_steps_neither_duplicates_nor_rescans(
     conn, tmp_path, no_network
 ):
