@@ -7,6 +7,7 @@ since `/api/health` takes no request parameters.
 """
 
 import asyncio
+import json
 
 from muse.api import create_app
 from tests.conftest import make_config
@@ -14,6 +15,7 @@ from muse.content import CONTENT_EMBED, STUB_CONTENT_MODEL
 from muse.embed import pack_vector
 from muse.library import content as library_content
 from muse.library import jobs as job_rows
+from muse.smart import load_manifest
 from tests.conftest import insert_track
 
 
@@ -92,7 +94,8 @@ def test_health_reports_no_last_batch_before_any_run(tmp_path):
 def test_health_reports_smart_installed_from_the_marker(tmp_path):
     config = _config(tmp_path)
     config.models_dir.mkdir()
-    (config.models_dir / "installed.json").write_text('{"manifest_version": 1, "triple": "t"}')
+    marker = {"manifest_version": load_manifest()["version"], "triple": "t"}
+    (config.models_dir / "installed.json").write_text(json.dumps(marker))
     app = create_app(config)
 
     async def drive():

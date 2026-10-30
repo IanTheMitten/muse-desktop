@@ -29,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
             req["path"] = str(args.fixture.resolve())
         elif op == "minilm":
             req["text"] = "sunshine and joy"
+        elif op == "align":
+            req.update(path=str(args.fixture.resolve()), lines=["hello there", "how are you"])
         elif op == "laya":
             req.update(state={"lyrics": "sunshine and joy"}, questions=QUESTION)
         proc.stdin.write(json.dumps(req) + "\n")
@@ -48,6 +50,9 @@ def main(argv: list[str] | None = None) -> int:
             elif op in DIMS:
                 if len(ok) != DIMS[op]:
                     raise RuntimeError(f"{op}: dim {len(ok)} != {DIMS[op]}")
+            elif op == "align":
+                if ok["aligner"] not in ("schufo", "mms") or len(ok["starts"]) != 2:
+                    raise RuntimeError(f"align: {ok}")
             elif op == "laya":
                 if not isinstance(ok, dict) or "mood" not in json.dumps(ok):
                     raise RuntimeError(f"laya: {ok}")

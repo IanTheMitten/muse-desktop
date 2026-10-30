@@ -15,7 +15,7 @@ import sqlite3
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 # `Path` here would shadow `pathlib.Path`, which this module uses far more
 # often, so the path-parameter declarer comes in under its own name.
@@ -41,7 +41,9 @@ from . import arc_engine, charts, discover, nearest, reco, recommend, request_sp
 from .content import CONTENT_EMBED
 from .feedback import feedback_score
 from .ingest import TieredMetadataProvider, YtDlpAudioSource, build_genius_client, run_download
+from .align_text import lyric_lines
 from .jobs import (
+    ALIGN,
     ART_BACKFILL,
     DOWNLOAD,
     SCAN,
@@ -53,6 +55,7 @@ from .jobs import (
     run_download_job,
     run_download_worker,
     run_embed_backfill,
+    run_align_job,
     run_smart_install,
 )
 from .library import art as library_art
@@ -232,6 +235,15 @@ class TrackIds(BaseModel):
 
 class ArtistHidden(BaseModel):
     hidden: bool
+
+
+class AlignRequest(BaseModel):
+    track_rowids: list[int] = Field(min_length=1, max_length=5000)
+    replace: bool = False
+
+
+class TappedTimings(BaseModel):
+    starts_ms: list[Annotated[int, Field(ge=0)]] = Field(max_length=5000)
 
 
 class LyricsWrite(BaseModel):
@@ -488,6 +500,7 @@ def create_app(
     config = config or Config.from_env()
     bus = JobBus()
     install_tasks: set[asyncio.Task] = set()
+    align_tasks: set[asyncio.Task] = set()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -531,6 +544,7 @@ def create_app(
             + job_rows.abandon_running_of_kind(conn, SCAN)
             + job_rows.abandon_running_of_kind(conn, LYRICS_SYNC)
             + job_rows.abandon_running_of_kind(conn, smart.SMART_INSTALL)
+            + job_rows.abandon_running_of_kind(conn, ALIGN)
         )
         for stale_job_id in job_rows.running_ids_of_kind(conn, DOWNLOAD):
             job_rows.update(conn, stale_job_id, state=job_rows.ERROR,
@@ -738,7 +752,7 @@ def create_app(
             sweeper.cancel()
             download_worker.cancel()
             app.state.watch_stop.set()
-            for task in (watch_task, *list(chain_tasks), *list(install_tasks)):
+            for task in (watch_task, *list(chain_tasks), *list(install_tasks), *list(align_tasks)):
                 task.cancel()
                 try:
                     await task
@@ -751,6 +765,7 @@ def create_app(
             conn.close()
 
     app = FastAPI(title="Muse", lifespan=lifespan)
+    app.state.align_tasks = align_tasks
 
     @app.middleware("http")
     async def require_token(request: Request, call_next):
@@ -1608,6 +1623,67 @@ def create_app(
             raise HTTPException(404, missing)
         return {"ok": True}
 
+    @app.post("/api/tracks/align", status_code=202)
+    async def align_tracks(req: AlignRequest) -> dict:
+        conn, cfg = app.state.conn, app.state.config
+        if not (cfg.embed_batch or smart.installed(cfg.models_dir)):
+            raise HTTPException(503, "Auto-align needs smart features")
+        if job_rows.active(conn, ALIGN):
+            raise HTTPException(409, "Already aligning other songs")
+        items, skipped = [], []
+        for rowid in req.track_rowids:
+            found = queries.track_paths(conn, rowid)
+            if found is None or not Path(found["file_path"] or "").is_file():
+                skipped.append({"track_rowid": rowid, "reason": "missing_file"})
+                continue
+            text = read_lyrics(found["lyrics_path"])
+            lines = lyric_lines(text) if text else []
+            if not lines:
+                skipped.append({"track_rowid": rowid, "reason": "no_lyrics"})
+            elif (lyrics_files(cfg.lyrics_root, rowid)[1].is_file()
+                  and not lyrics_edit.is_stale(conn, rowid, lyrics_root=cfg.lyrics_root)
+                  and not req.replace):
+                skipped.append({"track_rowid": rowid, "reason": "synced"})
+            else:
+                track = queries.track(conn, rowid)
+                items.append({
+                    "track_rowid": rowid, "file_path": found["file_path"], "lines": lines,
+                    "artist_name": track["artist_name"], "track_name": track["track_name"],
+                    "album_name": track["album_name"]})
+        if not items:
+            return {"job_id": None, "skipped": skipped}
+        job_id = job_rows.create(conn, ALIGN, {
+            "track_rowids": [i["track_rowid"] for i in items], "total": len(items),
+            "done": 0, "aligned": [], "failed": [],
+            "skipped_synced": sum(s["reason"] == "synced" for s in skipped)})
+        worker = app.state.worker
+        worker.begin()
+        task = asyncio.create_task(run_align_job(
+            conn, bus, job_id, items,
+            lambda path, lines: worker.request("align", path=path, lines=lines),
+            lyrics_root=cfg.lyrics_root))
+        align_tasks.add(task)
+        task.add_done_callback(align_tasks.discard)
+        return {"job_id": job_id, "skipped": skipped}
+
+    @app.put("/api/tracks/{track_rowid}/lyrics/lrc")
+    def put_track_lrc(track_rowid: int, tapped: TappedTimings) -> dict:
+        conn = app.state.conn
+        found = queries.track_paths(conn, track_rowid)
+        text = read_lyrics(found["lyrics_path"]) if found else None
+        lines = lyric_lines(text) if text else []
+        if not lines:
+            raise HTTPException(404, f"No lyrics for track {track_rowid}")
+        starts = tapped.starts_ms
+        if len(starts) != len(lines):
+            raise HTTPException(400, "Timings do not match the lyrics")
+        if any(a > b for a, b in zip(starts, starts[1:])):
+            raise HTTPException(400, "Timings must not go backwards")
+        lyrics_edit.write_timings(
+            conn, track_rowid, lines, starts, lyrics_root=app.state.config.lyrics_root,
+            state="manual", track=queries.track(conn, track_rowid))
+        return {"ok": True}
+
     @app.get("/api/tracks/{track_rowid}/lyrics/synced")
     def track_lyrics_synced(track_rowid: int) -> dict:
         """The full-screen lyrics view's route (stories 59-77).
@@ -1653,6 +1729,7 @@ def create_app(
             "plain": None if lines is not None else plain,
             "offset_ms": offset_ms,
             "lrc_stale": stale,
+            "timing_lines": lyric_lines(plain),
         }
 
     @app.patch("/api/tracks/{track_rowid}/lyrics/offset")

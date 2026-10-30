@@ -57,6 +57,7 @@ def update(
     state: str | None = None,
     progress: float | None = None,
     message: str | None = None,
+    payload: dict | None = None,
     now: int | None = None,
 ) -> dict | None:
     """Advance a job. Only the fields given are touched.
@@ -79,6 +80,9 @@ def update(
     if message is not None:
         sets.append("message = ?")
         values.append(message)
+    if payload is not None:
+        sets.append("payload = ?")
+        values.append(json.dumps(payload))
     sets.append("updated_at = ?")
     values.append(now if now is not None else _now())
     values.append(job_id)

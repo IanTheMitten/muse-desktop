@@ -85,6 +85,12 @@ search and the lyric tags. Nothing leaves your computer except the download.
   hash list and a dropped download resumes where it stopped.
 - **Where it installs:** `models/` in the data dir. Models go in
   `models/weights/`, the worker in `models/worker/`.
+- **Auto-align:** times a song's lyrics to its audio. English lyrics go to the
+  schufo aligner, all other languages to MMS-FA. It runs only when you ask
+  (a song's More menu or its lyrics panel) and writes an `.lrc` in the data
+  dir; your music folders are not touched.
+- **Tap along:** in the lyrics panel, play the song and tap (or press Space) as
+  each line starts. Muse saves the timings as an `.lrc` too.
 - **Not supported:** Intel Macs (PyTorch ships no wheel for them) and Linux.
   Settings says so there. The worker is offered once the owner publishes it.
 
@@ -174,5 +180,15 @@ non-commercial.
 
 - PyAV decodes audio. PyAV is BSD; its wheels bundle FFmpeg's LGPL libraries.
 - The asterisk in the logo is Phosphor's (MIT).
-- MMS-FA (CC-BY-NC-4.0): arrives with smart features (M4)
-- schufo lyrics-aligner (MIT): arrives with smart features (M4)
+- MMS-FA, `MahmoudAshraf/mms-300m-1130-forced-aligner` (CC-BY-NC-4.0), from
+  Meta's MMS
+- schufo lyrics-aligner (MIT). Schulze-Forster et al., 2021, TASLP 29:2382-2395.
+  It was trained on MUSDB18 and its lyrics extension, both licensed
+  non-commercial (Zenodo 1117372 and 3989267).
+- CMU Pronouncing Dictionary (BSD-style)
+- g2p_en GRU weights (Apache-2.0)
+- uroman (see below)
+- py3langid (BSD-3)
+
+This project uses the universal romanizer software 'uroman' written by Ulf
+Hermjakob, USC Information Sciences Institute (2015-2020).

@@ -3,6 +3,8 @@ import json
 import subprocess
 import sys
 
+import pytest
+
 from muse.worker_main import real_handlers, serve
 
 
@@ -59,7 +61,7 @@ def test_real_handlers_keys_and_no_torch():
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     ).stdout.split("\n")
     assert out[0] == str(
-        sorted(["clap_audio", "clap_text", "minilm", "audio_va", "lyrics_va", "mert", "laya"])
+        sorted(["align", "clap_audio", "clap_text", "minilm", "audio_va", "lyrics_va", "mert", "laya"])
     )
     assert out[1] == "False"
 
@@ -67,3 +69,9 @@ def test_real_handlers_keys_and_no_torch():
 def test_laya_missing_weights(tmp_path):
     got = run('{"id":1,"op":"laya","state":{},"questions":{}}\n', real_handlers(tmp_path))
     assert "Laya weights missing" in got[0]["error"]
+
+
+def test_align_missing_weights(tmp_path, monkeypatch):
+    monkeypatch.setattr("muse.worker_main.detect_language", lambda _t: "en")
+    with pytest.raises(RuntimeError, match="Aligner weights missing"):
+        real_handlers(tmp_path)["align"]({"path": "x.wav", "lines": ["hello world"]})

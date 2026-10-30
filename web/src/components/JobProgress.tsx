@@ -37,6 +37,7 @@ export function JobProgress() {
   else if (job.kind === "lyrics_sync") label = "Fetching lyrics";
   else if (job.kind === "smart_install") label = "Installing smart features";
   else if (job.kind === "embed" || job.kind === "content_embed") label = "Listening to your songs";
+  else if (job.kind === "align") label = "Aligning lyrics";
   else if (job.kind === "lyric_tag") label = "Reading lyrics";
   else if (job.kind === "art_backfill") {
     label = art ? `Fetching cover art · ${done} of ${art}` : "Fetching cover art";

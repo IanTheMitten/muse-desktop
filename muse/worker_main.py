@@ -52,6 +52,12 @@ def serve(
         emit({"id": rid, "ok": result})
 
 
+def detect_language(text: str) -> str:
+    import py3langid
+
+    return py3langid.classify(text)[0]
+
+
 def real_handlers(weights: Path) -> dict[str, Callable[[dict], object]]:
     cache: dict[str, object] = {}
     threads_set = False
@@ -106,7 +112,38 @@ def real_handlers(weights: Path) -> dict[str, Callable[[dict], object]]:
 
         return get("laya", build).system_one(args["state"], args["questions"])
 
+    def schufo():
+        if not (weights / "schufo").is_dir():
+            raise RuntimeError("Aligner weights missing")
+
+        def build():
+            from .schufo import SchufoAligner
+
+            return SchufoAligner(weights / "schufo")
+
+        return get("schufo", build)
+
+    def mms():
+        from .mms_align import MmsAligner
+
+        return get("mms", lambda: MmsAligner(source=src("mms")))
+
+    def align(args: dict):
+        from .align_text import iso3, route
+
+        lines = args["lines"]
+        text = "\n".join(lines)
+        lang = detect_language(text)
+        aligner = route(text, lang)
+        path = Path(args["path"])
+        if aligner == "schufo":
+            starts = schufo().align(path, lines)
+        else:
+            starts = mms().align(path, lines, iso3(lang))
+        return {"aligner": aligner, "lang": lang, "starts": starts}
+
     return {
+        "align": align,
         "clap_audio": lambda a: clap().encode(Path(a["path"])),
         "clap_text": lambda a: clap().encode_text(a["text"]),
         "minilm": lambda a: minilm().encode(a["text"]),

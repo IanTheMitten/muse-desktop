@@ -316,6 +316,7 @@ export type SyncedLyrics = {
   plain: string | null;
   offset_ms: number;
   lrc_stale: boolean;
+  timing_lines: string[];
 };
 
 export const getSyncedLyrics = (trackRowid: number, signal?: AbortSignal) =>
@@ -341,6 +342,18 @@ export async function setLyricsOffset(
   }
   return ((await response.json()) as { offset_ms: number }).offset_ms;
 }
+
+export type AlignSkip = { track_rowid: number; reason: "no_lyrics" | "synced" | "missing_file" };
+
+/** 503 = smart features missing, 409 = another align job running; tell them apart with `statusOf`. */
+export const alignTracks = (trackRowids: number[], replace = false) =>
+  send<{ job_id: number | null; skipped: AlignSkip[] }>("POST", "/tracks/align", {
+    track_rowids: trackRowids,
+    replace,
+  });
+
+export const saveTappedTimings = (trackRowid: number, startsMs: number[]) =>
+  send<{ ok: boolean }>("PUT", `/tracks/${trackRowid}/lyrics/lrc`, { starts_ms: startsMs });
 
 export const searchLibrary = (query: string, signal?: AbortSignal) =>
   get<{ q: string; results: Track[] }>(

@@ -24,14 +24,18 @@ from . import content_embed_batch
 from . import embed as embed_module
 from . import lyrics_lrclib as lyrics_lrclib_module
 from . import scanner, smart
+from .align_text import fill_starts
 from .ingest import DownloadResult
 from .library import art as library_art
 from .library import embeddings as library_embeddings
 from .library import jobs as job_rows
+from .library import lyrics_edit
 from .library import lyrics_state as library_lyrics_state
+from .worker import WorkerError, WorkerReplyError
 
 log = logging.getLogger("muse.jobs")
 
+ALIGN = "align"
 ART_BACKFILL = "art_backfill"
 DOWNLOAD = "download"
 SCAN = "scan"
@@ -344,6 +348,55 @@ async def run_smart_install(
         job_rows.update(conn, job_id, state=job_rows.ERROR, message=message)
     else:
         job_rows.update(conn, job_id, state=job_rows.DONE, progress=1.0, message="Installed")
+    finished = job_rows.get(conn, job_id)
+    bus.publish(_event(finished))
+    return finished
+
+
+async def run_align_job(
+    conn, bus: JobBus, job_id: int, items: list[dict], align, *, lyrics_root: Path,
+) -> dict:
+    """Align each item's lyrics to its audio via the worker; the sidecar writes
+    the `.lrc`. One track failing (reply error, dead/hung worker, unusable
+    timings) fails that track only."""
+    payload = job_rows.get(conn, job_id)["payload"]
+    payload.update(aligned=[], failed=[])
+    total = len(items)
+    job_rows.update(conn, job_id, state=job_rows.RUNNING, message="Starting")
+    bus.publish(_event(job_rows.get(conn, job_id)))
+    try:
+        for done, item in enumerate(items, 1):
+            rowid = item["track_rowid"]
+            try:
+                reply = await asyncio.to_thread(align, item["file_path"], item["lines"])
+                starts = fill_starts(reply["starts"])
+                if starts is not None and len(starts) == len(item["lines"]):
+                    lyrics_edit.write_timings(
+                        conn, rowid, item["lines"], starts, lyrics_root=lyrics_root,
+                        state="aligned", track=item)
+                    payload["aligned"].append(rowid)
+                else:
+                    payload["failed"].append(rowid)
+            except (WorkerError, WorkerReplyError):
+                payload["failed"].append(rowid)
+            except Exception:
+                log.exception("Align failed for track %s", rowid)
+                payload["failed"].append(rowid)
+            payload["done"] = done
+            job_rows.update(conn, job_id, progress=done / total, payload=payload)
+            bus.publish(_event(job_rows.get(conn, job_id)))
+    except asyncio.CancelledError:
+        job_rows.update(conn, job_id, state=job_rows.CANCELLED, message="Server stopped")
+        bus.publish(_event(job_rows.get(conn, job_id)))
+        raise
+    good, bad = len(payload["aligned"]), len(payload["failed"])
+    if total == 1:
+        message = "Aligned" if good else "Couldn't align these lyrics"
+    else:
+        message = f"Aligned {good} of {total}" + (f", couldn't align {bad}" if bad else "")
+    if payload.get("skipped_synced"):
+        message += f", skipped {payload['skipped_synced']} already synced"
+    job_rows.update(conn, job_id, state=job_rows.DONE, progress=1.0, message=message)
     finished = job_rows.get(conn, job_id)
     bus.publish(_event(finished))
     return finished

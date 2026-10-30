@@ -7,6 +7,7 @@ const ACTIONS: { action: TrackAction; label: string }[] = [
   { action: "queue", label: "Add to queue" },
   { action: "playlist", label: "Add to playlist" },
   { action: "details", label: "Edit details" },
+  { action: "align", label: "Auto-align" },
   { action: "remove", label: "Remove" },
 ];
 

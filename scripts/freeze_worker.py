@@ -25,7 +25,9 @@ def main() -> int:
         "--distpath", str(ROOT / "build" / "worker-dist"),
         "--workpath", str(work),
         "--specpath", str(work),
-        "--collect-submodules", "muse",  # Task 3: no other flags were needed
+        "--collect-submodules", "muse",  # Task 3: no other flags were needed (until the aligners)
+        "--collect-data", "uroman",  # M4b preflight: romanization tables
+        "--collect-data", "py3langid",  # M4b preflight: the language model ships in the package
     ])
     archive = Path(shutil.make_archive(
         str(ROOT / "build" / f"muse-worker-{triple}"), "zip",
