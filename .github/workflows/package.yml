@@ -1,13 +1,14 @@
-# Builds the desktop app on the two release targets and smoke-tests it in the real webview. Manual or tag-triggered only: macOS minutes count 10x on a private repo. The worker job freezes torch; Intel Macs get no worker (no torch wheel).
+# Builds the desktop app on the two release targets and smoke-tests it in the real webview. Manual or tag-triggered only: macOS minutes count 10x on a private repo. The worker job freezes torch; Intel Macs get no worker (no torch wheel). Two release flows: a v* tag builds only the app legs and publishes the installers with docs/release-notes/<tag>.md; a worker-v* tag builds only the worker legs and publishes a non-latest release with both zips.
 name: package
 
 on:
   workflow_dispatch:
   push:
-    tags: ["v*", "ci-package-*"]
+    tags: ["v*", "worker-v*", "ci-package-*"]
 
 jobs:
   package:
+    if: ${{ !startsWith(github.ref, 'refs/tags/worker-v') }}
     strategy:
       fail-fast: false
       matrix:
@@ -43,6 +44,7 @@ jobs:
           path: smoke-report.json
 
   worker:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     strategy:
       fail-fast: false
       matrix:
@@ -66,3 +68,38 @@ jobs:
           name: worker-${{ matrix.os }}
           path: build/muse-worker-*.zip
           if-no-files-found: error
+
+  release-worker:
+    needs: worker
+    if: ${{ startsWith(github.ref, 'refs/tags/worker-v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: worker-*
+          merge-multiple: true
+          path: dist
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip --latest=false --title "Smart features worker $GITHUB_REF_NAME" --notes "Worker builds for Muse smart features."
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+
+  release-app:
+    needs: package
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: bundle-*
+          merge-multiple: true
+          path: dist
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.dmg dist/*.exe --title "Muse ${GITHUB_REF_NAME#v}" --notes-file "docs/release-notes/$GITHUB_REF_NAME.md"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

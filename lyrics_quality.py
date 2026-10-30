@@ -53,25 +53,6 @@ TRANSLATION_HEADERS = re.compile(
 SECTION_RE = re.compile(r"^\[[^\]]{2,60}\]", re.M)
 
 
-def clean_genius(text: str, title: str) -> str:
-    """Strip the boilerplate lyricsgenius leaves around the actual lyrics."""
-    # lyricsgenius prepends "{Title} Lyrics\n"
-    text = re.sub(rf"^{re.escape(title)}\s+Lyrics\n", "", text, flags=re.IGNORECASE)
-    # Strip contributor line: "123 ContributorsTitle..."
-    text = re.sub(r"^\d+\s+Contributors?\n", "", text, flags=re.MULTILINE)
-    # Strip "You might also like" injected mid-lyrics
-    text = re.sub(r"You might also like\n?", "", text)
-    # Strip concert/ticket promos Genius injects around the lyrics
-    text = re.sub(r"^.*Get tickets as low as.*$\n?", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^See .+ Live.*$\n?", "", text, flags=re.MULTILINE)
-    # Strip trailing embed marker
-    text = re.sub(r"\d*Embed\s*$", "", text.rstrip())
-    # Normalize line endings and collapse 3+ blank lines
-    text = text.replace("\r\n", "\n")
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
-
-
 def looks_like_tracklist(text: str) -> bool:
     """Detect album/tracklist/booklet pages returned instead of lyrics."""
     head = text[:200].lower()

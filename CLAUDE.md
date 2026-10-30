@@ -64,9 +64,11 @@ installed worker; otherwise they run when `smart.installed()`.
 sentence_transformers, laya or av, and only inside a real encoder's
 `__init__`/handler. The sidecar (`muse/api.py`, `muse/worker.py`,
 `muse/smart.py`) never does. Optional dependency groups: `embed`
-(torch/transformers/sentence-transformers/av/laya) and `ingest`
-(yt-dlp/mutagen/lyricsgenius). The default test run and the app itself never
-import torch; `ImplicitAlsTrainer` imports `implicit` only when explicitly
+(torch/transformers/sentence-transformers/av/laya). There is no `ingest`
+extra: mutagen and PyAV (the m4a remux, `muse/remux.py`) are core
+dependencies, and downloads use the yt-dlp standalone binary
+fetched into `<data dir>/bin` after unlock (`muse/ytdlp.py`). The default
+test run and the app itself never import torch; `ImplicitAlsTrainer` imports `implicit` only when explicitly
 constructed. Everything else runs against deterministic stub
 encoders/trainers.
 
@@ -77,9 +79,16 @@ npm run dev       # vite dev server
 npm run build     # tsc -b && vite build -> web/dist, served by the FastAPI app
 npm run preview
 npm test           # vitest, node environment (pure modules in web/src/player)
+npm --prefix web run e2e   # Playwright browser spec (CI runs it)
 ```
 No lint/format tooling is configured for either side (no ruff/mypy/eslint
 config present) — don't invent one unasked.
+
+`downloads/` (`MUSE_MUSIC_ROOT`) is a scan root when the downloader is
+unlocked or the folder already holds audio. Downloads stage in
+`downloads/.incoming`, which the watcher skips and startup clears; the
+download worker's DB work runs under `chain_lock` (`under_lock` in
+`muse/api.py`).
 
 ## Architecture
 

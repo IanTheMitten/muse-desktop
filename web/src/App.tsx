@@ -16,6 +16,7 @@ import { ShellBridge } from "./components/ShellBridge";
 import { JobsProvider } from "./jobs/JobsContext";
 import { NowPlayingSheet } from "./player/NowPlayingSheet";
 import { PlayerProvider } from "./player/PlayerContext";
+import { useDownloaderUnlocked } from "./useDownloader";
 import { SheetProvider, type SheetOpen } from "./player/SheetContext";
 import { AlbumTracks } from "./views/AlbumTracks";
 import { ArtistAlbums } from "./views/ArtistAlbums";
@@ -63,7 +64,7 @@ export function App() {
                       bookmark or a back button from before the change still lands
                       somewhere that answers the same question. */}
                   <Route path="/search" element={<Navigate to="/library" replace />} />
-                  <Route path="/add" element={<Add />} />
+                  <Route path="/add" element={<AddRoute />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/muse" element={<Muse />} />
                   <Route path="/playlists" element={<Playlists />} />
@@ -87,6 +88,13 @@ export function App() {
       </PlayerProvider>
     </JobsProvider>
   );
+}
+
+/** Add exists only while unlocked; a locked or unanswered install never sees it. */
+function AddRoute() {
+  const unlocked = useDownloaderUnlocked();
+  if (unlocked === null) return null;
+  return unlocked ? <Add /> : <Navigate to="/" replace />;
 }
 
 /** Landing on `/now` or `/lyrics` puts Home underneath and the overlay on top:

@@ -130,6 +130,13 @@ def artist_names(conn, rowid):
     return json.loads(track_row(conn, rowid)["artist_names"])
 
 
+def unlock(config: Config) -> None:
+    from muse import settings
+    s = settings.load(config.settings_path)
+    s["downloader_unlocked"] = True
+    settings.save(config.settings_path, s)
+
+
 def make_config(tmp_path, **overrides) -> Config:
     base = dict(data_dir=tmp_path, library_db=tmp_path / "library.sqlite3",
                 music_root=tmp_path / "MUSIC", art_root=tmp_path / "art",

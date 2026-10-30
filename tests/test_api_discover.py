@@ -24,7 +24,7 @@ from muse.embed import (
     StubLyricsEncoder,
     StubLyricsVAEncoder,
 )
-from tests.conftest import make_config
+from tests.conftest import make_config, unlock
 from muse.library import jobs as job_rows
 
 from tests.conftest import insert_track
@@ -201,11 +201,12 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
     monkeypatch.setattr("muse.api._open_catalog", lambda config: MirrorOffCatalog())
 
     config = _config(tmp_path)
+    unlock(config)
     # `metadata_provider` is deliberately *not* injected: these tests are
     # about the payloads `create_job` builds, and only the real
     # `TieredMetadataProvider` proves a payload resolves at all.
@@ -214,7 +215,6 @@ def client(tmp_path, monkeypatch):
         mb=FakeMusicBrainz(_answers()),
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),
-        genius_client=None,
         # Stub encoders for the same reason `art_provider` is a fake: the
         # defaults are the real CLAP/MiniLM/MER/TextVA, and `run_download`'s
         # final step is an embed backfill that runs whether or not
@@ -865,18 +865,19 @@ def test_mb_release_stamps_the_track_id_the_isrc_joins_to(tmp_path, monkeypatch)
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
     monkeypatch.setattr(
         "muse.api._open_catalog",
         lambda config: MirrorOffCatalog({"GBAAA0000001": "sp-one"}),
     )
+    config = _config(tmp_path)
+    unlock(config)
     app = create_app(
-        _config(tmp_path),
+        config,
         mb=FakeMusicBrainz(_answers()),
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),
-        genius_client=None,
         audio_encoder=StubAudioEncoder(),
         lyrics_encoder=StubLyricsEncoder(),
         audio_va_encoder=StubAudioVAEncoder(),

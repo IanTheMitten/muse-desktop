@@ -3,14 +3,6 @@ import { apiFetch } from "./token";
 
 export type Health = {
   schema_version: number;
-  /** The day the catalog mirror's scrape stopped -- `Config.catalog_freeze`,
-   *  which the server owns and this is the only place it is published. The
-   *  browse screen reads it from here rather than keeping a copy: it is both
-   *  the `since` that decides which of an artist's releases the mirror is
-   *  missing and the sentence that says when the mirror stopped, and a second
-   *  copy of the date in this language is one nothing keeps in step with
-   *  `MUSE_CATALOG_FREEZE`. */
-  catalog_freeze: string;
   tracks: {
     playable: number;
     missing_file: number;
@@ -139,10 +131,27 @@ export type Settings = {
   music_folders: string[];
   downloader_unlocked: boolean;
   folder_status: { path: string; present: boolean; songs: number }[];
+  downloads: { path: string; songs: number } | null;
+  downloader: { installed: boolean; install_state: string | null; update_failed: boolean };
 };
 
 export const getSettings = (signal?: AbortSignal) =>
   get<Settings>("/settings", signal);
+
+export const unlockDownloader = (password: string): Promise<Settings> =>
+  send("POST", "/settings/downloader", { password });
+
+export const lockDownloader = (): Promise<Settings> =>
+  send("DELETE", "/settings/downloader");
+
+export async function installDownloader(): Promise<void> {
+  const response = await apiFetch("/api/downloader/install", { method: "POST" });
+  if (!response.ok) throw await refusal("/downloader/install", response);
+}
+
+export type UpdateInfo = { current: string; latest: string | null; url?: string };
+
+export const getUpdate = (signal?: AbortSignal) => get<UpdateInfo>("/update", signal);
 
 export async function putMusicFolders(folders: string[]): Promise<Settings> {
   const path = "/settings/music_folders";

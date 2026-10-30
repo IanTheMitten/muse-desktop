@@ -101,6 +101,7 @@ fn main() {
             let mut env = HashMap::new();
             env.insert("MUSE_DATA_DIR".to_string(), data_dir.to_string_lossy().into_owned());
             env.insert("MUSE_TOKEN".to_string(), token.clone());
+            env.insert("MUSE_APP_VERSION".to_string(), app.package_info().version.to_string());
             env.insert("MUSE_PARENT_WATCH".to_string(), "1".to_string());
             env.insert("OPENBLAS_NUM_THREADS".to_string(), "1".to_string());
             #[cfg(debug_assertions)]

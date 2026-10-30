@@ -7,12 +7,21 @@ import {
   getSettings,
   putMusicFolders,
   restoreTracks,
+  getUpdate,
+  lockDownloader,
   setArtistHidden,
   startScan,
+  statusOf,
+  unlockDownloader,
   type Settings as SettingsData,
   type Track,
+  type UpdateInfo,
 } from "../api";
+import { Dialog } from "../components/Dialog";
 import { RemoveDialog } from "../components/RemoveDialog";
+import { count } from "../format";
+import { settingsChanged } from "../useDownloader";
+import { isUnlockChord } from "../unlock";
 import { Screen } from "../components/Screen";
 import { gb, useSmart } from "../components/SmartBanner";
 import { useJobs } from "../jobs/JobsContext";
@@ -37,6 +46,19 @@ export function Settings() {
     return () => abort.abort();
   }, [libraryVersion]);
 
+  const [asking, setAsking] = useState(false);
+  const unlocked = data?.downloader_unlocked ?? true;
+  useEffect(() => {
+    if (unlocked) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!isUnlockChord(e)) return;
+      e.preventDefault();
+      setAsking(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [unlocked]);
+
   return (
     <Screen title="Settings" error={loadError} loading={!data}>
       {data && (
@@ -47,6 +69,10 @@ export function Settings() {
           <Duplicates />
           <HiddenArtists />
           <RemovedSongs />
+          <Advanced data={data} setData={setData} />
+          {asking && !unlocked && (
+            <UnlockDialog onClose={() => setAsking(false)} setData={setData} />
+          )}
         </>
       )}
     </Screen>
@@ -131,12 +157,20 @@ function MusicFolders({
             Muse reads these folders and never changes the files in them.
           </p>
 
-          {data.folder_status.length === 0 ? (
+          {data.folder_status.length === 0 && !data.downloads ? (
             <p className="muted settings-empty">
               No folders yet. Add the folder your music lives in.
             </p>
           ) : (
             <ul className="folder-list">
+              {data.downloads && (
+                <li className="folder-row">
+                  <div className="folder-info">
+                    <span className="folder-path">Downloads (kept by Muse)</span>
+                    <span className="folder-state">{count(data.downloads.songs, "song")}</span>
+                  </div>
+                </li>
+              )}
               {data.folder_status.map((folder) => (
                 <li key={folder.path} className="folder-row">
                   <div className="folder-info">
@@ -453,5 +487,124 @@ function RemovedSongs() {
         </ul>
       )}
     </section>
+  );
+}
+
+function Advanced({
+  data,
+  setData,
+}: {
+  data: SettingsData;
+  setData: (next: SettingsData) => void;
+}) {
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  useEffect(() => {
+    const abort = new AbortController();
+    getUpdate(abort.signal).then(
+      (next) => !abort.signal.aborted && setUpdate(next),
+      () => {},
+    );
+    return () => abort.abort();
+  }, []);
+
+  const unlocked = data.downloader_unlocked;
+  const lock = async () => {
+    setData(await lockDownloader());
+    settingsChanged();
+  };
+
+  return (
+    <section className="section" aria-labelledby="advanced-h">
+      <div className="section-head">
+        <h2 id="advanced-h">Advanced</h2>
+      </div>
+      <ul className="folder-list">
+        {update && (
+          <li className="folder-row">
+            <div className="folder-info">
+              <span className="folder-path">Muse {update.current}</span>
+              {update.latest != null && (
+                <a
+                  className="folder-state set-link"
+                  href={update.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => {
+                    if (!shell || !update.url) return;
+                    event.preventDefault();
+                    void shell.shell.open(update.url);
+                  }}
+                >
+                  Muse {update.latest} is out
+                </a>
+              )}
+            </div>
+          </li>
+        )}
+        <li className="folder-row">
+          <div className="folder-info">
+            <span className="folder-path">External downloader</span>
+            <span className="folder-state">
+              {unlocked ? "On. Add is in the menu." : "Plugins are under development."}
+            </span>
+          </div>
+          {unlocked && (
+            <button type="button" className="folder-remove" onClick={lock}>
+              Lock again
+            </button>
+          )}
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+function UnlockDialog({
+  onClose,
+  setData,
+}: {
+  onClose: () => void;
+  setData: (next: SettingsData) => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      setData(await unlockDownloader(password));
+      settingsChanged();
+      setPassword("");
+      onClose();
+    } catch (cause) {
+      setError(statusOf(cause) === 403 ? "That's not it." : "Couldn't unlock. Try again.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog title="Administrator password" onClose={onClose}>
+      <form className="dlg-form" onSubmit={submit}>
+        <div className="field">
+          <label htmlFor="admin-password">Password</label>
+          <input
+            id="admin-password"
+            type="password"
+            autoComplete="off"
+            autoFocus
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
+        <div className="dlg-actions">
+          <button type="submit" className="btn primary" disabled={busy}>Unlock</button>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

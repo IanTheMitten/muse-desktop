@@ -3,7 +3,16 @@
 A local music player and recommender for your own music folders. No account,
 no server: it runs on your machine and only your machine can reach it.
 
-Status: alpha. Run it from source, or build the desktop app below.
+Status: alpha. Install the desktop app below, or run it from source.
+
+## Install
+
+Download the installer for your system from the
+[GitHub Releases](../../releases) page. The builds are unsigned, so the first
+launch needs one extra step:
+
+- **macOS:** right-click the app and choose Open.
+- **Windows:** in the SmartScreen warning choose More info, then Run anyway.
 
 ## Requirements
 
@@ -68,7 +77,7 @@ Everything Muse writes goes under one data dir: `MUSE_DATA_DIR`, default
 - `art/`: album and artist images
 - `settings.json`: your music folders and any songs you dropped in
 - `muse.log`: the desktop app's server log
-- `downloads/`: output of Add, scanned like a music folder
+- `downloads/`: songs Muse saves for you, scanned like a music folder
 - `models/`: smart features (`weights/`, `worker/`, `installed.json`)
 
 Your music folders are never written to.
@@ -165,23 +174,28 @@ cd web && npm test
 
 ## Licenses
 
-Smart features download these models from their original Hugging Face repos
-(Laya's finetune comes from the owner's repo):
+Muse's own code is licensed as stated in this repository.
+
+Smart features download models that are free for non-commercial use only:
 
 - MERT-v1-95M (CC-BY-NC-4.0)
 - audeering wav2vec2 emotion model (CC-BY-NC-SA-4.0)
+- MMS-FA aligner (CC-BY-NC-4.0)
+- schufo aligner, trained on MUSDB18 (`other-nc`)
+
+Muse is free and for non-commercial use.
+
+Other models and components:
+
 - CLAP larger_clap_music_and_speech (Apache-2.0)
 - all-MiniLM-L6-v2 (Apache-2.0)
 - j-hartmann emotion-english-distilroberta-base: its model card states no licence
 - Laya, `convaiinnovations/laya` and the finetune built on it (Apache-2.0)
-
-Two of those are non-commercial, so Muse with smart features is free and
-non-commercial.
+  (downloaded from the owner's Hugging Face repo)
 
 - PyAV decodes audio. PyAV is BSD; its wheels bundle FFmpeg's LGPL libraries.
 - The asterisk in the logo is Phosphor's (MIT).
-- MMS-FA, `MahmoudAshraf/mms-300m-1130-forced-aligner` (CC-BY-NC-4.0), from
-  Meta's MMS
+- MMS-FA is `MahmoudAshraf/mms-300m-1130-forced-aligner`, from Meta's MMS
 - schufo lyrics-aligner (MIT). Schulze-Forster et al., 2021, TASLP 29:2382-2395.
   It was trained on MUSDB18 and its lyrics extension, both licensed
   non-commercial (Zenodo 1117372 and 3989267).

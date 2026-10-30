@@ -24,6 +24,8 @@ import { count } from "../format";
 import { usePlayer, type PlayingFrom } from "../player/PlayerContext";
 import { meshCss, onThemeChange, paletteFor, type Palette } from "../player/wash";
 import { useLoad } from "../useLoad";
+import { useDownloaderUnlocked } from "../useDownloader";
+import { ownedChart } from "../unlock";
 import "../styles/home.css";
 
 /* Home answers "what now?": carry on, choose, look back. Resumption is the
@@ -48,6 +50,7 @@ export function Home() {
     },
     [attempt],
   );
+  const unlocked = useDownloaderUnlocked();
   const { playQueue, current, queue, playing, toggle } = usePlayer();
 
   const from = (label: string): PlayingFrom => ({ kind: "home", label });
@@ -77,7 +80,8 @@ export function Home() {
   // The restored queue's track, else the dashboard's resume track.
   const resumeTrack = current ?? dash?.resume?.track ?? null;
 
-  const chart = data?.chart ?? [];
+  const all = data?.chart ?? [];
+  const chart = unlocked ? all : ownedChart(all);
   const chartTracks = chart.flatMap((s) => (s.track && unplayableReason(s.track) === null ? [s.track] : []));
   const albumShelf = (label: string, albums: LibraryAlbum[]) => (
     <Shelf title={label} show={albums.length > 0}>

@@ -38,14 +38,17 @@ class Config:
     embed_batch: bool = False
     worker_cmd: str | None = None
     taste_retrain_at_launch: bool = True
-    # The date the catalog scrape stopped; anything released after it has no
-    # row in the mirror.
-    catalog_freeze: str = "2025-11-13"
+    # Off here so hand-built Configs stay offline; `from_env` turns it on.
+    update_check: bool = False
     # Seconds between consecutive downloads (scaled up to +50% at random),
     # so a bulk queue does not hit YouTube back to back. See
     # `jobs.run_download_worker`. 0 here so a hand-built Config (every test)
     # runs its queue at once; the running app gets 12 from `from_env`.
     download_gap_seconds: float = 0.0
+    # Where the yt-dlp binary is fetched from. Empty means never fetch, which
+    # is what every hand-built Config (every test) gets; `from_env` sets the
+    # real release URL.
+    ytdlp_release_url: str = ""
     chart_base_url: str = "https://rss.marketingtools.apple.com"
     chart_storefront: str = "us"
     # The API key is deliberately absent from Config: it is read from
@@ -76,8 +79,11 @@ class Config:
             models_dir=store("MUSE_MODELS_DIR", "models"),
             worker_cmd=os.environ.get("MUSE_WORKER_CMD") or None,
             taste_retrain_at_launch=os.environ.get("MUSE_TASTE_RETRAIN", "1") != "0",
-            catalog_freeze=os.environ.get("MUSE_CATALOG_FREEZE", "2025-11-13"),
+            update_check=os.environ.get("MUSE_UPDATE_CHECK", "1") != "0",
             download_gap_seconds=float(os.environ.get("MUSE_DOWNLOAD_GAP_S", "12")),
+            ytdlp_release_url=os.environ.get(
+                "MUSE_YTDLP_URL",
+                "https://github.com/yt-dlp/yt-dlp/releases/latest/download"),
             chart_base_url=os.environ.get(
                 "MUSE_CHART_URL", "https://rss.marketingtools.apple.com"),
             chart_storefront=os.environ.get("MUSE_CHART_STOREFRONT", "us"),

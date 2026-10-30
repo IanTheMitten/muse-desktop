@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --exclude=\"e2e/**\" --exclude=\"node_modules/**\"",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@fontsource-variable/figtree": "5.3.0",
@@ -16,6 +17,7 @@
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^26.2.0",
     "@types/react": "^19.0.0",

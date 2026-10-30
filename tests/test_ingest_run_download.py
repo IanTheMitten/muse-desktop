@@ -64,7 +64,7 @@ def test_full_pipeline_success(conn, tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     result = run_download(
@@ -72,7 +72,7 @@ def test_full_pipeline_success(conn, tmp_path, monkeypatch):
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata()),
         audio_source=FakeAudioSource(tmp_path),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -111,7 +111,7 @@ def test_idempotent_skip_when_already_done(conn, tmp_path):
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata()),
         audio_source=FakeAudioSource(tmp_path),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -130,7 +130,7 @@ def test_error_row_written_before_download_starts(conn, tmp_path):
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata()),
         audio_source=FakeAudioSource(tmp_path, should_fail=True),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -152,7 +152,7 @@ def test_retry_of_error_row_proceeds_into_pipeline(conn, tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     library_tracks.write_pending(
@@ -166,7 +166,7 @@ def test_retry_of_error_row_proceeds_into_pipeline(conn, tmp_path, monkeypatch):
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata()),
         audio_source=FakeAudioSource(tmp_path),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -182,7 +182,7 @@ def test_lyrics_or_art_failure_still_lands_done(conn, tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: (_ for _ in ()).throw(RuntimeError("lyrics API down")),
+        lambda track: (_ for _ in ()).throw(RuntimeError("lyrics API down")),
     )
 
     class RaisingArtProvider:
@@ -194,7 +194,7 @@ def test_lyrics_or_art_failure_still_lands_done(conn, tmp_path, monkeypatch):
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata()),
         audio_source=FakeAudioSource(tmp_path),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=RaisingArtProvider(),
@@ -209,7 +209,7 @@ def test_embed_backfill_called_after_indexing(conn, tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     calls = []
@@ -218,7 +218,7 @@ def test_embed_backfill_called_after_indexing(conn, tmp_path, monkeypatch):
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata()),
         audio_source=FakeAudioSource(tmp_path),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -262,7 +262,7 @@ def no_network(monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
 
@@ -273,7 +273,7 @@ def _deps(tmp_path, *, catalog=None, metadata_provider=None, audio_source=None):
             catalog=catalog or FakeCatalog(), mb=ExplodingMb(), ytdlp_info=None,
         ),
         "audio_source": audio_source or FakeAudioSource(tmp_path),
-        "genius_client": None,
+        "lyrics_root": tmp_path / "lyrics",
         "music_root": tmp_path / "MUSIC",
         "art_root": tmp_path / "art",
         "art_provider": FakeArtProvider(),
@@ -507,7 +507,7 @@ def test_audio_far_longer_than_the_track_is_refused(conn, tmp_path, monkeypatch)
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     result = run_download(
@@ -515,7 +515,7 @@ def test_audio_far_longer_than_the_track_is_refused(conn, tmp_path, monkeypatch)
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata(duration_ms=20502)),
         audio_source=FakeAudioSource(tmp_path, duration_s=3130),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -544,7 +544,7 @@ def test_a_download_a_little_longer_than_the_track_is_kept(conn, tmp_path, monke
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     result = run_download(
@@ -552,7 +552,7 @@ def test_a_download_a_little_longer_than_the_track_is_kept(conn, tmp_path, monke
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata(duration_ms=225000)),
         audio_source=FakeAudioSource(tmp_path, duration_s=250),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -571,7 +571,7 @@ def test_a_source_that_reports_no_duration_is_not_refused(conn, tmp_path, monkey
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     result = run_download(
@@ -579,7 +579,7 @@ def test_a_source_that_reports_no_duration_is_not_refused(conn, tmp_path, monkey
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata(duration_ms=20502)),
         audio_source=FakeAudioSource(tmp_path, duration_s=None),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -597,7 +597,7 @@ def test_a_track_of_unknown_length_is_not_refused(conn, tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     result = run_download(
@@ -605,7 +605,7 @@ def test_a_track_of_unknown_length_is_not_refused(conn, tmp_path, monkeypatch):
         payload={"track_rowid": 100},
         metadata_provider=FakeMetadataProvider(_metadata(duration_ms=None)),
         audio_source=FakeAudioSource(tmp_path, duration_s=3130),
-        genius_client=None,
+        lyrics_root=tmp_path / "lyrics",
         music_root=tmp_path / "MUSIC",
         art_root=tmp_path / "art",
         art_provider=FakeArtProvider(),
@@ -668,3 +668,204 @@ def test_a_done_track_id_holder_short_circuits_the_download(
 
     assert result.message == "already in library"
     assert result.track_rowid == 7
+
+
+# --- Staged, locked, LRCLIB-only pipeline -------------------------------------
+
+
+def _staged_deps(tmp_path, audio_source):
+    return {
+        "metadata_provider": FakeMetadataProvider(_metadata()),
+        "audio_source": audio_source,
+        "lyrics_root": tmp_path / "lyrics",
+        "music_root": tmp_path / "MUSIC",
+        "art_root": tmp_path / "art",
+        "art_provider": FakeArtProvider(),
+        "embed_backfill": lambda: None,
+    }
+
+
+def _files(path):
+    return [p for p in path.rglob("*") if p.is_file()]
+
+
+class RecordingSource(FakeAudioSource):
+    def __init__(self, tmp_path):
+        super().__init__(tmp_path)
+        self.out_dir = None
+        self.base_name = None
+
+    def fetch(self, *, query, out_dir, base_name):
+        self.out_dir, self.base_name = out_dir, base_name
+        return super().fetch(query=query, out_dir=out_dir, base_name=base_name)
+
+
+def test_audio_is_staged_then_moved_to_its_final_path(conn, tmp_path, no_network):
+    source = RecordingSource(tmp_path)
+
+    result = run_download(
+        conn, payload={"track_rowid": 100}, **_staged_deps(tmp_path, source)
+    )
+
+    assert result.status == "done"
+    assert source.out_dir == tmp_path / "MUSIC" / ".incoming"
+    assert source.base_name == "100"
+    final = (tmp_path / "MUSIC").resolve() / "Radiohead" / "OK Computer" / "01 - Airbag.m4a"
+    row = conn.execute("SELECT * FROM tracks WHERE track_rowid = 100").fetchone()
+    assert row["file_path"] == str(final)
+    assert final.exists()
+    assert _files(tmp_path / "MUSIC" / ".incoming") == []
+
+
+def test_an_existing_final_file_is_never_overwritten(conn, tmp_path, no_network):
+    final = tmp_path / "MUSIC" / "Radiohead" / "OK Computer" / "01 - Airbag.m4a"
+    final.parent.mkdir(parents=True)
+    final.write_bytes(b"keep")
+
+    result = run_download(
+        conn, payload={"track_rowid": 100},
+        **_staged_deps(tmp_path, FakeAudioSource(tmp_path)),
+    )
+
+    assert result.status == "error"
+    assert result.message == "Already in downloads"
+    assert final.read_bytes() == b"keep"
+    assert _files(tmp_path / "MUSIC" / ".incoming") == []
+    row = conn.execute("SELECT * FROM tracks WHERE track_rowid = 100").fetchone()
+    assert row["status"] == "error"
+
+
+def test_lyrics_land_in_the_lyrics_root_not_beside_the_audio(
+    conn, tmp_path, monkeypatch
+):
+    import muse.ingest as ingest_mod
+    from muse.lyrics import lyrics_files
+    from tests.test_lyrics_sync import SYNCED_LRC, _candidate
+
+    monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
+    monkeypatch.setattr(
+        ingest_mod, "search_lrclib",
+        lambda *a, **k: [_candidate(
+            duration=284, syncedLyrics=SYNCED_LRC, trackName="Airbag",
+            artistName="Radiohead", albumName="OK Computer",
+        )],
+    )
+
+    result = run_download(
+        conn, payload={"track_rowid": 100},
+        **_staged_deps(tmp_path, FakeAudioSource(tmp_path)),
+    )
+
+    assert result.status == "done", result.message
+    txt, lrc = lyrics_files(tmp_path / "lyrics", 100)
+    assert txt.exists() and lrc.exists()
+    row = conn.execute("SELECT * FROM tracks WHERE track_rowid = 100").fetchone()
+    assert row["lyrics_path"] == str(txt)
+    assert library_lyrics_state.get_state(conn, 100) == "synced"
+    assert list((tmp_path / "MUSIC").rglob("*.lyrics.txt")) == []
+
+
+def test_the_fetch_runs_outside_the_lock_and_the_writes_inside(
+    conn, tmp_path, no_network
+):
+    state = {"held": False, "calls": 0, "held_at_fetch": None}
+
+    def under_lock(fn):
+        state["calls"] += 1
+        state["held"] = True
+        try:
+            return fn()
+        finally:
+            state["held"] = False
+
+    class LockWatchingSource(FakeAudioSource):
+        def fetch(self, **kwargs):
+            state["held_at_fetch"] = state["held"]
+            return super().fetch(**kwargs)
+
+    result = run_download(
+        conn, payload={"track_rowid": 100}, under_lock=under_lock,
+        **_staged_deps(tmp_path, LockWatchingSource(tmp_path)),
+    )
+
+    assert result.status == "done"
+    assert state["held_at_fetch"] is False
+    assert state["calls"] >= 2
+
+
+def test_a_scan_between_lock_calls_cannot_take_the_download_rowid(
+    conn, tmp_path, no_network
+):
+    from muse.library import tracks as library_tracks
+
+    inserted = []
+    state = {"n": 0}
+
+    def under_lock(fn):
+        state["n"] += 1
+        if state["n"] > 1:
+            rowid = library_tracks.next_local_rowid(conn)
+            insert_track(conn, rowid, track_id=None, track_name="Scanned",
+                         file_path=str(tmp_path / f"s{state['n']}.m4a"))
+            inserted.append((rowid, str(tmp_path / f"s{state['n']}.m4a")))
+        return fn()
+
+    result = run_download(
+        conn, payload={"url": "https://x", "artist_name": "A", "track_name": "T"},
+        under_lock=under_lock, **_staged_deps(tmp_path, FakeAudioSource(tmp_path)),
+    )
+
+    assert result.status == "done"
+    assert result.track_rowid not in [r for r, _ in inserted]
+    for rowid, path in inserted:
+        row = conn.execute(
+            "SELECT track_name, file_path FROM tracks WHERE track_rowid = ?", (rowid,)
+        ).fetchone()
+        assert row["track_name"] == "Scanned" and row["file_path"] == path
+
+
+def test_a_scan_between_the_steps_neither_duplicates_nor_rescans(
+    conn, tmp_path, no_network
+):
+    from muse.scanner import scan
+    from tests.test_scanner import ft
+
+    music = tmp_path / "MUSIC"
+
+    class ScanningSource(FakeAudioSource):
+        def fetch(self, **kwargs):
+            result = super().fetch(**kwargs)
+            scan(conn, [music], lyrics_root=tmp_path / "lyrics",
+                 art_root=tmp_path / "art", read_tags=lambda p: ft())
+            return result
+
+    result = run_download(
+        conn, payload={"track_rowid": 100},
+        **_staged_deps(tmp_path, ScanningSource(tmp_path)),
+    )
+
+    assert result.status == "done", result.message
+
+    def no_reread(p):
+        raise AssertionError("second scan re-read tags")
+
+    second = scan(conn, [music], lyrics_root=tmp_path / "lyrics",
+                  art_root=tmp_path / "art", read_tags=no_reread)
+    assert conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0] == 1
+    assert second.unchanged == 1
+
+
+def test_a_failed_fetch_leaves_nothing_staged(conn, tmp_path, no_network):
+    class BoomSource(FakeAudioSource):
+        def fetch(self, *, query, out_dir, base_name):
+            out_dir.mkdir(parents=True, exist_ok=True)
+            (out_dir / f"{base_name}.m4a").write_bytes(b"half")
+            raise RuntimeError("boom")
+
+    result = run_download(
+        conn, payload={"track_rowid": 100},
+        **_staged_deps(tmp_path, BoomSource(tmp_path)),
+    )
+
+    assert result.status == "error"
+    assert _files(tmp_path / "MUSIC" / ".incoming") == []

@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 
 import {
   getJobs,
+  getSettings,
+  installDownloader,
   getMbReleases,
   getMbTracks,
   queueDownload,
@@ -14,6 +16,7 @@ import {
   type MbReleaseGroup,
   type MbTrack,
   type MbTracklist,
+  type Settings,
   type SkippedTrack,
   type ReleaseKind,
 } from "../api";
@@ -148,6 +151,7 @@ export function Add() {
   return (
     <Screen title="Add" subtitle="Search MusicBrainz, or paste a link">
       <div className="add">
+      <DownloaderStatus />
       <Activity open={sheetOpen} onOpen={() => setSheetOpen(true)} onClose={() => setSheetOpen(false)} />
 
       {step.at === "search" && (
@@ -614,6 +618,55 @@ function FromLink({ url, onQueued }: { url: string; onQueued: () => void }) {
   );
 }
 
+/** One sentence about the downloader, or nothing when it is ready. */
+function DownloaderStatus() {
+  const { job: lastEvent } = useJobs();
+  const [downloader, setDownloader] = useState<Settings["downloader"] | null>(null);
+  const [reload, setReload] = useState(0);
+
+  const installEvent = lastEvent?.kind === "ytdlp_install" ? lastEvent : null;
+  useEffect(() => {
+    const abort = new AbortController();
+    getSettings(abort.signal)
+      .then((settings) => setDownloader(settings.downloader))
+      .catch(() => {});
+    return () => abort.abort();
+  }, [installEvent, reload]);
+
+  if (!downloader) return null;
+  if (downloader.installed) {
+    return downloader.update_failed ? (
+      <p className="add-note" role="status">
+        Couldn't update the downloader. Downloads may fail until it updates.
+      </p>
+    ) : null;
+  }
+  if (downloader.install_state === "queued" || downloader.install_state === "running") {
+    return (
+      <p className="add-note" role="status">
+        Getting the downloader…
+      </p>
+    );
+  }
+  return (
+    <>
+      <p className="error" role="alert">
+        Couldn't get the downloader.
+      </p>
+      <button
+        className="button button-quiet"
+        onClick={() =>
+          installDownloader()
+            .catch(() => {})
+            .then(() => setReload((n) => n + 1))
+        }
+      >
+        <RetryIcon className="icon icon-sm" /> Try again
+      </button>
+    </>
+  );
+}
+
 /** The strip, and the sheet behind it. Not a destination: what is running is
  *  something you glance at on the way past. */
 function Activity({
@@ -687,6 +740,12 @@ function Activity({
  *  not enough. */
 function humanError(message: string | null): string {
   if (!message) return "It failed, with nothing to say about why.";
+  if (/No m4a audio/.test(message)) return "No m4a audio for this video. Try another link.";
+  if (/Downloader missing/.test(message)) {
+    return "The downloader was missing. Muse is getting it again, so retry in a minute.";
+  }
+  if (/Already in downloads/.test(message)) return "A file with this name is already in Downloads.";
+  if (/Downloader locked/.test(message)) return "Stopped when the downloader was locked.";
   if (/Sign in to confirm/i.test(message)) {
     return "YouTube wants a signed-in session for this one.";
   }

@@ -106,6 +106,17 @@ def _insert(conn, path, st, f, now, lyrics_root, art_root, pic) -> None:
         log.warning("embedded art write failed for %s: %s", path, e)
 
 
+def holds_audio(folder: Path) -> bool:
+    if not folder.is_dir():
+        return False
+    for _, dirnames, filenames in os.walk(folder, followlinks=False):
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+        if any(not n.startswith(".") and Path(n).suffix.lower() in AUDIO_EXTENSIONS
+               for n in filenames):
+            return True
+    return False
+
+
 def scan(
     conn: sqlite3.Connection,
     folders: list[Path],

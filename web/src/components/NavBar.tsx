@@ -1,7 +1,6 @@
 import { NavLink } from "react-router-dom";
 
-import { getSettings } from "../api";
-import { useLoad } from "../useLoad";
+import { useDownloaderUnlocked } from "../useDownloader";
 import {
   AddGlyph,
   BrandMark,
@@ -28,8 +27,8 @@ const ADD = { to: "/add", label: "Add", end: false, icon: <AddGlyph /> };
 const SETTINGS = { to: "/settings", label: "Settings", end: false, icon: <SettingsGlyph /> };
 
 export function NavBar() {
-  const { data } = useLoad((signal) => getSettings(signal), []);
-  const tabs = data?.downloader_unlocked ? [...TABS, ADD, SETTINGS] : [...TABS, SETTINGS];
+  const unlocked = useDownloaderUnlocked();
+  const tabs = unlocked ?[...TABS, ADD, SETTINGS] : [...TABS, SETTINGS];
   return (
     <nav className="nav" aria-label="Sections">
       <span className="nav-brand">muse<BrandMark /></span>

@@ -1,9 +1,12 @@
 import asyncio
+import hashlib
 
 import pytest
 
+from muse import ytdlp
 from muse.ingest import DownloadResult
-from muse.jobs import DOWNLOAD, JobBus, run_download_job, run_download_worker
+from muse.jobs import (
+    DOWNLOAD, JobBus, run_download_job, run_download_worker, run_ytdlp_install)
 from muse.library import jobs as job_rows
 
 
@@ -181,3 +184,110 @@ async def test_worker_has_no_gap_by_default(conn):
     )
     await _drain(queue, worker)
     assert slept == []
+
+
+# --- before_drain: `yt-dlp -U` once per drain -----------------------------
+
+
+def _ok_download(conn_, **kwargs):
+    return DownloadResult(status="done", message="ok", track_rowid=100)
+
+
+async def _run_with_hook(conn, queue, before_drain):
+    bus = JobBus()
+    bus.attach(asyncio.get_running_loop())
+    worker = asyncio.create_task(
+        run_download_worker(conn, queue, _ok_download, lambda payload: {},
+                            bus, before_drain=before_drain)
+    )
+    await _drain(queue, worker)
+
+
+@pytest.mark.asyncio
+async def test_before_drain_runs_once_for_a_batch(conn):
+    queue: asyncio.Queue = asyncio.Queue()
+    for track_rowid in (100, 101, 102):
+        queue.put_nowait(job_rows.create(conn, DOWNLOAD, {"track_rowid": track_rowid}))
+    calls = []
+
+    async def before_drain():
+        calls.append(True)
+
+    await _run_with_hook(conn, queue, before_drain)
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_before_drain_runs_again_after_idle(conn):
+    bus = JobBus()
+    bus.attach(asyncio.get_running_loop())
+    queue: asyncio.Queue = asyncio.Queue()
+    calls = []
+
+    async def before_drain():
+        calls.append(True)
+
+    worker = asyncio.create_task(
+        run_download_worker(conn, queue, _ok_download, lambda payload: {},
+                            bus, before_drain=before_drain)
+    )
+    queue.put_nowait(job_rows.create(conn, DOWNLOAD, {"track_rowid": 100}))
+    for _ in range(200):
+        await asyncio.sleep(0)
+    queue.put_nowait(job_rows.create(conn, DOWNLOAD, {"track_rowid": 101}))
+    await _drain(queue, worker)
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_raising_before_drain_does_not_stop_the_job(conn):
+    queue: asyncio.Queue = asyncio.Queue()
+    job_id = job_rows.create(conn, DOWNLOAD, {"track_rowid": 100})
+    queue.put_nowait(job_id)
+
+    async def before_drain():
+        raise RuntimeError("boom")
+
+    await _run_with_hook(conn, queue, before_drain)
+    assert job_rows.get(conn, job_id)["state"] == job_rows.DONE
+
+
+# --- run_ytdlp_install ----------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ytdlp_install_job_errors_without_a_base_url(conn, tmp_path):
+    bus = JobBus()
+    bus.attach(asyncio.get_running_loop())
+    finished = await run_ytdlp_install(conn, bus, tmp_path, "")
+    assert finished["state"] == job_rows.ERROR
+    assert finished["message"] == "Couldn't get the downloader"
+
+
+class _Resp:
+    def __init__(self, content: bytes):
+        self.content = content
+
+    def raise_for_status(self):
+        pass
+
+
+class _Session:
+    def __init__(self, base: str, sums: bytes, body: bytes):
+        self.files = {f"{base}/SHA2-256SUMS": sums, f"{base}/{ytdlp.asset_name()}": body}
+
+    def get(self, url, timeout=None):
+        return _Resp(self.files[url])
+
+
+@pytest.mark.asyncio
+async def test_ytdlp_install_job_installs_the_binary(conn, tmp_path):
+    bus = JobBus()
+    bus.attach(asyncio.get_running_loop())
+    body = b"#!fake"
+    sums = f"{hashlib.sha256(body).hexdigest()}  {ytdlp.asset_name()}\n".encode()
+    base = "https://example.test/dl"
+    finished = await run_ytdlp_install(
+        conn, bus, tmp_path, base, session=_Session(base, sums, body))
+    assert finished["state"] == job_rows.DONE
+    assert ytdlp.binary_path(tmp_path).exists()
