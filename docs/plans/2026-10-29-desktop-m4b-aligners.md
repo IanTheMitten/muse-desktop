@@ -459,12 +459,8 @@ Round note: Task 11 commits red tests. Tasks 7-10 and 12 verify with their own t
 **Why:** CLAUDE.md asks for CONTEXT.md updates with new terms, and the licences carry attribution duties.
 
 ### Task 18: CI tag run for the worker and app [mechanical]
-- [!] status
-**Stuck-report:**
-cause-class: env-blocker
-attempts: 0 agent runs | owner: needs-Ian
-blocking: none
-detail: Step 1 requires an explicit owner yes before pushing a tag (billed macOS minutes). Not given in this session, so nothing was pushed. Branch worktree-m4b-plan is unpushed. Run Task 18 steps 2-4 after approval.
+- [x] status
+**Result (owner approved 2026-10-30):** run https://github.com/IanTheMitten/muse-desktop/actions/runs/40985216271 conclusion `success`. Legs: package macos-15, macos-15-intel, windows-latest all success; worker macos-15, windows-latest success (align smoke included). Artifacts: worker-macos-15 406675172 B, worker-windows-latest 285578949 B, bundle-macos-15 43495525 B, bundle-macos-15-intel 47938652 B, bundle-windows-latest 64680451 B, smoke-* ~270 B.
 **Objective:** The packaging workflow runs green on all legs with the align smoke, and the worker zips are available as artifacts.
 **Write-scope:** `docs/plans/2026-10-29-desktop-m4b-aligners.md`
 **Read-context:** `.github/workflows/package.yml:1-70`
