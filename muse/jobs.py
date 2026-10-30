@@ -642,7 +642,7 @@ async def run_download_job(
     create-is-already-done -> update(running) -> work -> update(done|error)
     -> bus.publish shape, so /api/jobs/stream needs no changes to carry
     'download' events. `run_download_fn` is `ingest.run_download`, injected
-    so tests substitute a fake without touching yt-dlp/mutagen/Genius.
+    so tests substitute a fake without touching yt-dlp/mutagen.
     """
     job_rows.update(conn, job_id, state=job_rows.RUNNING,
                       message="Downloading")
