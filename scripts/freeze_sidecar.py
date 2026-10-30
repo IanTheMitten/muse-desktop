@@ -30,7 +30,7 @@ def main() -> int:
         "--add-data", f"{ROOT / 'muse' / 'smart_manifest.json'}{os.pathsep}muse",
         "--collect-submodules", "uvicorn",
         "--collect-submodules", "muse",
-        *[a for m in ("torch", "transformers", "sentence_transformers", "laya", "av") for a in ("--exclude-module", m)],
+        *[a for m in ("torch", "transformers", "sentence_transformers", "laya") for a in ("--exclude-module", m)],
     ])
     return 0
 

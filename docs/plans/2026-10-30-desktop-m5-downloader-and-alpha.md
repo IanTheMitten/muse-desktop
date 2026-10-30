@@ -161,7 +161,7 @@ CONSTRAINTS: WCAG AA; no layout shift beyond removed rows; no em dash; no disabl
 ## Phase 1 - Foundation, preflight and the binary helper
 
 ### Task 1: Move PyAV into core and add the stream-copy remux
-- [ ] status
+- [x] status
 **Objective:** `av==19.0.2` is a core dependency, the sidecar freeze keeps it, and `muse.remux.remux_m4a` stream-copies an m4a in place, proven by tests.
 **Write-scope:**
 `pyproject.toml`

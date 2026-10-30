@@ -577,6 +577,7 @@ name = "muse"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "av" },
     { name = "fastapi" },
     { name = "implicit" },
     { name = "mutagen" },
@@ -589,7 +590,6 @@ dependencies = [
 
 [package.optional-dependencies]
 embed = [
-    { name = "av" },
     { name = "laya" },
     { name = "numpy" },
     { name = "py3langid" },
@@ -617,7 +617,7 @@ package = [
 
 [package.metadata]
 requires-dist = [
-    { name = "av", marker = "extra == 'embed'", specifier = "==19.0.2" },
+    { name = "av", specifier = "==19.0.2" },
     { name = "fastapi" },
     { name = "implicit" },
     { name = "laya", marker = "extra == 'embed'", specifier = "==0.3.20" },

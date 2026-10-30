@@ -12,6 +12,7 @@ dependencies = [
     "implicit",
     "numpy",
     "send2trash>=2.1.0",
+    "av==19.0.2",
 ]
 
 # Worker only: the frozen ML worker (and dev/slow tests) import these; the
@@ -23,7 +24,6 @@ embed = [
     "transformers==5.22.0",
     "sentence-transformers==6.2.0",
     "numpy",
-    "av==19.0.2",
     "laya==0.3.20",
     "uroman==1.3.1.1",
     "py3langid==0.4.0",
