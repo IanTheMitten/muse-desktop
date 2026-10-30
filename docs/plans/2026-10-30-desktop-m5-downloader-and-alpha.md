@@ -333,7 +333,7 @@ Negative result is a valid outcome.
 ## Phase 3 - The API: wiring, lock, update check
 
 ### Task 8: Wire the API to the binary, the lock bridge and the new pipeline
-- [ ] status
+- [x] status
 **Objective:** `create_app` drives downloads through `muse/ytdlp.py` and the new `run_download` (lyrics root, `under_lock`, `before_drain`), Genius is gone from the API, and the existing API tests pass again.
 **Write-scope:**
 `muse/api.py`

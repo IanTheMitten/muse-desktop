@@ -46,6 +46,10 @@ class Config:
     # `jobs.run_download_worker`. 0 here so a hand-built Config (every test)
     # runs its queue at once; the running app gets 12 from `from_env`.
     download_gap_seconds: float = 0.0
+    # Where the yt-dlp binary is fetched from. Empty means never fetch, which
+    # is what every hand-built Config (every test) gets; `from_env` sets the
+    # real release URL.
+    ytdlp_release_url: str = ""
     chart_base_url: str = "https://rss.marketingtools.apple.com"
     chart_storefront: str = "us"
     # The API key is deliberately absent from Config: it is read from
@@ -78,6 +82,9 @@ class Config:
             taste_retrain_at_launch=os.environ.get("MUSE_TASTE_RETRAIN", "1") != "0",
             catalog_freeze=os.environ.get("MUSE_CATALOG_FREEZE", "2025-11-13"),
             download_gap_seconds=float(os.environ.get("MUSE_DOWNLOAD_GAP_S", "12")),
+            ytdlp_release_url=os.environ.get(
+                "MUSE_YTDLP_URL",
+                "https://github.com/yt-dlp/yt-dlp/releases/latest/download"),
             chart_base_url=os.environ.get(
                 "MUSE_CHART_URL", "https://rss.marketingtools.apple.com"),
             chart_storefront=os.environ.get("MUSE_CHART_STOREFRONT", "us"),

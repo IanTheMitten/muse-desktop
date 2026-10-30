@@ -11,6 +11,7 @@ import hmac
 import json
 import logging
 import os
+import shutil
 import sqlite3
 import time
 from contextlib import asynccontextmanager
@@ -32,6 +33,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from . import embed as embed_module
+from . import ytdlp
 from . import content_embed_batch, lyric_tag_batch, settings, smart, taste_retrain
 from . import library
 from .art import ChainedArtProvider, CoverArtArchive, ItunesArt, YtdlpThumbnailArt
@@ -40,7 +42,7 @@ from .config import Config
 from . import arc_engine, charts, discover, nearest, reco, recommend, request_spec
 from .content import CONTENT_EMBED
 from .feedback import feedback_score
-from .ingest import TieredMetadataProvider, YtDlpAudioSource, build_genius_client, run_download
+from .ingest import TieredMetadataProvider, YtDlpAudioSource, run_download
 from .align_text import lyric_lines
 from .jobs import (
     ALIGN,
@@ -57,6 +59,7 @@ from .jobs import (
     run_embed_backfill,
     run_align_job,
     run_smart_install,
+    run_ytdlp_install,
 )
 from .library import art as library_art
 from .library import content as library_content
@@ -368,52 +371,6 @@ def _open_catalog(config: Config):
     return EmptyCatalog()
 
 
-def _ytdlp_thumbnail_search(artist_name: str, album_name: str) -> str | None:
-    """Real `thumbnail_url` callback for `YtdlpThumbnailArt`: one yt-dlp
-    search per album. Only ever called from inside `ChainedArtProvider
-    .cover()`, which both `run_download`'s art step and `art_backfill`
-    already wrap in try/except — a machine without the `ingest` extra
-    installed just gets no cover from this tier, not a crash. `YoutubeDL`
-    is `muse.ingest`'s already-guarded name (None when yt-dlp isn't
-    installed), not a fresh unguarded import here.
-    """
-    from .ingest import YoutubeDL
-    if YoutubeDL is None:
-        return None
-    try:
-        with YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True}) as ydl:
-            info = ydl.extract_info(
-                f"ytsearch1:{artist_name} - {album_name}", download=False
-            )
-        entry = info["entries"][0] if isinstance(info, dict) and info.get("entries") else info
-        return entry.get("thumbnail") if isinstance(entry, dict) else None
-    except Exception:
-        return None
-
-
-def _ytdlp_probe_info(query_or_url: str) -> dict | None:
-    """Real `ytdlp_info` callback for `TieredMetadataProvider`'s last-resort
-    tier: one yt-dlp metadata probe, no download. This is what lets a
-    `POST /api/jobs` payload with no `track_rowid` (an explicit `url`, or
-    free-text artist/track) resolve at all -- without it, that tier's
-    `if self._ytdlp_info is not None` guard is always False and every such
-    payload fails to resolve. Same guarded-`YoutubeDL`/broad-except shape
-    as `_ytdlp_thumbnail_search`, for the same reason: a machine without
-    the `ingest` extra gets no result from this tier, not a crash.
-    """
-    from .ingest import YoutubeDL
-    if YoutubeDL is None:
-        return None
-    try:
-        with YoutubeDL({"quiet": True, "no_warnings": True, "skip_download": True}) as ydl:
-            info = ydl.extract_info(query_or_url, download=False)
-        if isinstance(info, dict) and info.get("entries"):
-            return info["entries"][0]
-        return info
-    except Exception:
-        return None
-
-
 def _release_for_group(mb, release_group_mbid: str) -> dict | None:
     """A release group, collapsed to the one release a download should use.
 
@@ -482,7 +439,6 @@ def create_app(
     lyrics_va_encoder=None,
     metadata_provider=None,
     audio_source=None,
-    genius_client=None,
     chart_fetch=None,
     taste_trainer=None,
     read_tags=None,
@@ -494,9 +450,9 @@ def create_app(
     `audio_encoder`/`lyrics_encoder`/`audio_va_encoder`/`lyrics_va_encoder`
     are injectable the same way, so tests can exercise `config.embed_batch`
     without loading CLAP, MiniLM, or the emotion models; all default to the
-    real thing. `metadata_provider`/`audio_source`/`genius_client` are
+    real thing. `metadata_provider`/`audio_source` are
     injectable the same way, so tests exercise `POST /api/jobs` without
-    touching yt-dlp, MusicBrainz, or Genius."""
+    touching yt-dlp or MusicBrainz."""
     config = config or Config.from_env()
     bus = JobBus()
     install_tasks: set[asyncio.Task] = set()
@@ -525,6 +481,8 @@ def create_app(
             worker_command(config.models_dir, config.worker_cmd))
         loop = asyncio.get_running_loop()
         bus.attach(loop)
+        binary = ytdlp.binary_path(config.data_dir)
+        app.state.ytdlp_update_failed = False
 
         version = library.current_version(conn)
         log.info("Library at %s, schema version %d", config.library_db, version)
@@ -545,6 +503,7 @@ def create_app(
             + job_rows.abandon_running_of_kind(conn, LYRICS_SYNC)
             + job_rows.abandon_running_of_kind(conn, smart.SMART_INSTALL)
             + job_rows.abandon_running_of_kind(conn, ALIGN)
+            + job_rows.abandon_running_of_kind(conn, ytdlp.YTDLP_INSTALL)
         )
         for stale_job_id in job_rows.running_ids_of_kind(conn, DOWNLOAD):
             job_rows.update(conn, stale_job_id, state=job_rows.ERROR,
@@ -552,6 +511,7 @@ def create_app(
             abandoned += 1
         if abandoned:
             log.info("Closed %d job(s) interrupted by a restart", abandoned)
+        shutil.rmtree(config.music_root / ".incoming", ignore_errors=True)
 
         sweeper = asyncio.create_task(_sweep_forever(conn))
 
@@ -595,6 +555,14 @@ def create_app(
         # Scan, lyrics, art, then a stale retrain, one step at a time: the
         # shared connection cannot hold two transactions at once.
         app.state.chain_lock = chain_lock = asyncio.Lock()
+
+        def under_lock(fn):
+            # Called from the download worker thread: run `fn` in a thread of
+            # its own while holding the chain lock on the event loop.
+            async def locked():
+                async with chain_lock:
+                    return await asyncio.to_thread(fn)
+            return asyncio.run_coroutine_threadsafe(locked(), loop).result()
 
         async def run_chain(launch: bool) -> None:
             async with chain_lock:
@@ -693,12 +661,35 @@ def create_app(
 
         resolved_metadata_provider = metadata_provider or TieredMetadataProvider(
             catalog=_open_catalog(config), mb=resolved_mb,
-            ytdlp_info=_ytdlp_probe_info,
+            ytdlp_info=lambda q: ytdlp.probe(binary, q),
         )
-        resolved_audio_source = audio_source or YtDlpAudioSource()
-        resolved_genius_client = (
-            genius_client if genius_client is not None else build_genius_client()
-        )
+        resolved_audio_source = audio_source or YtDlpAudioSource(binary)
+
+        def start_ytdlp_install() -> None:
+            if job_rows.active(conn, ytdlp.YTDLP_INSTALL):
+                return
+            task = asyncio.create_task(run_ytdlp_install(
+                conn, bus, config.data_dir, config.ytdlp_release_url,
+                session=getattr(app.state, "ytdlp_session", None)))
+            install_tasks.add(task)
+            task.add_done_callback(install_tasks.discard)
+
+        app.state.start_ytdlp_install = start_ytdlp_install
+
+        async def update_ytdlp() -> None:
+            app.state.ytdlp_update_failed = not await asyncio.to_thread(
+                ytdlp.update, binary)
+
+        async def before_drain() -> None:
+            if not binary.exists():
+                start_ytdlp_install()
+            else:
+                await update_ytdlp()
+
+        if settings.load(config.settings_path)["downloader_unlocked"] and binary.exists():
+            task = asyncio.create_task(update_ytdlp())
+            install_tasks.add(task)
+            task.add_done_callback(install_tasks.discard)
         # The same injected art_provider serves both art_backfill (above)
         # and run_download's art step when the caller passes one explicitly
         # (tests). Production: backfill is MusicBrainz then iTunes, with no
@@ -707,7 +698,9 @@ def create_app(
         resolved_art_provider = art_provider or ChainedArtProvider([
             CoverArtArchive(mb=resolved_mb),
             itunes_art,
-            YtdlpThumbnailArt(session=None, thumbnail_url=_ytdlp_thumbnail_search),
+            YtdlpThumbnailArt(session=None, thumbnail_url=lambda artist, album: (
+                ytdlp.probe(binary, f"ytsearch1:{artist} - {album}") or {}
+            ).get("thumbnail")),
         ])
 
         def _payload_to_kwargs(payload: dict) -> dict:
@@ -715,8 +708,9 @@ def create_app(
                 "payload": payload,
                 "metadata_provider": resolved_metadata_provider,
                 "audio_source": resolved_audio_source,
-                "genius_client": resolved_genius_client,
                 "music_root": config.music_root,
+                "lyrics_root": config.lyrics_root,
+                "under_lock": under_lock,
                 "art_root": config.art_root,
                 "art_provider": resolved_art_provider,
                 "embed_backfill": lambda: asyncio.run_coroutine_threadsafe(
@@ -741,7 +735,8 @@ def create_app(
         download_worker = asyncio.create_task(
             run_download_worker(conn, download_queue, run_download,
                                   _payload_to_kwargs, bus, content_backfill,
-                                  gap_seconds=config.download_gap_seconds)
+                                  gap_seconds=config.download_gap_seconds,
+                                  before_drain=before_drain)
         )
         for queued_job_id in job_rows.queued_ids_of_kind(conn, DOWNLOAD):
             download_queue.put_nowait(queued_job_id)

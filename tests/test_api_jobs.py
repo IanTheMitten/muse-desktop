@@ -92,7 +92,7 @@ def client(tmp_path, monkeypatch):
     from muse.lyrics_lrclib import SyncOutcome
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
     # create_job's "track" branch looks up the track's name via the real
@@ -108,7 +108,6 @@ def client(tmp_path, monkeypatch):
         config,
         metadata_provider=FakeMetadataProvider(),
         audio_source=FakeAudioSource(),
-        genius_client=None,
         # Without this, create_app's default is the real ChainedArtProvider
         # (CoverArtArchive + YtdlpThumbnailArt), which would reach out to
         # MusicBrainz/yt-dlp the moment run_download's art step runs.
@@ -218,10 +217,9 @@ def test_post_jobs_url_kind_resolves_via_real_ytdlp_probe(tmp_path, monkeypatch)
     tier with ytdlp_info=None, so resolve()'s `if self._ytdlp_info is not
     None` guard was always False -- every url-kind payload (no
     track_rowid, so the catalog tier never fires either) failed to
-    resolve, unconditionally. FakeYdlProbe stands in for the real
-    YoutubeDL this test monkeypatches muse.ingest.YoutubeDL to, so no
+    resolve, unconditionally. `muse.ytdlp.probe` is monkeypatched, so no
     network call happens, but the real TieredMetadataProvider and the
-    real _ytdlp_probe_info callback (created by create_app, not injected)
+    real ytdlp_info callback (created by create_app, not injected)
     are what's under test.
     """
     import muse.ingest as ingest_mod
@@ -230,29 +228,16 @@ def test_post_jobs_url_kind_resolves_via_real_ytdlp_probe(tmp_path, monkeypatch)
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
 
-    class FakeYdlProbe:
-        def __init__(self, opts):
-            self.opts = opts
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-        def extract_info(self, query, download=False):
-            return {"title": "Some Song", "uploader": "Some Artist",
-                     "duration": 210, "id": "abc123"}
-
-    monkeypatch.setattr(ingest_mod, "YoutubeDL", FakeYdlProbe)
+    monkeypatch.setattr("muse.ytdlp.probe", lambda binary, query, **kw: {
+        "title": "Some Song", "uploader": "Some Artist", "duration": 210,
+        "id": "abc123"})
 
     application = create_app(
         _config(tmp_path),
         audio_source=FakeAudioSource(),
-        genius_client=None,
         art_provider=FakeArtProvider(),
         # Stub encoders for the same reason `art_provider` is a fake: the
         # defaults are the real CLAP/MiniLM/MER/TextVA, and `run_download`'s
@@ -319,7 +304,7 @@ def stamp_client(tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
     config = _config(tmp_path)
     _write_catalog_db(tmp_path / "catalog.sqlite3")
@@ -337,7 +322,6 @@ def stamp_client(tmp_path, monkeypatch):
     application = create_app(
         config,
         audio_source=FakeAudioSource(),
-        genius_client=None,
         art_provider=FakeArtProvider(),
         audio_encoder=StubAudioEncoder(),
         lyrics_encoder=StubLyricsEncoder(),

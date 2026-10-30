@@ -201,7 +201,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
     monkeypatch.setattr("muse.api._open_catalog", lambda config: MirrorOffCatalog())
 
@@ -214,7 +214,6 @@ def client(tmp_path, monkeypatch):
         mb=FakeMusicBrainz(_answers()),
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),
-        genius_client=None,
         # Stub encoders for the same reason `art_provider` is a fake: the
         # defaults are the real CLAP/MiniLM/MER/TextVA, and `run_download`'s
         # final step is an embed backfill that runs whether or not
@@ -865,7 +864,7 @@ def test_mb_release_stamps_the_track_id_the_isrc_joins_to(tmp_path, monkeypatch)
     monkeypatch.setattr(ingest_mod, "tag_m4a", lambda *a, **k: None)
     monkeypatch.setattr(
         ingest_mod, "fetch_lyrics",
-        lambda track, genius_client: SyncOutcome(state="not_found", synced=False),
+        lambda track: SyncOutcome(state="not_found", synced=False),
     )
     monkeypatch.setattr(
         "muse.api._open_catalog",
@@ -876,7 +875,6 @@ def test_mb_release_stamps_the_track_id_the_isrc_joins_to(tmp_path, monkeypatch)
         mb=FakeMusicBrainz(_answers()),
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),
-        genius_client=None,
         audio_encoder=StubAudioEncoder(),
         lyrics_encoder=StubLyricsEncoder(),
         audio_va_encoder=StubAudioVAEncoder(),
