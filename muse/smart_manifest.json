@@ -278,5 +278,18 @@
       "size": 524
     }
   ],
-  "workers": {}
+  "workers": {
+    "aarch64-apple-darwin": {
+      "path": "muse-worker-aarch64-apple-darwin.zip",
+      "url": "https://github.com/IanTheMitten/muse-desktop/releases/download/worker-v1/muse-worker-aarch64-apple-darwin.zip",
+      "sha256": "e0a2a39a8b8b4a76e24f04e6f979e793515042c27dade5d0c5f0a59c8ae0ca2a",
+      "size": 410153097
+    },
+    "x86_64-pc-windows-msvc": {
+      "path": "muse-worker-x86_64-pc-windows-msvc.zip",
+      "url": "https://github.com/IanTheMitten/muse-desktop/releases/download/worker-v1/muse-worker-x86_64-pc-windows-msvc.zip",
+      "sha256": "da50429b1d7d2847d625e5ddd4cd450d3d26e9053eb39e2cefec2c6cf66a81c6",
+      "size": 287738343
+    }
+  }
 }
