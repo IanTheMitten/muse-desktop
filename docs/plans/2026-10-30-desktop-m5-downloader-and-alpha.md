@@ -544,7 +544,7 @@ Negative result is a valid outcome.
 **Why:** Error handling section (spec:470-480).
 
 ### Task 16: Pass the app version and allow the release link in the shell, then smoke the frozen sidecar
-- [ ] status
+- [x] status
 **Objective:** The shell sets `MUSE_APP_VERSION` for the sidecar and permits `shell:allow-open`; the sidecar freezes with `av` included and passes the shell smoke.
 **Write-scope:**
 `src-tauri/src/main.rs`
