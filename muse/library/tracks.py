@@ -266,6 +266,8 @@ def mark_done(
     lyrics_path: str | None,
     art_path: str | None,
     source_site_id: str | None = None,
+    file_size: int | None = None,
+    file_mtime: int | None = None,
 ) -> None:
     """`source_site_id` is optional here because most payloads (catalog
     downloads) already had it written by `write_pending`. It's passed again
@@ -276,8 +278,11 @@ def mark_done(
         "UPDATE tracks SET status = 'done', error = NULL, file_path = ?,"
         " lyrics_path = COALESCE(?, lyrics_path),"
         " art_path = COALESCE(?, art_path),"
-        " source_site_id = COALESCE(?, source_site_id) WHERE track_rowid = ?",
-        (file_path, lyrics_path, art_path, source_site_id, track_rowid),
+        " source_site_id = COALESCE(?, source_site_id),"
+        " file_size = COALESCE(?, file_size),"
+        " file_mtime = COALESCE(?, file_mtime) WHERE track_rowid = ?",
+        (file_path, lyrics_path, art_path, source_site_id, file_size,
+         file_mtime, track_rowid),
     )
     conn.commit()
 

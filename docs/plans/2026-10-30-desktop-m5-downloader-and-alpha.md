@@ -281,7 +281,7 @@ Negative result is a valid outcome.
 **Why:** Decisions 3 and 6 (spec:160-204, 266-292) and the testing strategy (spec:504-512). Case (e) is the race Decision 3 exists to close; (c) closes memory note `ingest-apply-needs-lyrics-root-m5`.
 
 ### Task 6: Rewrite run_download: stage, remux, move under the lock, LRCLIB only
-- [ ] status
+- [x] status
 **Objective:** `run_download` stages in `.incoming`, takes `under_lock` for every DB write and the final move, writes lyrics through the real `_apply`, and Genius is gone; Task 5's tests pass.
 **Write-scope:**
 `muse/ingest.py`
