@@ -183,7 +183,12 @@ CONSTRAINTS: WCAG AA; no layout shift beyond removed rows; no em dash; no disabl
 **Why:** Decision 2 (spec:127-158) replaces ffmpeg with a PyAV stream copy; av must ship in the sidecar. Lazy import keeps the startup property `tests/test_audio_decode.py:55` pins.
 
 ### Task 2: Preflight the yt-dlp binary and the m4a path against YouTube [experiment]
-- [ ] status
+- [!] status
+**Stuck-report:**
+cause-class: env-blocker
+attempts: 0 agent runs (dispatch refused by the permission classifier: runs a downloaded binary against YouTube) | owner: needs-Ian
+blocking: Phase 2 start (prose gate, Tasks 5-7 and everything after them); Tasks 3-4 unaffected
+detail: Executor not dispatched; per step 2 the owner runs the preflight. Write scripts/ytdlp_preflight.py (re-dispatch Task 2 for the script only, or have the owner run it), then `! uv run python scripts/ytdlp_preflight.py` and paste the output; PREFLIGHT-OK unparks Phase 2, PREFLIGHT-FAIL c/d parks it for the Deno-vs-Opus choice (spec:554).
 **Objective:** A recorded measurement of whether the 2026.10.26+ standalone binary, with the plan's exact flags and no JS runtime, yields an m4a that `remux_m4a` and `tag_m4a` accept.
 **Write-scope:**
 `scripts/ytdlp_preflight.py` (new)
@@ -209,7 +214,7 @@ Negative result is a valid outcome.
 **Why:** Five Phase 2-3 tasks sit on this binary and this format (Assumption 2). Phase 1 gate: `PREFLIGHT-OK` lets Phase 2 start; `PREFLIGHT-FAIL c` or `d` (no m4a without a JS runtime) parks the plan for the owner to choose between bundling Deno and the Opus path (spec:554).
 
 ### Task 3: Write the muse/ytdlp.py tests [test]
-- [ ] status
+- [x] status
 **Objective:** `tests/test_ytdlp.py` pins the binary helper's contract and fails red because `muse.ytdlp` does not exist.
 **Write-scope:**
 `tests/test_ytdlp.py` (new)
