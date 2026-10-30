@@ -233,7 +233,7 @@ Negative result is a valid outcome.
 **Why:** Test-first pairing for Task 4. The fake executable is the spec's own test shape (spec:499-501).
 
 ### Task 4: Implement muse/ytdlp.py
-- [ ] status
+- [x] status
 **Objective:** One module owns the yt-dlp binary: fetch with hash check, `-U`, the metadata probe and the download, all through `subprocess`; `tests/test_ytdlp.py` goes green.
 **Write-scope:**
 `muse/ytdlp.py` (new)
