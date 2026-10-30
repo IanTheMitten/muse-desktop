@@ -99,7 +99,7 @@ jobs:
           pattern: bundle-*
           merge-multiple: true
           path: dist
-      - run: gh release create "$GITHUB_REF_NAME" dist/*.dmg dist/*.exe --title "Muse ${GITHUB_REF_NAME#v}" --notes-file "docs/release-notes/$GITHUB_REF_NAME.md"
+      - run: gh release create "$GITHUB_REF_NAME" dist/dmg/*.dmg dist/nsis/*.exe --title "Muse ${GITHUB_REF_NAME#v}" --notes-file "docs/release-notes/$GITHUB_REF_NAME.md"
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
