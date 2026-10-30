@@ -199,12 +199,29 @@ class AudioSource(Protocol):
 class YtDlpAudioSource:
     """The real thing: the yt-dlp binary, remuxed to a clean m4a."""
 
+    UPDATE_RETRY_GAP_S = 3600
+
     def __init__(self, binary: Path):
         self._binary = binary
+        self._updated_at = float("-inf")
+
+    def _download(self, query: str, out_dir: Path, base_name: str) -> dict:
+        try:
+            return ytdlp.download(self._binary, query, out_dir, base_name)
+        except RuntimeError as error:
+            # A failure is often a stale binary (YouTube changed): update and
+            # retry once, but not on every failed track of a batch.
+            if (str(error) == ytdlp.MISSING
+                    or time.monotonic() - self._updated_at < self.UPDATE_RETRY_GAP_S):
+                raise
+            self._updated_at = time.monotonic()
+            if not ytdlp.update(self._binary):
+                raise
+            return ytdlp.download(self._binary, query, out_dir, base_name)
 
     def fetch(self, *, query: str, out_dir: Path, base_name: str) -> AudioResult:
         out_dir.mkdir(parents=True, exist_ok=True)
-        info = ytdlp.download(self._binary, query, out_dir, base_name)
+        info = self._download(query, out_dir, base_name)
         path = out_dir / f"{base_name}.m4a"
         if not path.exists():
             raise RuntimeError(NO_M4A)
