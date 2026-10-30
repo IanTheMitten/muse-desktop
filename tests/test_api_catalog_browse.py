@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from muse.api import create_app
 from muse.catalog import EmptyCatalog
-from tests.conftest import make_config
+from tests.conftest import make_config, unlock
 from muse.library import jobs as job_rows
 
 
@@ -22,6 +22,7 @@ from muse.library import jobs as job_rows
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr("muse.api._open_catalog", lambda config: EmptyCatalog())
     config = make_config(tmp_path)
+    unlock(config)
     app = create_app(config)
     with TestClient(app) as test_client:
         yield test_client, app

@@ -24,7 +24,7 @@ from muse.embed import (
     StubLyricsEncoder,
     StubLyricsVAEncoder,
 )
-from tests.conftest import make_config
+from tests.conftest import make_config, unlock
 from muse.library import jobs as job_rows
 
 from tests.conftest import insert_track
@@ -206,6 +206,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr("muse.api._open_catalog", lambda config: MirrorOffCatalog())
 
     config = _config(tmp_path)
+    unlock(config)
     # `metadata_provider` is deliberately *not* injected: these tests are
     # about the payloads `create_job` builds, and only the real
     # `TieredMetadataProvider` proves a payload resolves at all.
@@ -870,8 +871,10 @@ def test_mb_release_stamps_the_track_id_the_isrc_joins_to(tmp_path, monkeypatch)
         "muse.api._open_catalog",
         lambda config: MirrorOffCatalog({"GBAAA0000001": "sp-one"}),
     )
+    config = _config(tmp_path)
+    unlock(config)
     app = create_app(
-        _config(tmp_path),
+        config,
         mb=FakeMusicBrainz(_answers()),
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),

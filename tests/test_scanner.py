@@ -297,3 +297,17 @@ def test_overlapping_folders_scan_once(tmp_path, conn):
     e.tags["a.mp3"] = ft()
     r = e.scan([e.music, e.music / "sub"])
     assert r.added == 1 and len(e.rows()) == 1
+
+
+def test_holds_audio(tmp_path):
+    from muse.scanner import holds_audio
+    assert holds_audio(tmp_path / "nope") is False
+    (tmp_path / ".incoming").mkdir()
+    (tmp_path / ".incoming" / "a.mp3").write_bytes(b"x")
+    assert holds_audio(tmp_path) is False
+    (tmp_path / "B").mkdir()
+    (tmp_path / "B" / "notes.txt").write_bytes(b"x")
+    assert holds_audio(tmp_path) is False
+    (tmp_path / "A").mkdir()
+    (tmp_path / "A" / "a.mp3").write_bytes(b"x")
+    assert holds_audio(tmp_path) is True

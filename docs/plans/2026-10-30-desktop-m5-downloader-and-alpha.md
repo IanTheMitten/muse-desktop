@@ -361,7 +361,7 @@ Negative result is a valid outcome.
 **Why:** Joins Phase 2's pieces. `under_lock` is the one bridge between the worker thread and `chain_lock` (Decision 3).
 
 ### Task 9: Write the lock, unlock and downloads-root API tests [test]
-- [ ] status
+- [x] status
 **Objective:** Tests pin Decision 4's 404s, the unlock/lock routes, the downloads scan root and the settings view, and fail red; existing fixtures unlock so they keep passing after Task 10.
 **Write-scope:**
 `tests/test_api_downloader.py` (new)
@@ -454,7 +454,7 @@ Negative result is a valid outcome.
 ## Phase 4 - The UI and the shell
 
 ### Task 12: Write the unlock-chord and owned-chart tests [test]
-- [ ] status
+- [x] status
 **Objective:** `web/src/unlock.test.ts` pins the shortcut matcher and the locked chart filter and fails red because `web/src/unlock.ts` does not exist.
 **Write-scope:**
 `web/src/unlock.test.ts` (new)

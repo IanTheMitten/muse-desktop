@@ -12,7 +12,7 @@ from muse.embed import (
     StubLyricsEncoder,
     StubLyricsVAEncoder,
 )
-from tests.conftest import make_config
+from tests.conftest import make_config, unlock
 from muse.ingest import AudioResult, ResolvedMetadata
 from tests.conftest import insert_track
 
@@ -102,6 +102,7 @@ def client(tmp_path, monkeypatch):
     # catalog path that doesn't exist) would 404 the request before
     # FakeMetadataProvider gets a chance to run.
     config = _config(tmp_path)
+    unlock(config)
     _write_catalog_db(tmp_path / "catalog.sqlite3")
 
     application = create_app(
@@ -235,8 +236,10 @@ def test_post_jobs_url_kind_resolves_via_real_ytdlp_probe(tmp_path, monkeypatch)
         "title": "Some Song", "uploader": "Some Artist", "duration": 210,
         "id": "abc123"})
 
+    config = _config(tmp_path)
+    unlock(config)
     application = create_app(
-        _config(tmp_path),
+        config,
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),
         # Stub encoders for the same reason `art_provider` is a fake: the
@@ -307,6 +310,7 @@ def stamp_client(tmp_path, monkeypatch):
         lambda track: SyncOutcome(state="not_found", synced=False),
     )
     config = _config(tmp_path)
+    unlock(config)
     _write_catalog_db(tmp_path / "catalog.sqlite3")
     mirror = sqlite3.connect(tmp_path / "catalog.sqlite3")
     mirror.executescript(
