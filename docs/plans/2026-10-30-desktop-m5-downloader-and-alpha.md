@@ -252,7 +252,7 @@ Negative result is a valid outcome.
 ## Phase 2 - The pipeline and the worker
 
 ### Task 5: Rewrite the ingest tests for the staged, locked, LRCLIB-only pipeline [test]
-- [ ] status
+- [x] status
 **Objective:** The ingest tests describe the new `run_download` (staging, lock, real `_apply`, no Genius) and fail red against today's code.
 **Write-scope:**
 `tests/test_ingest_run_download.py`
@@ -310,7 +310,7 @@ Negative result is a valid outcome.
 **Why:** Decision 3's ordering (spec:178-192) keeps the scanner from ever seeing a file without its row; Assumption 5 keeps scans from re-keying downloaded albums.
 
 ### Task 7: Add the ytdlp_install job and the per-drain hook to the jobs module
-- [ ] status
+- [x] status
 **Objective:** `run_ytdlp_install` records a `ytdlp_install` job around `ytdlp.install`, and `run_download_worker` awaits an optional `before_drain()` once when it picks up work after being idle.
 **Write-scope:**
 `muse/jobs.py`
