@@ -591,7 +591,7 @@ Negative result is a valid outcome.
 **Why:** Decision 10 (spec:369-408); the scroll lock shipped because no UI ran in a browser.
 
 ### Task 18: Write the e2e flow specs
-- [ ] status
+- [x] status
 **Objective:** Chromium specs cover play/next/queue, edit details then reload, remove and restore, lyrics with tap-along keys, the Settings sections, and the unlock flow including the locked chart.
 **Write-scope:**
 `web/e2e/flows.spec.ts` (new)
