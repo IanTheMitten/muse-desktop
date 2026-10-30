@@ -21,7 +21,7 @@ ASSETS = {"darwin": "yt-dlp_macos", "win32": "yt-dlp.exe", "linux": "yt-dlp_linu
 BASE_FLAGS = ["--ignore-config", "--no-warnings", "--no-playlist"]
 
 
-def asset_name(platform: str) -> str:
+def asset_name(platform: str = sys.platform) -> str:
     try:
         return ASSETS[platform]
     except KeyError:
