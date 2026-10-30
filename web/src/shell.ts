@@ -32,6 +32,7 @@ type Tauri = {
     };
   };
   window: { getCurrentWindow(): { close(): Promise<void> } };
+  shell: { open(url: string): Promise<void> };
   dialog: {
     open(o: { directory: boolean; multiple: boolean }): Promise<string | string[] | null>;
   };
