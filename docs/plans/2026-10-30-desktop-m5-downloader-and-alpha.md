@@ -648,7 +648,12 @@ Negative result is a valid outcome.
 ## Phase 6 - The v0.1 alpha (owner-gated, billed)
 
 ### Task 21: Publish worker-v1, fill the manifest, publish v0.1.0 [mechanical]
-- [ ] status
+- [!] status
+**Stuck-report:**
+cause-class: env-blocker
+attempts: 0 agent runs | owner: needs-Ian
+blocking: none (last task)
+detail: Step 1 requires an explicit owner yes in this session to push the billed tags `worker-v1` and `v0.1.0`, plus prerequisites (a) repo public, (b) Laya v4 files on Hugging Face, (c) M5 PR merged into main. None given; not started.
 **Objective:** GitHub releases `worker-v1` and `v0.1.0` exist with their assets, and `muse/smart_manifest.json` on `main` names both worker zips.
 **Write-scope:**
 `muse/smart_manifest.json`
