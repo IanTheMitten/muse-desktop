@@ -817,13 +817,14 @@ def create_app(
         roots = download_roots()
         if not roots:
             return None
-        prefix = str(app.state.config.music_root).rstrip(os.sep) + os.sep
+        root = app.state.config.music_root.resolve()
+        prefix = str(root).rstrip(os.sep) + os.sep
         (n,) = app.state.conn.execute(
             "SELECT COUNT(*) FROM tracks WHERE status = 'done'"
             " AND removed_at IS NULL AND substr(file_path, 1, length(?)) = ?",
             (prefix, prefix),
         ).fetchone()
-        return {"path": str(app.state.config.music_root), "songs": n}
+        return {"path": str(root), "songs": n}
 
     def _settings_view() -> dict:
         saved = settings.load(app.state.config.settings_path)
