@@ -1,5 +1,7 @@
 """settings.json in the data dir: the folder list and the downloader switch."""
 
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -7,7 +9,14 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
+# Not access control (fork spec Decision 11): an easter egg's hash, public by design.
+DOWNLOADER_PASSWORD_SHA256 = "70d35a1c658bc9a2a6b5adfc61b99adcb33aabd7d2f5ff283fc378bb8eb173f3"
 DEFAULTS = {"music_folders": [], "music_files": [], "downloader_unlocked": False}
+
+
+def password_ok(password: str) -> bool:
+    return hmac.compare_digest(
+        hashlib.sha256(password.encode()).hexdigest(), DOWNLOADER_PASSWORD_SHA256)
 
 
 def load(path: Path) -> dict:

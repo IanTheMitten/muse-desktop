@@ -20,7 +20,7 @@ from typing import Annotated, Literal
 
 # `Path` here would shadow `pathlib.Path`, which this module uses far more
 # often, so the path-parameter declarer comes in under its own name.
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi import Path as PathParam
 from fastapi.responses import (
     FileResponse,
@@ -79,6 +79,8 @@ from .lyrics_lrclib import LYRICS_SYNC
 from .lyrics import lyrics_files, read_lyrics
 from .musicbrainz import MusicBrainzClient
 from .watch import watch_folders
+from .scanner import holds_audio
+from .jobs import _event as job_event
 from .worker import (
     LAYA_MODEL,
     WorkerAudioEncoder,
@@ -144,6 +146,10 @@ class ArcPlan(BaseModel):
 
 class MusicFoldersWrite(BaseModel):
     folders: list[str]
+
+
+class DownloaderUnlock(BaseModel):
+    password: str = Field(max_length=200)
 
 
 class ImportPaths(BaseModel):
@@ -567,7 +573,8 @@ def create_app(
         async def run_chain(launch: bool) -> None:
             async with chain_lock:
                 folders = (settings.music_folders(config.settings_path)
-                           + settings.music_files(config.settings_path))
+                           + settings.music_files(config.settings_path)
+                           + download_roots())
                 try:
                     await run_scan_job(
                         conn, folders, bus, lyrics_root=config.lyrics_root,
@@ -645,7 +652,7 @@ def create_app(
                 watch_task.cancel()
             app.state.watch_stop = stop = asyncio.Event()
             watch_task = asyncio.create_task(watch_folders(
-                settings.music_folders(config.settings_path),
+                settings.music_folders(config.settings_path) + download_roots(),
                 lambda: asyncio.shield(spawn_chain()),
                 stop=stop,
             ))
@@ -760,6 +767,19 @@ def create_app(
             conn.close()
 
     app = FastAPI(title="Muse", lifespan=lifespan)
+
+    def unlocked() -> bool:
+        return bool(settings.load(config.settings_path)["downloader_unlocked"])
+
+    def require_unlocked() -> None:
+        if not unlocked():
+            raise HTTPException(404)
+
+    def download_roots() -> list[Path]:
+        if unlocked() or holds_audio(config.music_root):
+            return [config.music_root]
+        return []
+
     app.state.align_tasks = align_tasks
 
     @app.middleware("http")
@@ -780,6 +800,18 @@ def create_app(
             for s in songs
         ]}
 
+    def _downloads_view() -> dict | None:
+        roots = download_roots()
+        if not roots:
+            return None
+        prefix = str(app.state.config.music_root).rstrip(os.sep) + os.sep
+        (n,) = app.state.conn.execute(
+            "SELECT COUNT(*) FROM tracks WHERE status = 'done'"
+            " AND removed_at IS NULL AND substr(file_path, 1, length(?)) = ?",
+            (prefix, prefix),
+        ).fetchone()
+        return {"path": str(app.state.config.music_root), "songs": n}
+
     def _settings_view() -> dict:
         saved = settings.load(app.state.config.settings_path)
         status = []
@@ -791,7 +823,49 @@ def create_app(
                 (prefix, prefix),
             ).fetchone()
             status.append({"path": p, "present": Path(p).is_dir(), "songs": n})
-        return {**saved, "folder_status": status}
+        job = (job_rows.active(app.state.conn, ytdlp.YTDLP_INSTALL)
+               or job_rows.last(app.state.conn, ytdlp.YTDLP_INSTALL))
+        return {**saved, "folder_status": status, "downloads": _downloads_view(),
+                "downloader": {
+                    "installed": ytdlp.binary_path(app.state.config.data_dir).exists(),
+                    "install_state": job["state"] if job else None,
+                    "update_failed": app.state.ytdlp_update_failed}}
+
+    @app.post("/api/settings/downloader")
+    async def unlock_downloader(body: DownloaderUnlock) -> dict:
+        if not settings.password_ok(body.password):
+            raise HTTPException(403, "That's not it.")
+        cfg = app.state.config
+        saved = settings.load(cfg.settings_path)
+        saved["downloader_unlocked"] = True
+        settings.save(cfg.settings_path, saved)
+        cfg.music_root.mkdir(parents=True, exist_ok=True)
+        if not ytdlp.binary_path(cfg.data_dir).exists():
+            app.state.start_ytdlp_install()
+            await asyncio.sleep(0)
+        app.state.start_watcher()
+        app.state.spawn_chain()
+        return _settings_view()
+
+    @app.delete("/api/settings/downloader")
+    async def lock_downloader() -> dict:
+        cfg = app.state.config
+        saved = settings.load(cfg.settings_path)
+        saved["downloader_unlocked"] = False
+        settings.save(cfg.settings_path, saved)
+        conn = app.state.conn
+        for job_id in job_rows.queued_ids_of_kind(conn, DOWNLOAD):
+            job_rows.update(conn, job_id, state=job_rows.ERROR, message="Downloader locked")
+            app.state.bus.publish(job_event(job_rows.get(conn, job_id)))
+        app.state.start_watcher()
+        return _settings_view()
+
+    @app.post("/api/downloader/install", status_code=202,
+              dependencies=[Depends(require_unlocked)])
+    async def install_downloader() -> dict:
+        app.state.start_ytdlp_install()
+        await asyncio.sleep(0)
+        return {"job_id": job_rows.last(app.state.conn, ytdlp.YTDLP_INSTALL)["id"]}
 
     @app.get("/api/settings")
     def get_settings() -> dict:
@@ -1121,7 +1195,7 @@ def create_app(
     # `RateLimiter`'s 1.1 s sleep and stall playback, the job stream and
     # every other request for the duration.
 
-    @app.get("/api/discover/artists")
+    @app.get("/api/discover/artists", dependencies=[Depends(require_unlocked)])
     def discover_artists(q: str, limit: int = discover.ARTIST_SEARCH_LIMIT) -> list[dict]:
         """Search MusicBrainz for an artist: the only browse search, with the
         owned count casefolded like the old catalog count.
@@ -1146,7 +1220,7 @@ def create_app(
             for artist in found
         ]
 
-    @app.get("/api/discover/artists/{artist_mbid}/releases")
+    @app.get("/api/discover/artists/{artist_mbid}/releases", dependencies=[Depends(require_unlocked)])
     def discover_releases(
         artist_mbid: str = PathParam(pattern=MBID_PATTERN),
         kind: Literal["album", "single"] = "album",
@@ -1168,7 +1242,7 @@ def create_app(
             )
         return found
 
-    @app.get("/api/discover/release-groups/{release_group_mbid}/tracks")
+    @app.get("/api/discover/release-groups/{release_group_mbid}/tracks", dependencies=[Depends(require_unlocked)])
     def discover_release_group_tracks(
         release_group_mbid: str = PathParam(pattern=MBID_PATTERN),
     ) -> dict:
@@ -1765,6 +1839,8 @@ def create_app(
         conn = app.state.conn
         catalog = _open_catalog(app.state.config)
         kind = payload.get("kind")
+        if kind in ("mb", "mb_release", "url"):
+            require_unlocked()
         # What was asked for and will not be downloaded. Only `mb_release`
         # ever fills this, but every kind returns the key, so no client has
         # to branch on whether it is there before reading it.
@@ -1942,6 +2018,8 @@ def create_app(
         job = job_rows.get(conn, job_id)
         if job is None:
             raise HTTPException(404, f"No job {job_id}")
+        if job["kind"] == DOWNLOAD:
+            require_unlocked()
         if job["kind"] != DOWNLOAD:
             raise HTTPException(400, f"Cannot retry a {job['kind']} job")
         if job["state"] != job_rows.ERROR:

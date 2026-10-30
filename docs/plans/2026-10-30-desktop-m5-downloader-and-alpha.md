@@ -398,7 +398,7 @@ Negative result is a valid outcome.
 **Why:** Decisions 3-5 and 7 (spec:194-196, 219-235, 254-260, 302-307), testing strategy (spec:509-516).
 
 ### Task 10: Implement the unlock, lock, download guard and downloads root
-- [ ] status
+- [x] status
 **Objective:** The download surface answers 404 while locked, the password unlocks it, Lock again cancels queued downloads, and `downloads/` is a scan and watch root when unlocked or holding audio; Task 9's tests pass.
 **Write-scope:**
 `muse/api.py`
@@ -470,7 +470,7 @@ Negative result is a valid outcome.
 **Why:** Spec vitest items (spec:522-524). `e.code` because Option turns `e.key` into `∂` (spec:252-253).
 
 ### Task 13: Gate Add in the app shell and filter the Home chart while locked [design]
-- [ ] status
+- [x] status
 **Objective:** `/add` is mounted only when unlocked, the nav updates on unlock and lock without a reload, Home's chart shows only owned songs while locked, and `api.ts` knows the new endpoints.
 **Write-scope:**
 `web/src/unlock.ts` (new)

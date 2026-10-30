@@ -9,6 +9,12 @@ import watchfiles
 
 log = logging.getLogger("muse.watch")
 
+_default = watchfiles.DefaultFilter()
+
+
+def _filter(change, path: str) -> bool:
+    return _default(change, path) and ".incoming" not in Path(path).parts
+
 
 async def watch_folders(
     folders: list[Path],
@@ -47,6 +53,7 @@ async def watch_folders(
         async for changes in watchfiles.awatch(
             *roots,
             stop_event=stop,
+            watch_filter=_filter,
             rust_timeout=int(poll_seconds * 1000),
             yield_on_timeout=True,
         ):
