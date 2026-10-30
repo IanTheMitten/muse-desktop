@@ -425,7 +425,7 @@ Negative result is a valid outcome.
 **Why:** Decisions 3, 4, 5, 7. One `require_unlocked` keeps the guard in one place (spec:220-223).
 
 ### Task 11: Add the update check and remove catalog_freeze and the dead since path
-- [ ] status
+- [x] status
 **Objective:** `GET /api/update` reports a newer GitHub release from a once-per-launch background check, and `catalog_freeze` plus `discover.release_groups`' `since` path are gone.
 **Write-scope:**
 `muse/update.py` (new)
@@ -497,7 +497,7 @@ Negative result is a valid outcome.
 **Why:** Decision 4 routing and chart (spec:224-228); one event keeps three readers of `downloader_unlocked` in step.
 
 ### Task 14: Build Settings Advanced, the password dialog, the Downloads row and the update notice [design]
-- [ ] status
+- [x] status
 **Objective:** Settings shows the Advanced section (version, update link, External downloader with Lock again), the hidden chord opens the Administrator password dialog, and Music folders shows the fixed Downloads row.
 **Write-scope:**
 `web/src/views/Settings.tsx`
@@ -522,7 +522,7 @@ Negative result is a valid outcome.
 **Why:** Decisions 3, 5, 7, 11 UI (spec:195-196, 249-260, 429-431).
 
 ### Task 15: Show the downloader status on Add and name the new failures [design]
-- [ ] status
+- [x] status
 **Objective:** Add shows "Getting the downloader…", "Couldn't get the downloader." with Try again, or the update warning, and job cards explain the new failure messages.
 **Write-scope:**
 `web/src/views/Add.tsx`

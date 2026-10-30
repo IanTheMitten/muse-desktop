@@ -38,9 +38,8 @@ class Config:
     embed_batch: bool = False
     worker_cmd: str | None = None
     taste_retrain_at_launch: bool = True
-    # The date the catalog scrape stopped; anything released after it has no
-    # row in the mirror.
-    catalog_freeze: str = "2025-11-13"
+    # Off here so hand-built Configs stay offline; `from_env` turns it on.
+    update_check: bool = False
     # Seconds between consecutive downloads (scaled up to +50% at random),
     # so a bulk queue does not hit YouTube back to back. See
     # `jobs.run_download_worker`. 0 here so a hand-built Config (every test)
@@ -80,7 +79,7 @@ class Config:
             models_dir=store("MUSE_MODELS_DIR", "models"),
             worker_cmd=os.environ.get("MUSE_WORKER_CMD") or None,
             taste_retrain_at_launch=os.environ.get("MUSE_TASTE_RETRAIN", "1") != "0",
-            catalog_freeze=os.environ.get("MUSE_CATALOG_FREEZE", "2025-11-13"),
+            update_check=os.environ.get("MUSE_UPDATE_CHECK", "1") != "0",
             download_gap_seconds=float(os.environ.get("MUSE_DOWNLOAD_GAP_S", "12")),
             ytdlp_release_url=os.environ.get(
                 "MUSE_YTDLP_URL",

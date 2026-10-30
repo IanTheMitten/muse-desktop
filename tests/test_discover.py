@@ -51,23 +51,6 @@ def test_search_artists_leaves_an_ordinary_name_alone():
     assert mb.calls[0][1]["query"] == "radiohead"
 
 
-def test_release_groups_filters_on_the_freeze_date():
-    mb = FakeMb({
-        "release-group": {"release-groups": [
-            {"id": "rg-new", "title": "New", "first-release-date": "2026-06-19",
-             "primary-type": "Album"},
-            {"id": "rg-old", "title": "Old", "first-release-date": "2024-01-01",
-             "primary-type": "Album"},
-            {"id": "rg-undated", "title": "Undated", "first-release-date": "",
-             "primary-type": "Single"},
-        ]}
-    })
-
-    found = discover.release_groups(mb, "mb-1", since="2025-11-13")
-
-    assert [g["mbid"] for g in found] == ["rg-new"]
-
-
 def test_release_groups_unfiltered_keeps_everything_newest_first():
     mb = FakeMb({
         "release-group": {"release-groups": [
@@ -83,114 +66,14 @@ def test_release_groups_unfiltered_keeps_everything_newest_first():
     assert [g["mbid"] for g in found] == ["rg-new", "rg-old"]
 
 
-# The partial-date cases. MusicBrainz `first-release-date` is ISO but may be
-# truncated to a year or a year and a month, and the filter is a plain string
-# comparison -- which is a decision, not an accident. Each fake below carries
-# a control group on the other side of the freeze, so a test fails both when
-# the filter stops filtering and when it filters everything out.
-#
-# These all pass `since`, so they run through the indexed-search path, and
-# they are the reason the client-side comparison survives that move: the
-# search index is looser here. Verified live, `firstreleasedate:[2025-11-13
-# TO *]` returns groups dated "2025" -- MusicBrainz reads a partial date as a
-# period overlapping the range. The fakes below hand back exactly what the
-# index would, and these assertions pin that we drop them anyway.
-
-
-def test_release_groups_keeps_a_year_only_date_after_the_freeze():
-    mb = FakeMb({
-        "release-group": {"release-groups": [
-            {"id": "rg-year", "title": "Year Only", "first-release-date": "2026",
-             "primary-type": "Album"},
-            {"id": "rg-old", "title": "Old", "first-release-date": "2024-01-01",
-             "primary-type": "Album"},
-        ]}
-    })
-
-    found = discover.release_groups(mb, "mb-1", since="2025-11-13")
-
-    assert [g["mbid"] for g in found] == ["rg-year"]
-
-
-def test_release_groups_keeps_a_year_and_month_date_after_the_freeze():
-    mb = FakeMb({
-        "release-group": {"release-groups": [
-            {"id": "rg-month", "title": "Year Month",
-             "first-release-date": "2026-06", "primary-type": "Album"},
-            {"id": "rg-old", "title": "Old", "first-release-date": "2024-01-01",
-             "primary-type": "Album"},
-        ]}
-    })
-
-    found = discover.release_groups(mb, "mb-1", since="2025-11-13")
-
-    assert [g["mbid"] for g in found] == ["rg-month"]
-
-
-def test_release_groups_drops_the_freezes_own_month_when_the_day_is_unknown():
-    mb = FakeMb({
-        "release-group": {"release-groups": [
-            {"id": "rg-freeze-month", "title": "November",
-             "first-release-date": "2025-11", "primary-type": "Album"},
-            {"id": "rg-clear", "title": "Clearly After",
-             "first-release-date": "2026-01-05", "primary-type": "Album"},
-        ]}
-    })
-
-    found = discover.release_groups(mb, "mb-1", since="2025-11-13")
-
-    assert [g["mbid"] for g in found] == ["rg-clear"]
-
-
-def test_release_groups_drops_the_freezes_own_year_when_only_the_year_is_known():
-    mb = FakeMb({
-        "release-group": {"release-groups": [
-            {"id": "rg-freeze-year", "title": "Sometime in 2025",
-             "first-release-date": "2025", "primary-type": "Album"},
-            {"id": "rg-clear", "title": "Clearly After",
-             "first-release-date": "2026-01-05", "primary-type": "Album"},
-        ]}
-    })
-
-    found = discover.release_groups(mb, "mb-1", since="2025-11-13")
-
-    assert [g["mbid"] for g in found] == ["rg-clear"]
-
-
-def test_release_groups_drops_a_group_dated_to_the_freeze_day_itself():
-    """The scrape ran through 2025-11-13, so a release dated to that day is
-    one the mirror should already hold — the boundary is exclusive."""
-    mb = FakeMb({
-        "release-group": {"release-groups": [
-            {"id": "rg-freeze-day", "title": "Freeze Day",
-             "first-release-date": "2025-11-13", "primary-type": "Album"},
-            {"id": "rg-clear", "title": "Clearly After",
-             "first-release-date": "2025-11-14", "primary-type": "Album"},
-        ]}
-    })
-
-    found = discover.release_groups(mb, "mb-1", since="2025-11-13")
-
-    assert [g["mbid"] for g in found] == ["rg-clear"]
-
-
-def test_release_groups_filtered_asks_one_indexed_search():
-    """The filtered path is a single Lucene query, not a walk. Verified live:
-    Bob Dylan since 2025-11-13 reports 27 matches in one page, against the
-    twelve browse pages his 1,194 groups would otherwise cost."""
-    mb = FakeMb({"release-group": {"count": 1, "release-groups": [
-        {"id": "rg-new", "title": "New", "first-release-date": "2026-06-19",
-         "primary-type": "Album"},
+def test_release_groups_returns_old_and_new_dates_alike():
+    mb = FakeMb({"release-group": {"release-groups": [
+        _group("old", "2019-05-01"), _group("new", "2025-11-01"),
     ]}})
 
-    found = discover.release_groups(mb, "mb-1", since="2025-11-13")
+    found = discover.release_groups(mb, "mb-1")
 
-    assert [g["mbid"] for g in found] == ["rg-new"]
-    assert len(mb.calls) == 1
-    path, params = mb.calls[0]
-    assert path == "release-group"
-    assert params["query"] == 'arid:"mb-1" AND firstreleasedate:[2025-11-13 TO *]'
-    assert "artist" not in params
+    assert [g["mbid"] for g in found] == ["rg-new", "rg-old"]
 
 
 def test_release_groups_unfiltered_browses_by_artist():
@@ -233,26 +116,6 @@ def test_search_artists_is_empty_when_mb_answered_with_nothing():
     assert discover.search_artists(FakeMb({"artist": {}}), "x") == []
 
 
-def test_release_groups_reads_either_endpoints_envelope_the_same_way():
-    """Search reports its total as `count`, browse as `release-group-count`.
-    That is the only difference a caller could notice, and it must not be
-    one."""
-    group = {"id": "rg-1", "title": "New", "first-release-date": "2026-06-19",
-             "primary-type": "Album"}
-
-    searched = discover.release_groups(
-        FakeMb({"release-group": {"count": 1, "release-groups": [group]}}),
-        "mb-1", since="2025-11-13")
-    browsed = discover.release_groups(
-        FakeMb({"release-group": {"release-group-count": 1, "release-groups": [group]}}),
-        "mb-1")
-
-    assert searched == browsed == [{
-        "mbid": "rg-1", "title": "New", "release_date": "2026-06-19",
-        "primary_type": "Album",
-    }]
-
-
 class PagedFakeMb:
     """Serves one browse page per `offset`, the way the real endpoint does."""
 
@@ -292,24 +155,21 @@ def test_release_groups_unfiltered_walks_past_the_first_page():
 
 def test_release_groups_stops_on_a_full_last_page_because_the_total_says_so():
     """A page can be exactly full and still be the last one. Both endpoints
-    say so in different words — browse as `release-group-count`, search as
-    `count` — and reading either is what saves the wasted request that the
-    short-page rule would otherwise need to discover the hard way."""
+    say so: browse reports `release-group-count`, and reading it is what saves
+    the wasted request that the short-page rule would otherwise need to
+    discover the hard way."""
     groups = [_group(i) for i in range(100)]
     browse = FakeMb({"release-group": {"release-group-count": 100, "release-groups": groups}})
-    search = FakeMb({"release-group": {"count": 100, "release-groups": groups}})
 
     assert len(discover.release_groups(browse, "mb-1")) == 100
-    assert len(discover.release_groups(search, "mb-1", since="2020-01-01")) == 100
     assert len(browse.calls) == 1
-    assert len(search.calls) == 1
 
 
 def test_release_groups_tells_silence_apart_from_emptiness():
     """The one function here that does not collapse the two.
 
-    Its caller is a screen that has to pick between "Nothing newer than the
-    mirror." and "MusicBrainz did not answer.", and an empty list for both
+    Its caller is a screen that has to pick between "This artist has no
+    releases of that kind." and "MusicBrainz did not answer.", and an empty list for both
     leaves it guessing. Everything else in this module may collapse them
     because nothing downstream has a second sentence to render.
     """

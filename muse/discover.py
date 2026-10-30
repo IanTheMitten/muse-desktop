@@ -1,11 +1,8 @@
 """The MusicBrainz browse path for music the catalog mirror never saw.
 
-The mirror froze on 2025-11-13 (`Config.catalog_freeze`), so catalog browse
-cannot surface anything newer — there is no artist row, no album row and no
-track row to browse. This module asks MusicBrainz the same questions the
-catalog answers locally, and is the one MusicBrainz path that runs inline with
-a request rather than as a background job, because a person is typing and
-waiting.
+This module asks MusicBrainz which artists and records exist, and is the one
+MusicBrainz path that runs inline with a request rather than as a background
+job, because a person is typing and waiting.
 
 Takes an injected `MusicBrainzLookup`, never a client of its own: tests run
 against a fake and never reach the network, the same seam `art.py`'s providers
@@ -17,8 +14,8 @@ mean the same thing: MusicBrainz did not answer.
 both do it the same way: `None` is silence, and a falsy value of the answer's
 own type is emptiness.** `release_groups` and `search_artists` return `None`
 against `[]`. The difference is not tidiness, it is what the screen has to
-render — "Nothing newer than the mirror." and "MusicBrainz did not answer."
-are different sentences, and a browse screen that cannot tell them apart
+render — "This artist has no releases of that kind." and "MusicBrainz did not
+answer." are different sentences, and a browse screen that cannot tell them apart
 remembers an outage as a fact about the artist. `search_artists` is the only
 artist search, so a person typing into a box must be told an outage from no
 match.
@@ -35,19 +32,12 @@ ARTIST_SEARCH_LIMIT = 10
 # The screen's `kind` -> the browse endpoint's `type` filter.
 RELEASE_TYPES = {"album": "album", "single": "single|ep"}
 
-# The bound on `release_groups`' paging. In practice this only ever bites on
-# the unfiltered browse path — see that function's docstring: browse returns
-# no useful order, so there is no early exit and a prolific artist costs one
-# rate-limited request per page. Ten pages is 1,000 release groups and about
-# eleven seconds in the worst case, which is the most that belongs in front of
-# someone waiting on a search box. The filtered path answers in one request
-# and never approaches this; it shares the loop only as a backstop.
+# The bound on `release_groups`' paging. Browse returns no useful order, so
+# there is no early exit and a prolific artist costs one rate-limited request
+# per page. Ten pages is 1,000 release groups and about eleven seconds in the
+# worst case, which is the most that belongs in front of someone waiting on a
+# search box.
 MAX_BROWSE_PAGES = 10
-
-# The filtered path, as one indexed query. `arid` scopes to the artist and
-# `firstreleasedate` is the indexed date field. Both halves verified live —
-# see `release_groups`.
-RELEASE_GROUP_SEARCH = 'arid:"{artist}" AND firstreleasedate:[{since} TO *]'
 
 # Lucene's syntax characters, escaped out of a typed artist name before it
 # reaches the search index. See `search_artists`.
@@ -104,17 +94,16 @@ def search_artists(
 def release_groups(
     mb: MusicBrainzLookup,
     artist_mbid: str,
-    since: str | None = None,
     release_type: str | None = None,
 ) -> list[dict] | None:
     """This artist's release groups, newest first. `None` if MusicBrainz
-    never answered. `release_type` adds a `type` param on the browse path only.
+    never answered. `release_type` adds a `type` param to the browse.
 
     **The one function here that distinguishes silence from emptiness**, and
     the module docstring's general "every failure is the same failure" is
     narrowed for it deliberately. Its caller is a screen that has to choose
-    between two sentences -- "Nothing newer than the mirror." and
-    "MusicBrainz did not answer." -- and an empty list for both leaves it
+    between two sentences -- "This artist has no releases of that kind."
+    and "MusicBrainz did not answer." -- and an empty list for both leaves it
     guessing. Only the first page decides: a walk that got some pages and
     then lost the service still keeps what it holds, for the reason spelled
     out below.
@@ -124,23 +113,7 @@ def release_groups(
     would make the screen an edition picker. `pick_release_mbid` chooses among
     them instead.
 
-    `since` is passed only when this list sits beside a catalog list that
-    already shows everything the mirror holds; then the group shows only what
-    the mirror is missing. An artist with no catalog row has nothing to
-    complement, so it is omitted and the whole discography renders. **The two
-    cases take different endpoints**, because only one of them can be asked
-    as a question.
-
-    **Filtered: one indexed search.** `arid:"<mbid>" AND
-    firstreleasedate:[<since> TO *]` answers in a single request. Verified
-    live against Bob Dylan, whose 1,194 groups make the difference plain:
-    since 2025-11-13 the query reports 27 matches, one page. `arid` scopes
-    correctly (quoted and unquoted agree), and the results carry `id`,
-    `title`, `first-release-date` and `primary-type` — everything read below.
-    This is the path an artist page takes every time, so it is the one that
-    had to be fast.
-
-    **Unfiltered: paged browse, because browse has no order.** Checked, not
+    **Paged browse, because browse has no order.** Checked, not
     assumed: `release-group?artist=` for Dylan opens 2009, 2002-08,
     2006-08-08, 1989 and ends on 1976 — neither ascending nor descending. So
     there is no page at which the walk may stop early, and one page would
@@ -151,46 +124,12 @@ def release_groups(
     already in hand. Both are silent, and both beat a request that never
     returns. The sort below is ours and is the only reason either result is
     ordered.
-
-    **The lexicographic filter runs on both paths, and has to.** It is a
-    plain string comparison, which is a decision and not an oversight.
-    MusicBrainz dates are ISO but may be truncated: `"2026"`, `"2026-06"`,
-    `"2026-06-19"`. Lexicographic order gets the full dates right for free,
-    and truncated ones right for a subtler reason. `"2026" > "2025-11-13"` is
-    True, so a release known only to the year 2026 is kept — it cannot
-    predate the freeze. `"2025-11" > "2025-11-13"` is False, because once the
-    common prefix runs out the shorter string sorts first, so a release known
-    only to the freeze's own month is dropped. That is the right answer
-    rather than a rounding error: such a release *cannot be shown* to postdate
-    the freeze — it could be November 3rd, which the mirror already has. It is
-    the same rule the undated group gets. Absent evidence that something is
-    newer than the freeze, it does not go in the list that claims to show what
-    the mirror is missing.
-
-    That rule is *stricter than the search index's*, which is why the
-    comparison stays even though the query already filters. MusicBrainz reads
-    a partial date as a period overlapping the range, so
-    `firstreleasedate:[2025-11-13 TO *]` returns groups dated `"2025"`, and
-    `[2015-06-15 TO *]` returns groups dated `"2015"` — both verified live.
-    The search narrows; this comparison decides. The one place the index
-    already agrees is the undated group: a date range matches no group without
-    a date (865 of Dylan's 1,193 indexed groups carry one), which is the
-    answer this rule reaches anyway.
     """
-    if since is None:
-        def fetch(offset: int) -> dict | None:
-            params = {"artist": artist_mbid, "limit": RELEASE_GROUP_LIMIT, "offset": offset}
-            if release_type:
-                params["type"] = release_type
-            return mb.get("release-group", params)
-    else:
-        query = RELEASE_GROUP_SEARCH.format(artist=artist_mbid, since=since)
-
-        def fetch(offset: int) -> dict | None:
-            return mb.get(
-                "release-group",
-                {"query": query, "limit": RELEASE_GROUP_LIMIT, "offset": offset},
-            )
+    def fetch(offset: int) -> dict | None:
+        params = {"artist": artist_mbid, "limit": RELEASE_GROUP_LIMIT, "offset": offset}
+        if release_type:
+            params["type"] = release_type
+        return mb.get("release-group", params)
 
     found = []
     offset = 0
@@ -211,8 +150,6 @@ def release_groups(
             if not group.get("id"):
                 continue
             date = group.get("first-release-date") or ""
-            if since is not None and not (date and date > since):
-                continue
             found.append({
                 "mbid": group["id"],
                 "title": group.get("title") or "",
@@ -221,12 +158,7 @@ def release_groups(
             })
 
         offset += len(page)
-        # Browse reports the total as `release-group-count`, search as
-        # `count`. The two envelopes differ only here; the caller cannot tell
-        # which endpoint answered.
         total = data.get("release-group-count")
-        if not isinstance(total, int):
-            total = data.get("count")
         if len(page) < RELEASE_GROUP_LIMIT or (isinstance(total, int) and offset >= total):
             break
 

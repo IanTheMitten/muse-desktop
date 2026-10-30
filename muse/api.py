@@ -33,7 +33,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from . import embed as embed_module
-from . import ytdlp
+from . import update, ytdlp
 from . import content_embed_batch, lyric_tag_batch, settings, smart, taste_retrain
 from . import library
 from .art import ChainedArtProvider, CoverArtArchive, ItunesArt, YtdlpThumbnailArt
@@ -449,6 +449,7 @@ def create_app(
     taste_trainer=None,
     read_tags=None,
     worker_client=None,
+    update_fetch=None,
 ) -> FastAPI:
     """`art_provider` is injectable so tests never reach MusicBrainz. `mb` is
     the one MusicBrainz client this process gets, injectable for the same
@@ -695,6 +696,18 @@ def create_app(
 
         if settings.load(config.settings_path)["downloader_unlocked"] and binary.exists():
             task = asyncio.create_task(update_ytdlp())
+            install_tasks.add(task)
+            task.add_done_callback(install_tasks.discard)
+
+        current_version = update.app_version()
+        app.state.update = {"current": current_version, "latest": None}
+
+        async def check_update() -> None:
+            app.state.update = await asyncio.to_thread(
+                update.check, current_version, fetch=update_fetch)
+
+        if config.update_check:
+            task = asyncio.create_task(check_update())
             install_tasks.add(task)
             task.add_done_callback(install_tasks.discard)
         # The same injected art_provider serves both art_backfill (above)
@@ -979,18 +992,13 @@ def create_app(
         await asyncio.sleep(0)
         return {"job_id": job_rows.last(app.state.conn, smart.SMART_INSTALL)["id"]}
 
+    @app.get("/api/update")
+    def update_status() -> dict:
+        return app.state.update
+
     @app.get("/api/health")
     def health() -> dict:
-        """Everything true about this deployment rather than this library.
-
-        `catalog_freeze` rides here because it is exactly that: a fact about
-        the mirror this server was started against, env-overridable, and the
-        one date the whole post-freeze browse pivots on. The client needs it
-        twice -- as the `since` it passes to `/api/discover/artists/{mbid}/
-        releases`, and as the sentence that says when the mirror stopped --
-        and a second copy of the date in TypeScript is a copy nothing keeps
-        in step with `MUSE_CATALOG_FREEZE`.
-        """
+        """Everything true about this deployment rather than this library."""
         last_retrain = job_rows.last(app.state.conn, TASTE_RETRAIN, state=job_rows.DONE)
         last_content_batch = job_rows.last(
             app.state.conn, CONTENT_EMBED, state=job_rows.DONE
@@ -998,7 +1006,6 @@ def create_app(
         last_content_run = job_rows.last(app.state.conn, CONTENT_EMBED)
         return {
             **queries.health(app.state.conn),
-            "catalog_freeze": app.state.config.catalog_freeze,
             "embeddings": library_embeddings.coverage(app.state.conn),
             "emotion": library_embeddings.emotion_coverage(app.state.conn),
             "taste": {

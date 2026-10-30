@@ -1,14 +1,11 @@
 from muse.config import Config
 
 
-def test_catalog_freeze_defaults_to_the_measured_cutoff(monkeypatch):
-    monkeypatch.delenv("MUSE_CATALOG_FREEZE", raising=False)
-    assert Config.from_env().catalog_freeze == "2025-11-13"
-
-
-def test_catalog_freeze_is_overridable(monkeypatch):
-    monkeypatch.setenv("MUSE_CATALOG_FREEZE", "2026-01-01")
-    assert Config.from_env().catalog_freeze == "2026-01-01"
+def test_update_check_defaults_on_and_env_turns_it_off(monkeypatch):
+    monkeypatch.delenv("MUSE_UPDATE_CHECK", raising=False)
+    assert Config.from_env().update_check is True
+    monkeypatch.setenv("MUSE_UPDATE_CHECK", "0")
+    assert Config.from_env().update_check is False
 
 
 def test_paths_default_under_the_data_dir(tmp_path, monkeypatch):
