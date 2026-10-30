@@ -4,6 +4,7 @@ updated with -U, run only as a subprocess. Nothing imports `yt_dlp`."""
 
 import hashlib
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -12,6 +13,8 @@ from pathlib import Path
 import requests
 
 from .remux import NO_M4A
+
+log = logging.getLogger(__name__)
 
 YTDLP_INSTALL = "ytdlp_install"
 MISSING = "Downloader missing"
@@ -82,9 +85,13 @@ def update(binary, *, run=subprocess.run) -> bool:
     if not Path(binary).exists():
         return False
     try:
-        return _run(run, [str(binary), "-U"], 120).returncode == 0
+        done = _run(run, [str(binary), "-U"], 120)
     except (OSError, subprocess.SubprocessError):
+        log.warning("yt-dlp update could not run", exc_info=True)
         return False
+    if done.returncode != 0:
+        log.warning("yt-dlp update failed: %s", (done.stderr or "").strip()[-300:])
+    return done.returncode == 0
 
 
 def probe(binary, query, *, run=subprocess.run) -> dict | None:

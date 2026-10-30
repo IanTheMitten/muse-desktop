@@ -59,6 +59,43 @@ def test_fetch_raises_no_m4a_when_nothing_is_written(tmp_path, monkeypatch):
     assert str(exc.value) == NO_M4A
 
 
+def _flaky_download(monkeypatch, fails):
+    import muse.ytdlp as ytdlp_mod
+
+    calls = {"download": 0, "update": 0}
+
+    def download(binary, query, out_dir, base_name, **kwargs):
+        calls["download"] += 1
+        if calls["download"] <= fails:
+            raise RuntimeError("HTTP Error 403")
+        (out_dir / f"{base_name}.m4a").write_bytes(b"x")
+        return {"id": "a"}
+
+    def update(binary, **kwargs):
+        calls["update"] += 1
+        return True
+
+    monkeypatch.setattr(ytdlp_mod, "download", download)
+    monkeypatch.setattr(ytdlp_mod, "update", update)
+    monkeypatch.setattr("muse.ingest.remux_m4a", lambda p: None)
+    return calls
+
+
+def test_failed_download_updates_and_retries_once(tmp_path, monkeypatch):
+    calls = _flaky_download(monkeypatch, fails=1)
+    YtDlpAudioSource(Path("yt-dlp")).fetch(query="q", out_dir=tmp_path, base_name="t")
+    assert calls == {"download": 2, "update": 1}
+
+
+def test_update_is_not_repeated_within_the_gap(tmp_path, monkeypatch):
+    calls = _flaky_download(monkeypatch, fails=99)
+    source = YtDlpAudioSource(Path("yt-dlp"))
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="403"):
+            source.fetch(query="q", out_dir=tmp_path, base_name="t")
+    assert calls == {"download": 3, "update": 1}
+
+
 def test_safe_component_strips_invalid_chars():
     # Each invalid char becomes its own "_" (matches music_downloader.py's
     # safe_component exactly): ":" -> "_", each '"' -> "_", "?" -> "_".
