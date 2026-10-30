@@ -153,3 +153,20 @@ def test_apply(conn):
     out = overrides.apply(conn, 1, dict(fields))
     assert out["album_name"] == "Other"
     assert out["album_key"] == "band\x1fother"
+
+
+def test_reset_download_rejoins_its_release_album(tmp_path, conn):
+    e = env(tmp_path, conn)
+    for rid in (1, 2):
+        insert_track(conn, rid, album_rowid=20, album_name="Rec",
+                     file_path=str(e.file(f"{rid}.m4a")))
+    conn.execute("UPDATE tracks SET release_mbid = 'r'")
+    e.tags["1.m4a"] = e.tags["2.m4a"] = ft(album="Rec")
+    overrides.write(conn, [1], {"album_name": "Other"})
+    assert track_row(conn, 1)["album_rowid"] != 20
+    overrides.clear(conn, [1])
+    conn.execute("UPDATE tracks SET file_mtime = NULL")  # restore also forces a re-read
+    e.scan()
+    rows = [track_row(conn, r) for r in (1, 2)]
+    assert [(r["album_name"], r["album_rowid"], r["album_key"]) for r in rows] == [
+        ("Rec", 20, None), ("Rec", 20, None)]

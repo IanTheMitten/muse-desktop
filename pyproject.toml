@@ -1,6 +1,6 @@
 [project]
 name = "muse"
-version = "0.1.0"
+version = "0.1.1"
 description = "Muse Player — self-hosted music player for a single listener on a tailnet"
 requires-python = ">=3.12"
 dependencies = [

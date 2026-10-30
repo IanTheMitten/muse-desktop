@@ -80,7 +80,7 @@ Everything Muse writes goes under one data dir: `MUSE_DATA_DIR`, default
 - `downloads/`: songs Muse saves for you, scanned like a music folder
 - `models/`: smart features (`weights/`, `worker/`, `installed.json`)
 
-Your music folders are never written to.
+Your music folders are never written to, except when you choose Move to Trash.
 
 ## Smart features
 

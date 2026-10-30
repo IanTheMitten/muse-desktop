@@ -8,6 +8,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import requests
@@ -81,9 +82,15 @@ def _pick(info: dict) -> dict:
     return entries[0] if entries else info
 
 
+# monotonic time of the last update attempt, shared by the drain and the retry
+updated_at = float("-inf")
+
+
 def update(binary, *, run=subprocess.run) -> bool:
+    global updated_at
     if not Path(binary).exists():
         return False
+    updated_at = time.monotonic()
     try:
         done = _run(run, [str(binary), "-U"], 120)
     except (OSError, subprocess.SubprocessError):

@@ -77,6 +77,7 @@ def _flaky_download(monkeypatch, fails):
 
     monkeypatch.setattr(ytdlp_mod, "download", download)
     monkeypatch.setattr(ytdlp_mod, "update", update)
+    monkeypatch.setattr(ytdlp_mod, "updated_at", float("-inf"))
     monkeypatch.setattr("muse.ingest.remux_m4a", lambda p: None)
     return calls
 
@@ -94,6 +95,18 @@ def test_update_is_not_repeated_within_the_gap(tmp_path, monkeypatch):
         with pytest.raises(RuntimeError, match="403"):
             source.fetch(query="q", out_dir=tmp_path, base_name="t")
     assert calls == {"download": 3, "update": 1}
+
+
+def test_no_retry_update_right_after_a_drain_update(tmp_path, monkeypatch):
+    import time
+
+    import muse.ytdlp as ytdlp_mod
+
+    calls = _flaky_download(monkeypatch, fails=99)
+    monkeypatch.setattr(ytdlp_mod, "updated_at", time.monotonic())
+    with pytest.raises(RuntimeError, match="403"):
+        YtDlpAudioSource(Path("yt-dlp")).fetch(query="q", out_dir=tmp_path, base_name="t")
+    assert calls == {"download": 1, "update": 0}
 
 
 def test_safe_component_strips_invalid_chars():
