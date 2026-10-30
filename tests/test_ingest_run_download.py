@@ -761,7 +761,7 @@ def test_lyrics_land_in_the_lyrics_root_not_beside_the_audio(
     assert txt.exists() and lrc.exists()
     row = conn.execute("SELECT * FROM tracks WHERE track_rowid = 100").fetchone()
     assert row["lyrics_path"] == str(txt)
-    assert library_lyrics_state.get(conn, 100)["state"] == "synced"
+    assert library_lyrics_state.get_state(conn, 100) == "synced"
     assert list((tmp_path / "MUSIC").rglob("*.lyrics.txt")) == []
 
 
