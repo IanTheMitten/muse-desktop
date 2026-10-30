@@ -564,7 +564,7 @@ Negative result is a valid outcome.
 ## Phase 5 - Browser e2e, docs and the release workflow
 
 ### Task 17: Add the Playwright harness, the e2e server and the scroll regression check
-- [ ] status
+- [x] status
 **Objective:** `npm --prefix web run e2e` starts a fresh Muse on fixtures with a fake chart and runs a Chromium spec proving every main view scrolls; CI runs it on PRs and pushes to main.
 **Write-scope:**
 `web/package.json`
@@ -608,7 +608,7 @@ Negative result is a valid outcome.
 **Why:** Decision 10's flow list (spec:392-400).
 
 ### Task 19: Document the alpha: README, release notes, CLAUDE.md [docs]
-- [ ] status
+- [x] status
 **Objective:** README tells a stranger how to install the unsigned alpha and what the licences mean, release notes for v0.1.0 exist, and CLAUDE.md matches M5.
 **Write-scope:**
 `README.md`
@@ -627,7 +627,7 @@ Negative result is a valid outcome.
 **Why:** Decision 9 step 4 (spec:355-361).
 
 ### Task 20: Extend the packaging workflow to publish worker-v* and v* releases
-- [ ] status
+- [x] status
 **Objective:** A `worker-v*` tag builds only the worker legs and publishes a non-latest release with both zips; a `v*` tag builds only the app legs and publishes the installers with the checked-in notes.
 **Write-scope:**
 `.github/workflows/package.yml`
