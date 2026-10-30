@@ -23,7 +23,7 @@ from . import art as art_module
 from . import content_embed_batch
 from . import embed as embed_module
 from . import lyrics_lrclib as lyrics_lrclib_module
-from . import scanner, smart
+from . import scanner, smart, ytdlp
 from .align_text import fill_starts
 from .ingest import DownloadResult
 from .library import art as library_art
@@ -353,6 +353,30 @@ async def run_smart_install(
     return finished
 
 
+async def run_ytdlp_install(
+    conn, bus: JobBus, data_dir: Path, base_url: str, *, session=None,
+) -> dict:
+    """Fetch the yt-dlp binary into `data_dir`, as a `ytdlp_install` job.
+    Returns the finished job row."""
+    job_id = job_rows.create(conn, ytdlp.YTDLP_INSTALL, {})
+    job_rows.update(conn, job_id, state=job_rows.RUNNING, message="Getting the downloader")
+    bus.publish(_event(job_rows.get(conn, job_id)))
+    try:
+        await asyncio.to_thread(ytdlp.install, data_dir, base_url, session=session)
+    except asyncio.CancelledError:
+        job_rows.update(conn, job_id, state=job_rows.CANCELLED, message="Server stopped")
+        bus.publish(_event(job_rows.get(conn, job_id)))
+        raise
+    except Exception:
+        log.exception("Downloader install failed")
+        job_rows.update(conn, job_id, state=job_rows.ERROR, message=ytdlp.INSTALL_FAILED)
+    else:
+        job_rows.update(conn, job_id, state=job_rows.DONE, progress=1.0, message="Ready")
+    finished = job_rows.get(conn, job_id)
+    bus.publish(_event(finished))
+    return finished
+
+
 async def run_align_job(
     conn, bus: JobBus, job_id: int, items: list[dict], align, *, lyrics_root: Path,
 ) -> dict:
@@ -659,11 +683,15 @@ async def run_download_worker(
     gap_seconds: float = 0.0,
     sleep=asyncio.sleep,
     jitter=lambda: random.random() * 0.5,
+    before_drain=None,
 ) -> None:
     """The one background consumer of `download` jobs, for the app's
     lifetime. Sequential by construction: a single consumer of a single
     queue means never two `run_download_fn` calls in flight at once
     (PRD story 94: one download at a time).
+
+    `before_drain`, when given, is awaited once each time work arrives after
+    idle -- this is where `yt-dlp -U` runs, once per drain.
 
     `gap_seconds` spaces consecutive downloads apart. One at a time is not
     enough on its own: a whole discography queued at once still hits YouTube
@@ -682,6 +710,7 @@ async def run_download_worker(
     no `universal_reco`) on exactly the old behaviour.
     """
     embed_pending = False
+    idle = True
     while True:
         if content_backfill is not None and embed_pending and queue.empty():
             # Checked before the blocking `get()`, so a drained queue
@@ -690,6 +719,12 @@ async def run_download_worker(
             embed_pending = False
             await content_backfill()
         job_id = await queue.get()
+        if idle and before_drain is not None:
+            try:
+                await before_drain()
+            except Exception:
+                log.exception("Download worker: before_drain failed")
+        idle = False
         try:
             job = job_rows.get(conn, job_id)
             if job is None or job["state"] != job_rows.QUEUED:
@@ -706,3 +741,5 @@ async def run_download_worker(
             raise
         except Exception:
             log.exception("Download worker: unexpected error on job %d", job_id)
+        finally:
+            idle = queue.empty()
