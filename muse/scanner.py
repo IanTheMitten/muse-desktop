@@ -17,6 +17,7 @@ from .library import lyrics_state, overrides
 from .library.art import record_cover
 from .library.tracks import (
     album_rowid_for_key,
+    album_rowid_for_release,
     index_track,
     is_instrumental_path,
     next_local_rowid,
@@ -187,7 +188,16 @@ def scan(
             new.append((path, st, t))
             continue
         f = overrides.apply(conn, row["track_rowid"], _fields(path, t))
-        album_rowid = album_rowid_for_key(conn, f["album_key"])
+        if row["metadata_tier"] != "tags" and "album_name" not in overrides.get(
+                conn, row["track_rowid"]):
+            # a download groups by release, not by tag album_key: keep it there,
+            # and rejoin the release once an album edit is reset
+            f["album_key"] = None
+            album_rowid = (album_rowid_for_release(conn, row["release_mbid"])
+                           if row["album_key"] is not None and row["release_mbid"]
+                           else row["album_rowid"])
+        else:
+            album_rowid = album_rowid_for_key(conn, f["album_key"])
         conn.execute(
             "UPDATE tracks SET track_name=?, artist_name=?, artist_names=?, album_name=?,"
             " album_key=?, album_rowid=?, track_no=?, disc_no=?, duration_ms=?, isrc=?,"

@@ -78,7 +78,7 @@ npm ci
 npm run dev       # vite dev server
 npm run build     # tsc -b && vite build -> web/dist, served by the FastAPI app
 npm run preview
-npm test           # vitest, node environment (pure modules in web/src/player)
+npm test           # vitest, node environment (pure modules under web/src)
 npm --prefix web run e2e   # Playwright browser spec (CI runs it)
 ```
 No lint/format tooling is configured for either side (no ruff/mypy/eslint
@@ -144,7 +144,7 @@ data dir is `MUSE_DATA_DIR` or Tauri's `app_data_dir()`; sidecar output goes to
 
 The user's music folders are configured at runtime, not by env: `GET
 /api/settings`, `PUT /api/settings/music_folders`, and `POST /api/scan`. They
-are never written to. The fork has no catalog or audio-features mirror;
+are never written to, except by an explicit Move to Trash. The fork has no catalog or audio-features mirror;
 `muse/catalog.py` and `muse/features.py` keep only `EmptyCatalog` and
 `EmptyFeatures` (lookups return nothing, so there are no duration/ISRC or
 mood-surface facts from a mirror). `muse/discover.py` is the MusicBrainz

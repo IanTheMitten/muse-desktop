@@ -58,6 +58,7 @@ def album_rowid_for_release(conn: sqlite3.Connection, release_mbid: str) -> int:
     row = conn.execute(
         "SELECT album_rowid FROM tracks"
         " WHERE release_mbid = ? AND album_rowid IS NOT NULL"
+        " AND album_key IS NULL"  # an album edit moved that track out of the release
         " LIMIT 1",
         (release_mbid,),
     ).fetchone()

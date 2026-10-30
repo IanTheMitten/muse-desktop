@@ -10,7 +10,8 @@ and your own listening history. See
 The one directory (`MUSE_DATA_DIR`, default `./data`) under which Muse keeps
 everything it writes: `library.sqlite3`, `lyrics/`, `art/`, `downloads/`,
 `models/`, `settings.json`. Each path can be overridden singly. Music folders are not in
-it; they stay where the user keeps them and are never written.
+it; they stay where the user keeps them and are never written,
+except by an explicit Move to Trash.
 _Avoid_: Library (that is the tracks table, not the directory).
 
 **Shell**:

@@ -203,7 +203,6 @@ class YtDlpAudioSource:
 
     def __init__(self, binary: Path):
         self._binary = binary
-        self._updated_at = float("-inf")
 
     def _download(self, query: str, out_dir: Path, base_name: str) -> dict:
         try:
@@ -212,9 +211,9 @@ class YtDlpAudioSource:
             # A failure is often a stale binary (YouTube changed): update and
             # retry once, but not on every failed track of a batch.
             if (str(error) == ytdlp.MISSING
-                    or time.monotonic() - self._updated_at < self.UPDATE_RETRY_GAP_S):
+                    or time.monotonic() - ytdlp.updated_at < self.UPDATE_RETRY_GAP_S):
                 raise
-            self._updated_at = time.monotonic()
+            ytdlp.updated_at = time.monotonic()
             if not ytdlp.update(self._binary):
                 raise
             return ytdlp.download(self._binary, query, out_dir, base_name)
