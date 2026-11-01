@@ -47,7 +47,8 @@ jobs:
             src-tauri/target/release/bundle/macos/*.zip
             src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
-      - run: uv run python scripts/shell_smoke.py --binary src-tauri/target/release/muse-shell --expect mp3,flac,m4a,wav --report-out smoke-report.json
+      # On macOS the smoke runs the signed binaries inside Muse.app, so a signing setting that stops the sidecar from starting fails here.
+      - run: uv run python scripts/shell_smoke.py --binary ${{ runner.os == 'macOS' && 'src-tauri/target/release/bundle/macos/Muse.app/Contents/MacOS/muse-shell' || 'src-tauri/target/release/muse-shell' }} --expect mp3,flac,m4a,wav --report-out smoke-report.json
       - if: always()
         uses: actions/upload-artifact@v7
         with:
