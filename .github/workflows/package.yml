@@ -28,7 +28,11 @@ jobs:
       - run: npm --prefix web ci
       - run: npm --prefix web run build
       - run: uv run --group package python scripts/freeze_sidecar.py
+      # createUpdaterArtifacts signs the update files with this key; the build fails without it.
       - run: web/node_modules/.bin/tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
       # Apple Silicon refuses a downloaded app whose bundle signature is broken ("Muse is damaged"); the smoke run below launches the raw binary without quarantine, so it cannot catch that.
       - if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Muse.app
@@ -39,13 +43,18 @@ jobs:
           arch=$([ "$(uname -m)" = arm64 ] && echo aarch64 || echo x64)
           cd src-tauri/target/release/bundle/macos
           ditto -c -k --keepParent Muse.app "Muse_${version}_${arch}.zip"
+          # Both Mac legs make Muse.app.tar.gz (the updater's file); give each its arch so they can share a release.
+          mv Muse.app.tar.gz "Muse_${version}_${arch}.app.tar.gz"
+          mv Muse.app.tar.gz.sig "Muse_${version}_${arch}.app.tar.gz.sig"
       - uses: actions/upload-artifact@v7
         with:
           name: bundle-${{ matrix.os }}
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/macos/*.zip
+            src-tauri/target/release/bundle/macos/*.app.tar.gz*
             src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/*.exe.sig
           if-no-files-found: error
       # On macOS the smoke runs the signed binaries inside Muse.app, so a signing setting that stops the sidecar from starting fails here.
       - run: uv run python scripts/shell_smoke.py --binary ${{ runner.os == 'macOS' && 'src-tauri/target/release/bundle/macos/Muse.app/Contents/MacOS/muse-shell' || 'src-tauri/target/release/muse-shell' }} --expect mp3,flac,m4a,wav --report-out smoke-report.json
@@ -124,7 +133,8 @@ jobs:
           copy 'dist/macos/*_aarch64.zip' Muse_aarch64.zip
           copy 'dist/macos/*_x64.zip' Muse_x64.zip
           copy 'dist/nsis/*_x64-setup.exe' Muse_x64-setup.exe
-      - run: gh release create "$GITHUB_REF_NAME" dist/dmg/*.dmg dist/macos/*.zip dist/nsis/*.exe dist/stable/* --title "Muse ${GITHUB_REF_NAME#v}" --notes-file "docs/release-notes/$GITHUB_REF_NAME.md"
+      - run: python3 scripts/updater_manifest.py --dist dist --tag "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
+      - run: gh release create "$GITHUB_REF_NAME" dist/dmg/*.dmg dist/macos/*.zip dist/macos/*.app.tar.gz dist/nsis/*.exe dist/stable/* dist/latest.json --title "Muse ${GITHUB_REF_NAME#v}" --notes-file "docs/release-notes/$GITHUB_REF_NAME.md"
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

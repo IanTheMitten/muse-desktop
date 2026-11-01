@@ -498,6 +498,7 @@ function Advanced({
   setData: (next: SettingsData) => void;
 }) {
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [installing, setInstalling] = useState<"idle" | "busy" | "failed">("idle");
   useEffect(() => {
     const abort = new AbortController();
     getUpdate(abort.signal).then(
@@ -506,6 +507,25 @@ function Advanced({
     );
     return () => abort.abort();
   }, []);
+
+  const openRelease = () => {
+    if (shell && update?.url) void shell.shell.open(update.url);
+  };
+  // The shell downloads the release, swaps it in and restarts Muse; false means its update feed had
+  // nothing newer (a release without latest.json), so the release page is the way to get it.
+  const install = async () => {
+    if (!shell) return;
+    setInstalling("busy");
+    try {
+      const started = await shell.core.invoke<boolean>("update_install");
+      if (!started) {
+        setInstalling("idle");
+        openRelease();
+      }
+    } catch {
+      setInstalling("failed");
+    }
+  };
 
   const unlocked = data.downloader_unlocked;
   const lock = async () => {
@@ -523,22 +543,42 @@ function Advanced({
           <li className="folder-row">
             <div className="folder-info">
               <span className="folder-path">Muse {update.current}</span>
-              {update.latest != null && (
+              {update.latest != null && shell != null && installing === "failed" && (
+                <span className="folder-state">
+                  The update didn’t install.{" "}
+                  <a
+                    className="set-link"
+                    href={update.url}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      openRelease();
+                    }}
+                  >
+                    Download Muse {update.latest}
+                  </a>
+                </span>
+              )}
+              {update.latest != null && shell == null && (
                 <a
                   className="folder-state set-link"
                   href={update.url}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={(event) => {
-                    if (!shell || !update.url) return;
-                    event.preventDefault();
-                    void shell.shell.open(update.url);
-                  }}
                 >
                   Muse {update.latest} is out
                 </a>
               )}
             </div>
+            {update.latest != null && shell != null && installing !== "failed" && (
+              <button
+                type="button"
+                className="btn primary"
+                disabled={installing === "busy"}
+                onClick={() => void install()}
+              >
+                {installing === "busy" ? "Updating…" : `Update to Muse ${update.latest}`}
+              </button>
+            )}
           </li>
         )}
         <li className="folder-row">
