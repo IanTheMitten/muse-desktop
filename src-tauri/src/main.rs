@@ -41,6 +41,19 @@ fn boot_status(state: State<'_, Mutex<Shell>>) -> serde_json::Value {
     })
 }
 
+/// Downloads and installs the newest release, then restarts into it. Ok(false) when the update feed
+/// has nothing newer to offer. The restart goes through RunEvent::Exit, so the sidecar is dropped as
+/// on any quit; on Windows the installer's preinstall hook stops it before files are copied.
+#[tauri::command]
+async fn update_install(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
+    let Some(update) = update else { return Ok(false) };
+    update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+    app.request_restart();
+    Ok(true)
+}
+
 #[tauri::command]
 fn smoke_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<(), String> {
     let path = std::env::var("MUSE_SMOKE_REPORT").map_err(|_| "smoke mode is off".to_string())?;
@@ -68,7 +81,14 @@ fn main() {
         }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![boot_status, smoke_report, tray::open_mini, tray::show_main])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![
+            boot_status,
+            smoke_report,
+            update_install,
+            tray::open_mini,
+            tray::show_main
+        ])
         .setup(|app| {
             let data_dir = match std::env::var_os("MUSE_DATA_DIR") {
                 Some(d) => PathBuf::from(d),

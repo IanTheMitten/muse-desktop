@@ -11,6 +11,7 @@
     "allow-boot-status",
     "allow-smoke-report",
     "allow-open-mini",
-    "allow-show-main"
+    "allow-show-main",
+    "allow-update-install"
   ]
 }

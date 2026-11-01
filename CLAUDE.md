@@ -124,7 +124,7 @@ prefers over `?t=`. The shell never kills the sidecar: it drops the child on
 exit, which closes its stdin, and with `MUSE_PARENT_WATCH=1` `muse/__main__.py`
 exits on that EOF. One capability (`src-tauri/capabilities/default.json`,
 remote `http://127.0.0.1:*`) covers the boot page and the loopback pages; app
-commands (`boot_status`, `smoke_report`, `open_mini`, `show_main`) are declared
+commands (`boot_status`, `smoke_report`, `open_mini`, `show_main`, `update_install`) are declared
 in `build.rs` through `AppManifest` and granted as `allow-<command>`. Web code
 reaches `window.__TAURI__` only through `web/src/shell.ts` (`undefined` in a
 browser). Events: `muse:command` (`toggle`/`next`/`previous`, tray or mini
