@@ -29,6 +29,9 @@ jobs:
       - run: npm --prefix web run build
       - run: uv run --group package python scripts/freeze_sidecar.py
       - run: web/node_modules/.bin/tauri build
+      # Apple Silicon refuses a downloaded app whose bundle signature is broken ("Muse is damaged"); the smoke run below launches the raw binary without quarantine, so it cannot catch that.
+      - if: runner.os == 'macOS'
+        run: codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Muse.app
       - uses: actions/upload-artifact@v7
         with:
           name: bundle-${{ matrix.os }}
