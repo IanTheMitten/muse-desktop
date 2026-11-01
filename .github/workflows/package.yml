@@ -32,11 +32,19 @@ jobs:
       # Apple Silicon refuses a downloaded app whose bundle signature is broken ("Muse is damaged"); the smoke run below launches the raw binary without quarantine, so it cannot catch that.
       - if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Muse.app
+      # macOS 26 can reject an unsigned downloaded .dmg itself as damaged, so the app also ships as a zip; ditto keeps the bundle's signature intact.
+      - if: runner.os == 'macOS'
+        run: |
+          version=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          arch=$([ "$(uname -m)" = arm64 ] && echo aarch64 || echo x64)
+          cd src-tauri/target/release/bundle/macos
+          ditto -c -k --keepParent Muse.app "Muse_${version}_${arch}.zip"
       - uses: actions/upload-artifact@v7
         with:
           name: bundle-${{ matrix.os }}
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.zip
             src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
       - run: uv run python scripts/shell_smoke.py --binary src-tauri/target/release/muse-shell --expect mp3,flac,m4a,wav --report-out smoke-report.json
@@ -112,8 +120,10 @@ jobs:
           }
           copy 'dist/dmg/*_aarch64.dmg' Muse_aarch64.dmg
           copy 'dist/dmg/*_x64.dmg' Muse_x64.dmg
+          copy 'dist/macos/*_aarch64.zip' Muse_aarch64.zip
+          copy 'dist/macos/*_x64.zip' Muse_x64.zip
           copy 'dist/nsis/*_x64-setup.exe' Muse_x64-setup.exe
-      - run: gh release create "$GITHUB_REF_NAME" dist/dmg/*.dmg dist/nsis/*.exe dist/stable/* --title "Muse ${GITHUB_REF_NAME#v}" --notes-file "docs/release-notes/$GITHUB_REF_NAME.md"
+      - run: gh release create "$GITHUB_REF_NAME" dist/dmg/*.dmg dist/macos/*.zip dist/nsis/*.exe dist/stable/* --title "Muse ${GITHUB_REF_NAME#v}" --notes-file "docs/release-notes/$GITHUB_REF_NAME.md"
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
