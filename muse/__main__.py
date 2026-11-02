@@ -34,6 +34,35 @@ def _listener(address: str, port: int) -> socket.socket:
     return sock
 
 
+def _wait_for_stdin_eof() -> None:
+    """Block until the write end of stdin is closed.
+
+    On Windows this polls instead of reading: while one thread waits in a
+    synchronous ReadFile on a pipe, other calls on that handle block until it
+    returns. OpenBLAS's runtime makes such a call when numpy first loads, and
+    it waits holding the loader lock, so the whole process stops (a blank
+    window in the shell). PeekNamedPipe never leaves a read pending.
+    """
+    if os.name != "nt":
+        sys.stdin.buffer.read()
+        return
+    import _winapi
+    import msvcrt
+
+    handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+    if _winapi.GetFileType(handle) != _winapi.FILE_TYPE_PIPE:
+        sys.stdin.buffer.read()  # a console or file, as when run by hand
+        return
+    while True:
+        try:
+            available, _ = _winapi.PeekNamedPipe(handle)
+            if available:
+                os.read(sys.stdin.fileno(), available)  # the shell writes nothing; drain anyway
+        except (BrokenPipeError, OSError):
+            return
+        time.sleep(0.5)
+
+
 def _exit_with_parent(server: uvicorn.Server) -> None:
     """Stop when stdin closes: the shell that spawned us is gone (Decision 3).
 
@@ -43,7 +72,7 @@ def _exit_with_parent(server: uvicorn.Server) -> None:
     """
     if sys.stdin is None:
         return
-    sys.stdin.buffer.read()
+    _wait_for_stdin_eof()
     server.should_exit = True
     time.sleep(10)
     os._exit(0)
