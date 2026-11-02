@@ -1,4 +1,7 @@
-// Smoke driver: injected only when MUSE_SMOKE_REPORT is set. Decodes the fixture songs through the real stream URLs.
+// Smoke driver: injected only when MUSE_SMOKE_REPORT is set. Checks the UI actually drew, then decodes the fixture songs through the real stream URLs.
+const pageErrors = [];
+window.addEventListener("error", (e) => pageErrors.push(String(e.message || e.error)));
+window.addEventListener("unhandledrejection", (e) => pageErrors.push("unhandled rejection: " + String(e.reason)));
 document.addEventListener("DOMContentLoaded", async () => {
   // Windows serves the boot page from http://tauri.localhost/, so check the host too.
   if (location.protocol !== "http:" || location.hostname !== "127.0.0.1" || location.pathname !== "/") return;
@@ -12,8 +15,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     ogg: 'audio/ogg; codecs="vorbis"',
     opus: 'audio/ogg; codecs="opus"',
   };
-  const report = { health: 0, media_session: "mediaSession" in navigator, formats: {} };
+  const report = { health: 0, media_session: "mediaSession" in navigator, formats: {}, ui_rendered: false, page_errors: pageErrors };
   try {
+    // A blank window passes every other check: wait for the app to draw something, and not the crash screen.
+    for (let i = 0; i < 40 && !report.ui_rendered; i++) {
+      const root = document.getElementById("root");
+      report.ui_rendered = !!root && root.childElementCount > 0 && !root.querySelector('[role="alert"]');
+      if (!report.ui_rendered) await new Promise((res) => setTimeout(res, 500));
+    }
+    if (!report.ui_rendered) report.root_text = (document.getElementById("root") || {}).innerText || "";
     report.health = (await fetch("/api/health", { headers })).status;
     let songs = [];
     for (let i = 0; i < 60; i++) {

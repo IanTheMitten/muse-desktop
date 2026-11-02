@@ -116,8 +116,14 @@ rather than a deleted row, and a row with `removed_at` set is never revived.
 **The desktop shell** (`src-tauri/`) starts on a local boot page
 (`src-tauri/boot/index.html`) that polls the `boot_status` command. It spawns
 the frozen sidecar (`scripts/freeze_sidecar.py`) with a random per-launch
-`MUSE_TOKEN`, and when the sidecar prints `MUSE_LISTENING <port>` navigates the
-main window to `http://127.0.0.1:<port>/`; each window's `on_navigation` allows
+`MUSE_TOKEN`, and when the sidecar prints `MUSE_LISTENING <port>` first checks
+that an HTTP request to that port gets an answer (`probe` in `src-tauri/src/main.rs`;
+a PC that blocks loopback gets the boot page's failure state, not a blank window),
+then navigates the main window to `http://127.0.0.1:<port>/`. On Windows every
+window gets the same `WEBVIEW_ARGS` (no proxy; all windows share one WebView2
+data folder, so they must match) and `src-tauri/src/webview_watch.rs` logs failed
+navigations and WebView2 process crashes, which Tauri does not surface. The shell
+writes its own `shell +<secs>s` lines, panics and exits into `muse.log`; each window's `on_navigation` allows
 only the boot origin and `127.0.0.1`. The token reaches the UI as
 `window.__MUSE_TOKEN__` from an initialization script, which `web/src/token.ts`
 prefers over `?t=`. The shell never kills the sidecar: it drops the child on
