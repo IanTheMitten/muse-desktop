@@ -2,12 +2,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::collections::{HashMap, VecDeque};
 use std::fs::OpenOptions;
-use std::io::Write;
-use std::path::PathBuf;
-use std::sync::Mutex;
-use std::time::Duration;
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpStream};
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 mod tray;
+#[cfg(windows)]
+mod webview_watch;
 
 use tauri::{Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_dialog::DialogExt;
@@ -22,6 +25,91 @@ pub struct Shell {
     pub data_dir: PathBuf,
     pub token: String,
     pub child: Option<CommandChild>,
+}
+
+/// The boot page; Windows serves the app's own pages from http://tauri.localhost.
+pub(crate) const BOOT_URL: &str =
+    if cfg!(windows) { "http://tauri.localhost/index.html" } else { "tauri://localhost/index.html" };
+
+/// WebView2 arguments for every window. Setting any replaces wry's defaults, so they are repeated
+/// here (the first two). --no-proxy-server: a system or PAC proxy must never sit between the window
+/// and the loopback server; the UI loads nothing from anywhere else. All windows share one WebView2
+/// data folder, so they must all get exactly these.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) const WEBVIEW_ARGS: &str =
+    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required --no-proxy-server";
+
+static STARTED: OnceLock<Instant> = OnceLock::new();
+
+/// One line from the shell itself into muse.log, next to the sidecar's output.
+pub(crate) fn shell_log(path: &Path, msg: &str) {
+    let secs = STARTED.get_or_init(Instant::now).elapsed().as_secs_f32();
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "shell +{secs:.1}s  {msg}");
+    }
+}
+
+/// Show the boot page's failure state with these lines, whatever the main window is showing.
+pub(crate) fn fail_main(app: &tauri::AppHandle, lines: Vec<String>) {
+    {
+        let s = app.state::<Mutex<Shell>>();
+        let mut s = s.lock().unwrap();
+        s.failed = true;
+        s.port = None;
+        for line in lines {
+            shell_log(&s.log_path, &line);
+            push_line(&mut s, line);
+        }
+    }
+    if let Some(m) = app.get_webview_window("mini") {
+        let _ = m.close();
+    }
+    if let (Some(w), Ok(url)) = (app.get_webview_window("main"), BOOT_URL.parse()) {
+        let _ = w.navigate(url);
+    }
+}
+
+/// Wait until the server answers an HTTP request on the loopback port. Any status counts: this only
+/// asks whether this PC lets a local program connect to it at all. MUSE_LISTENING comes before the
+/// app's startup (migrations included), so a slow first answer is normal; hence the long deadline.
+fn probe(port: u16) -> Result<(), String> {
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let deadline = Instant::now() + Duration::from_secs(120);
+    loop {
+        let err = match probe_once(addr) {
+            Ok(()) => return Ok(()),
+            Err(e) => e,
+        };
+        if Instant::now() >= deadline {
+            return Err(err);
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+}
+
+fn probe_once(addr: SocketAddr) -> Result<(), String> {
+    let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3)).map_err(|e| format!("connect: {e}"))?;
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
+    let _ = stream.set_write_timeout(Some(Duration::from_secs(3)));
+    stream
+        .write_all(format!("GET / HTTP/1.1\r\nHost: {addr}\r\nConnection: close\r\n\r\n").as_bytes())
+        .map_err(|e| format!("send: {e}"))?;
+    let mut head = [0u8; 8];
+    let mut n = 0;
+    while n < head.len() {
+        match stream.read(&mut head[n..]) {
+            Ok(0) => break,
+            Ok(k) => n += k,
+            Err(e) => return Err(format!("read: {e}")),
+        }
+    }
+    if head[..n].starts_with(b"HTTP/1.") {
+        Ok(())
+    } else if n == 0 {
+        Err("the connection closed with no reply".to_string())
+    } else {
+        Err(format!("unexpected reply {:?}", String::from_utf8_lossy(&head[..n])))
+    }
 }
 
 fn push_line(shell: &mut Shell, line: String) {
@@ -99,6 +187,14 @@ fn main() {
             if std::fs::metadata(&log_path).map(|m| m.len() > 5 * 1024 * 1024).unwrap_or(false) {
                 let _ = std::fs::rename(&log_path, data_dir.join("muse.log.1"));
             }
+            shell_log(&log_path, &format!("Muse {} starting", app.package_info().version));
+            // A release build on Windows has no console, so a panic would vanish without this.
+            let hook_log = log_path.clone();
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                shell_log(&hook_log, &format!("panic: {info}"));
+                default_hook(info);
+            }));
 
             let mut bytes = [0u8; 32];
             getrandom::fill(&mut bytes).map_err(|e| format!("getrandom: {e}"))?;
@@ -110,13 +206,17 @@ fn main() {
             }
 
             let nav_handle = app.handle().clone();
-            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+            let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Muse")
                 .inner_size(1200.0, 800.0)
                 .min_inner_size(360.0, 560.0)
                 .initialization_script(script)
-                .on_navigation(move |url| allowed_origin(url, current_port(&nav_handle)))
-                .build()?;
+                .on_navigation(move |url| allowed_origin(url, current_port(&nav_handle)));
+            #[cfg(windows)]
+            let builder = builder.additional_browser_args(WEBVIEW_ARGS);
+            let window = builder.build()?;
+            #[cfg(windows)]
+            webview_watch::watch(&window, app.handle().clone(), log_path.clone());
 
             let mut env = HashMap::new();
             env.insert("MUSE_DATA_DIR".to_string(), data_dir.to_string_lossy().into_owned());
@@ -192,8 +292,7 @@ fn main() {
                                 if let Some(m) = handle.get_webview_window("mini") {
                                     let _ = m.close();
                                 }
-                                let boot = if cfg!(windows) { "http://tauri.localhost/index.html" } else { "tauri://localhost/index.html" };
-                                if let Ok(url) = boot.parse() {
+                                if let Ok(url) = BOOT_URL.parse() {
                                     let _ = window.navigate(url);
                                 }
                             }
@@ -218,9 +317,31 @@ fn main() {
                         }
                     }
                     if let Some(p) = port {
-                        if let Ok(url) = format!("http://127.0.0.1:{p}/").parse() {
-                            let _ = window.navigate(url);
-                        }
+                        // Check the window will be able to reach the server before sending it there:
+                        // if this PC blocks loopback connections, say so instead of showing a blank page.
+                        let (h, w, lp) = (handle.clone(), window.clone(), log_path.clone());
+                        tauri::async_runtime::spawn(async move {
+                            let started = Instant::now();
+                            let result = tauri::async_runtime::spawn_blocking(move || probe(p))
+                                .await
+                                .unwrap_or_else(|e| Err(format!("the check did not finish ({e})")));
+                            if current_port(&h) != Some(p) {
+                                return; // the sidecar stopped meanwhile; its own failure is showing
+                            }
+                            match result {
+                                Ok(()) => {
+                                    let ms = started.elapsed().as_millis();
+                                    shell_log(&lp, &format!("server answered on 127.0.0.1:{p} after {ms} ms; opening it"));
+                                    if let Ok(url) = format!("http://127.0.0.1:{p}/").parse() {
+                                        let _ = w.navigate(url);
+                                    }
+                                }
+                                Err(e) => fail_main(&h, vec![
+                                    format!("Muse started, but the window could not connect to it on 127.0.0.1:{p} ({e})."),
+                                    "Security software, a VPN or a proxy on this PC may be blocking connections to 127.0.0.1.".to_string(),
+                                ]),
+                            }
+                        });
                     }
                 }
             });
@@ -241,8 +362,13 @@ fn main() {
         .expect("error while building Muse");
 
     app.run(|handle, event| {
+        let log_path = || handle.state::<Mutex<Shell>>().lock().unwrap().log_path.clone();
         match event {
+            RunEvent::ExitRequested { code, .. } => {
+                shell_log(&log_path(), &format!("exit requested (code {code:?})"));
+            }
             RunEvent::Exit => {
+                shell_log(&log_path(), "exiting");
                 // drop closes the sidecar's stdin; never kill (onefile bootloader would orphan its child)
                 let child = handle.state::<Mutex<Shell>>().lock().unwrap().child.take();
                 drop(child);

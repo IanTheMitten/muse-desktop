@@ -59,15 +59,15 @@ pub fn open_mini(app: AppHandle) -> Result<(), String> {
         let _ = w.set_focus();
         return Ok(());
     }
-    let (port, token) = {
+    let (port, token, log_path) = {
         let s = app.state::<Mutex<Shell>>();
         let s = s.lock().unwrap();
-        (s.port, s.token.clone())
+        (s.port, s.token.clone(), s.log_path.clone())
     };
     let port = port.ok_or("Muse is still starting")?;
     let url = format!("http://127.0.0.1:{port}/mini").parse().map_err(|e| format!("{e}"))?;
     let h = app.clone();
-    WebviewWindowBuilder::new(&app, "mini", WebviewUrl::External(url))
+    let builder = WebviewWindowBuilder::new(&app, "mini", WebviewUrl::External(url))
         .title("Muse")
         .inner_size(400.0, 96.0)
         .resizable(false)
@@ -75,8 +75,14 @@ pub fn open_mini(app: AppHandle) -> Result<(), String> {
         .always_on_top(true)
         .skip_taskbar(true)
         .initialization_script(format!("window.__MUSE_TOKEN__ = \"{token}\";"))
-        .on_navigation(move |url| crate::allowed_origin(url, crate::current_port(&h)))
-        .build()
-        .map_err(|e| e.to_string())?;
+        .on_navigation(move |url| crate::allowed_origin(url, crate::current_port(&h)));
+    // Must match the main window's arguments: both share one WebView2 data folder.
+    #[cfg(windows)]
+    let builder = builder.additional_browser_args(crate::WEBVIEW_ARGS);
+    let window = builder.build().map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    crate::webview_watch::watch(&window, app.clone(), log_path);
+    #[cfg(not(windows))]
+    let _ = (window, log_path);
     Ok(())
 }

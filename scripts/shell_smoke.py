@@ -89,12 +89,16 @@ def main() -> int:
             fmts = rep.get("formats", {})
             for name, row in fmts.items():
                 print(f"{name:6} can_play_type={row.get('can_play_type')!r} result={row.get('result')}")
-            print(f"health={rep.get('health')} media_session={rep.get('media_session')}")
+            print(f"health={rep.get('health')} media_session={rep.get('media_session')} ui_rendered={rep.get('ui_rendered')}")
+            for err in rep.get("page_errors") or []:
+                print("page error:", err)
+            if not rep.get("ui_rendered"):
+                print("the UI did not render:", (rep.get("root_text") or "")[:500])
             expect = [e.strip() for e in args.expect.split(",") if e.strip()]
             missing = [e for e in expect if fmts.get(e, {}).get("result") != "decoded"]
             if missing:
                 print("not decoded:", ", ".join(missing))
-            ok = rep.get("health") == 200 and not missing
+            ok = rep.get("health") == 200 and not missing and rep.get("ui_rendered") is True
             if args.report_out:
                 shutil.copyfile(report, args.report_out)
         deadline = time.time() + 15
