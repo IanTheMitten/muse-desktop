@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // A blank window passes every other check: wait for the app to draw something, and not the crash screen.
     for (let i = 0; i < 40 && !report.ui_rendered; i++) {
       const root = document.getElementById("root");
-      report.ui_rendered = !!root && root.childElementCount > 0 && !root.querySelector('[role="alert"]');
+      report.ui_rendered = !!root && root.childElementCount > 0 && !root.querySelector("[data-muse-crash]");
       if (!report.ui_rendered) await new Promise((res) => setTimeout(res, 500));
     }
     if (!report.ui_rendered) report.root_text = (document.getElementById("root") || {}).innerText || "";

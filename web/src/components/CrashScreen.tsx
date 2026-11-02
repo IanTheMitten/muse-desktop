@@ -19,7 +19,7 @@ export class CrashScreen extends Component<{ children: ReactNode }, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
     return (
-      <main role="alert" style={{ maxWidth: 640, margin: "0 auto", padding: "48px var(--gutter)" }}>
+      <main role="alert" data-muse-crash="" style={{ maxWidth: 640, margin: "0 auto", padding: "48px var(--gutter)" }}>
         <h1 style={{ fontSize: "var(--t-xl)", margin: "0 0 12px" }}>Muse hit a problem drawing this page</h1>
         <p style={{ color: "var(--text-2)", margin: "0 0 16px" }}>
           Your library is safe. Reload to try again; if this keeps happening, send the text below.
