@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-11-07",
+    "brief": "Muse README · visual tour",
+    "system": "muse-player",
+    "nav": "none (GitHub README)",
+    "footer": "folded licences",
+    "hero": "theme-aware Now Playing triptych, three covers",
+    "scaffold": "screenshot grid with captions, Mermaid diagrams",
+    "display": "GitHub markdown; Newsreader + Figtree inside screenshots",
+    "palette": "record wash from six CC-licensed covers",
+    "anchors": "Plexamp, Apple Music lyrics, Tauri/uv READMEs"
+  },
+  {
     "date": "2026-10-28",
     "brief": "Muse Player · record wash redesign",
     "system": "muse-player",
