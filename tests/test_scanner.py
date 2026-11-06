@@ -230,6 +230,16 @@ def test_embedded_art_written(tmp_path, conn):
     assert row["art_path"]
 
 
+def test_embedded_art_reaches_every_track_of_a_new_album(tmp_path, conn):
+    e = env(tmp_path, conn)
+    for n in ("a.mp3", "b.mp3", "c.mp3"):
+        e.file(n)
+        e.tags[n] = ft(title=n)
+        e.pics[n] = (b"img", ".jpg")
+    e.scan()
+    assert all(r["art_path"] for r in e.rows())
+
+
 def test_hidden_and_non_audio_ignored(tmp_path, conn):
     e = env(tmp_path, conn)
     e.file(".song.mp3")

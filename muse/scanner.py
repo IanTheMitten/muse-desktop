@@ -62,13 +62,14 @@ def _insert(conn, path, st, f, now, lyrics_root, art_root, pic) -> None:
         "INSERT INTO tracks (track_rowid, track_id, origin, metadata_tier, artist_rowid,"
         " album_rowid, artist_name, artist_names, album_name, track_name, track_no, disc_no,"
         " duration_ms, isrc, file_path, is_instrumental, status, added_at, file_size,"
-        " file_mtime, format, album_key, year)"
+        " file_mtime, format, album_key, year, art_path)"
         " VALUES (?, NULL, 'local', 'tags', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'done',"
-        " ?, ?, ?, ?, ?, ?)",
+        " ?, ?, ?, ?, ?, ?, (SELECT art_path FROM album_art WHERE album_rowid = ?))",
         (rowid, album_rowid, f["artist_name"], json.dumps([f["artist_name"]]),
          f["album_name"], f["track_name"], f["track_no"], f["disc_no"], f["duration_ms"],
          f["isrc"], str(path), int(is_instrumental_path(str(path), f["track_name"])), now,
-         st.st_size, int(st.st_mtime), path.suffix.lower().lstrip("."), f["album_key"], f["year"]),
+         st.st_size, int(st.st_mtime), path.suffix.lower().lstrip("."), f["album_key"], f["year"],
+         album_rowid),
     )
     index_track(conn, rowid, f["track_name"], f["artist_name"], f["album_name"])
 
