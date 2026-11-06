@@ -1,0 +1,213 @@
+[
+  {
+    "artist": "Josh Woodward",
+    "album": "The Wake",
+    "year": "2012",
+    "licence": "CC BY 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+    "evidence_url": "https://joshwoodward.bandcamp.com/album/the-wake",
+    "evidence_quote": "Release page (cover shown on the same page) license block: \"some rights reserved\" linking https://creativecommons.org/licenses/by/4.0/. Each song page on joshwoodward.com carries the lyrics and \"This work is licensed under a Creative Commons Attribution 4.0 License\". Audio mirror archive.org/details/jamendo-112820 License.txt lists every track as http://creativecommons.org/licenses/by/3.0/.",
+    "cover_url": "https://f4.bcbits.com/img/a2176387374_10.jpg",
+    "dominant_hue": "orange",
+    "tracks": [
+      {
+        "n": 4,
+        "title": "Crazy Glue",
+        "url": "https://archive.org/download/jamendo-112820/04-959589-Josh%20Woodward-Crazy%20Glue.mp3",
+        "has_vocals": true,
+        "lyrics_url": "https://www.joshwoodward.com/song/CrazyGlue"
+      },
+      {
+        "n": 10,
+        "title": "Golden Sunrise",
+        "url": "https://archive.org/download/jamendo-112820/10-959596-Josh%20Woodward-Golden%20Sunrise.mp3",
+        "has_vocals": true,
+        "lyrics_url": "https://www.joshwoodward.com/song/GoldenSunrise"
+      },
+      {
+        "n": 5,
+        "title": "Lafayette",
+        "url": "https://archive.org/download/jamendo-112820/05-959593-Josh%20Woodward-Lafayette.mp3",
+        "has_vocals": true,
+        "lyrics_url": "https://www.joshwoodward.com/song/Lafayette"
+      },
+      {
+        "n": 1,
+        "title": "I Will Not Let You Let Me Down",
+        "url": "https://archive.org/download/jamendo-112820/01-959588-Josh%20Woodward-I%20Will%20Not%20Let%20You%20Let%20Me%20Down.mp3",
+        "has_vocals": true,
+        "lyrics_url": "https://www.joshwoodward.com/song/IWillNotLetYouLetMeDown"
+      }
+    ]
+  },
+  {
+    "artist": "Komiku",
+    "album": "The Adventure Goes On, Vol. 1",
+    "year": "2020",
+    "licence": "CC0 1.0",
+    "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "evidence_url": "https://archive.org/details/komiku-the-adventure-goes-on-vol.-1",
+    "evidence_quote": "Item licenseurl http://creativecommons.org/publicdomain/zero/1.0/; description quotes the artist: \"So here is the beginning of Season 2. Under creative commons 0 licence.\" Artist FAQ (https://loyaltyfreakmusic.com/faq/): \"98 % of my work is under Creative Commons 0 ... Check the description of the album to see the license\". Cover is Vincent van Gogh's \"The Sower\" (1888), a public-domain painting.",
+    "cover_url": "https://archive.org/download/komiku-the-adventure-goes-on-vol.-1/cover.jpg",
+    "dominant_hue": "yellow",
+    "tracks": [
+      {
+        "n": 1,
+        "title": "The calling",
+        "url": "https://archive.org/download/komiku-the-adventure-goes-on-vol.-1/Komiku%20-%20The%20adventure%20goes%20on%2C%20vol.1%20-%2001%20The%20calling.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 4,
+        "title": "Tonight, we feast !",
+        "url": "https://archive.org/download/komiku-the-adventure-goes-on-vol.-1/Komiku%20-%20The%20adventure%20goes%20on%2C%20vol.1%20-%2004%20Tonight%2C%20we%20feast%20%21.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 5,
+        "title": "Sweet night and friends",
+        "url": "https://archive.org/download/komiku-the-adventure-goes-on-vol.-1/Komiku%20-%20The%20adventure%20goes%20on%2C%20vol.1%20-%2005%20Sweet%20night%20and%20friends.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      }
+    ]
+  },
+  {
+    "artist": "Chris Zabriskie",
+    "album": "Reappear",
+    "year": "2012",
+    "licence": "CC BY 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+    "evidence_url": "https://chriszabriskie.bandcamp.com/album/reappear",
+    "evidence_quote": "Release page (cover shown on the same page) license block: \"some rights reserved\" linking https://creativecommons.org/licenses/by/4.0/; credits \"Written, produced, and performed by Chris Zabriskie\". Audio mirror archive.org/details/Reappear-11948 (from Free Music Archive) has licenseurl http://creativecommons.org/licenses/by/3.0/.",
+    "cover_url": "https://f4.bcbits.com/img/a1274618758_10.jpg",
+    "dominant_hue": "green",
+    "tracks": [
+      {
+        "n": 2,
+        "title": "Readers! Do You Read?",
+        "url": "https://archive.org/download/Reappear-11948/Chris_Zabriskie_-_02_-_Readers_Do_You_Read.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 4,
+        "title": "Is That You or Are You You?",
+        "url": "https://archive.org/download/Reappear-11948/Chris_Zabriskie_-_04_-_Is_That_You_or_Are_You_You.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 7,
+        "title": "Virtues Inherited, Vices Passed On",
+        "url": "https://archive.org/download/Reappear-11948/Chris_Zabriskie_-_07_-_Virtues_Inherited_Vices_Passed_On.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      }
+    ]
+  },
+  {
+    "artist": "Ozzed",
+    "album": "Dunes at Night",
+    "year": "2017",
+    "licence": "CC BY-SA 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "evidence_url": "https://ozzed.bandcamp.com/album/dunes-at-night",
+    "evidence_quote": "Release page (cover shown on the same page) license block: \"some rights reserved\" linking https://creativecommons.org/licenses/by-sa/4.0/. Artist album page https://ozzed.net/music/dunes-at-night.shtml: \"The album is licensed under a Creative Commons license (CC BY-SA) and you may use it accordingly.\" Audio mirror archive.org/details/jamendo-173570 lists CC BY-SA 3.0.",
+    "cover_url": "https://f4.bcbits.com/img/a3299097701_10.jpg",
+    "dominant_hue": "blue",
+    "tracks": [
+      {
+        "n": 1,
+        "title": "Frozen Langos",
+        "url": "https://archive.org/download/jamendo-173570/01-1508166-Ozzed-Frozen%20Langos.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 3,
+        "title": "Blueberry March",
+        "url": "https://archive.org/download/jamendo-173570/03-1508170-Ozzed-Blueberry%20March.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 14,
+        "title": "Dunes at Night",
+        "url": "https://archive.org/download/jamendo-173570/14-1508168-Ozzed-Dunes%20at%20Night.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      }
+    ]
+  },
+  {
+    "artist": "Cullah",
+    "album": "Spectacullah",
+    "year": "2019",
+    "licence": "CC BY 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by/4.0/",
+    "evidence_url": "https://cullah.bandcamp.com/album/spectacullah",
+    "evidence_quote": "Release page (cover shown on the same page) license block: \"some rights reserved\" linking https://creativecommons.org/licenses/by/4.0/; credits \"Artwork: Bigshot Robot\". Audio mirror archive.org/details/pandacd-713-spectacullah has licenseurl https://creativecommons.org/licenses/by/4.0/. Note: the artist's own site (https://www.cullah.com/licensing) describes the non-commercial path as \"Creative Commons BY-SA\", which does not match Bandcamp.",
+    "cover_url": "https://f4.bcbits.com/img/a0832737317_10.jpg",
+    "dominant_hue": "violet",
+    "tracks": [
+      {
+        "n": 2,
+        "title": "I Don't Mind It",
+        "url": "https://archive.org/download/pandacd-713-spectacullah/02%20I%20Don%27t%20Mind%20It.mp3",
+        "has_vocals": true,
+        "lyrics_url": ""
+      },
+      {
+        "n": 5,
+        "title": "Love You Gotta Be",
+        "url": "https://archive.org/download/pandacd-713-spectacullah/05%20Love%20You%20Gotta%20Be.mp3",
+        "has_vocals": true,
+        "lyrics_url": ""
+      },
+      {
+        "n": 8,
+        "title": "White Crow Flies",
+        "url": "https://archive.org/download/pandacd-713-spectacullah/08%20White%20Crow%20Flies.mp3",
+        "has_vocals": true,
+        "lyrics_url": ""
+      }
+    ]
+  },
+  {
+    "artist": "Ozzed",
+    "album": "Friendship Adventure",
+    "year": "2018",
+    "licence": "CC BY-SA 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "evidence_url": "https://ozzed.bandcamp.com/album/friendship-adventure",
+    "evidence_quote": "Release page (cover shown on the same page) license block: \"some rights reserved\" linking https://creativecommons.org/licenses/by-sa/4.0/. Artist album page https://ozzed.net/music/friendship-adventure.shtml: \"The album is licensed under a Creative Commons license (CC BY-SA) and you may use it accordingly.\" Audio mirror archive.org/details/jamendo-174068 lists CC BY-SA 3.0.",
+    "cover_url": "https://f4.bcbits.com/img/a3205244561_10.jpg",
+    "dominant_hue": "magenta",
+    "tracks": [
+      {
+        "n": 2,
+        "title": "Getting Started",
+        "url": "https://archive.org/download/jamendo-174068/02-1513275-Ozzed-Getting%20Started.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 5,
+        "title": "Seaside Town",
+        "url": "https://archive.org/download/jamendo-174068/05-1513274-Ozzed-Seaside%20Town.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      },
+      {
+        "n": 13,
+        "title": "Song For Someone",
+        "url": "https://archive.org/download/jamendo-174068/13-1513282-Ozzed-Song%20For%20Someone.mp3",
+        "has_vocals": false,
+        "lyrics_url": ""
+      }
+    ]
+  }
+]
