@@ -1,6 +1,7 @@
 /* Mini window: fixed 400x96 remote. The record's card wash over --ink. */
 /* Scoped: Vite bundles this file into the main app's CSS too (MiniWindow is imported statically). */
 html.mini-window, html.mini-window body, html.mini-window #root { height: 100%; overflow: hidden; }
+html.mini-window body { margin: 0; } /* the window is exactly the player's 400x96 */
 .mini {
   position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 12px;
   width: 400px; height: 96px; padding: 16px; overflow: hidden; background: var(--ink); color: var(--text);
