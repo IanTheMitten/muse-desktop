@@ -345,7 +345,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:50-62, spec:125-127: one Laya-based engine in the UI's path, pos persisted so the curve does not restart.
 
 ### Task 17: Add the Lift switch and Radio notes to the Muse page [design]
-- [ ] status
+- [x] status
 **Objective:** The Muse page shows the Lift switch, the untagged-seed note with Add lyrics, the 404 and energy notes; Settings shows the new licence and energy lines.
 **Write-scope:** `web/src/views/Muse.tsx`, `web/src/styles/muse.css`, `web/src/views/Settings.tsx`
 **Read-context:** `web/src/views/Muse.tsx:1-79`, `web/src/styles/muse.css:20-51`, `web/src/views/Settings.tsx:280-325`, `web/src/components/LyricsEditDialog.tsx:1-20`, `PRODUCT.md:1-80`

@@ -306,6 +306,11 @@ function SmartFeatures() {
         <li className="folder-row">
           <div className="folder-info">
             <span className="folder-path" role="status" aria-live="polite">{line}</span>
+            {status.state === "installed" && (
+              <span className="folder-state">
+                {status.energy_ready ? "Energy: ready" : "Energy: not measured yet"}
+              </span>
+            )}
             {failed && <span className="folder-state">{error ?? status.job?.message}</span>}
           </div>
           {status.state === "not_installed" && !installing && (
@@ -316,9 +321,8 @@ function SmartFeatures() {
         </li>
       </ul>
       <p className="smart-licence">
-        Uses MERT and an audio emotion model that are free for non-commercial use only, plus CLAP,
-        MiniLM, an English emotion model, Laya, and lyric aligners (MMS-FA, free for
-        non-commercial use only, and schufo).
+        Uses MERT, free for non-commercial use only, plus CLAP, Laya, and lyric aligners (MMS-FA,
+        free for non-commercial use only, and schufo).
       </p>
     </section>
   );
