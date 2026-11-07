@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import os
 import platform
 import shutil
@@ -11,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
+
+log = logging.getLogger(__name__)
 
 MANIFEST_PATH = Path(__file__).with_name("smart_manifest.json")
 SMART_INSTALL = "smart_install"
@@ -128,6 +131,24 @@ def _extract(zip_path: Path, dest: Path) -> None:
                 os.chmod(target, mode)
 
 
+def prune(models_dir: Path, manifest: dict) -> list[str]:
+    listed = {p.split("/")[1] for p in (e["path"] for e in manifest["weights"]) if p.startswith("weights/")}
+    root = models_dir / "weights"
+    removed = []
+    if not root.is_dir():
+        return removed
+    for child in root.iterdir():
+        if not child.is_dir() or child.name in listed:
+            continue
+        try:
+            shutil.rmtree(child)
+        except OSError as e:
+            log.warning("could not remove retired weights %s: %s", child, e)
+            continue
+        removed.append(child.name)
+    return sorted(removed)
+
+
 def install(
     models_dir: Path,
     manifest: dict,
@@ -140,6 +161,10 @@ def install(
     files = files_for(manifest, triple)
     worker = files[-1]
     models_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        previous = json.loads((models_dir / "installed.json").read_text()).get("manifest_version")
+    except (OSError, ValueError, AttributeError):
+        previous = None
     todo = _missing(models_dir, files)
     needed = sum(f.size for f in todo) + 3 * worker.size
     if disk_free(models_dir).free < needed:
@@ -168,3 +193,5 @@ def install(
     tmp = models_dir / "installed.json.tmp"
     tmp.write_text(json.dumps({"manifest_version": manifest["version"], "triple": triple}))
     os.replace(tmp, models_dir / "installed.json")
+    if isinstance(previous, int) and previous < manifest["version"]:
+        prune(models_dir, manifest)

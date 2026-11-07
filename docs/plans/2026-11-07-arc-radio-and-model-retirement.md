@@ -209,7 +209,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:121.
 
 ### Task 8: Prune unlisted weight folders on a manifest upgrade
-- [ ] status
+- [x] status
 **Objective:** Installing a higher manifest `version` deletes folders directly under `models/weights/` the manifest does not list; the shipped manifest drops `minilm`, `audio_va`, `lyrics_va` and is version 3.
 **Write-scope:** `muse/smart.py`, `muse/smart_manifest.json`, `tests/test_smart_install.py`
 **Read-context:** `muse/smart.py:57-66`, `muse/smart.py:135-170`, `tests/test_smart_install.py:1-60`, `docs/specs/2026-11-07-arc-radio-and-model-retirement.md:99-104`
