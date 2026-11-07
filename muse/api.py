@@ -1323,10 +1323,7 @@ def create_app(
         recent: str = "",
         w_audio: float | None = None,
         w_feat: float | None = None,
-        w_lyr: float | None = None,
-        w_emo: float | None = None,
         w_taste: float | None = None,
-        mood: str = "",
     ) -> dict:
         """Tracks to play after this one, best first.
 
@@ -1348,31 +1345,16 @@ def create_app(
         audio legs one term with an internal split.
         """
         overrides = {
-            "w_audio": w_audio, "w_feat": w_feat, "w_lyr": w_lyr,
-            "w_emo": w_emo, "w_taste": w_taste,
+            "w_audio": w_audio, "w_feat": w_feat,
+            "w_taste": w_taste,
         }
         given = {name: value for name, value in overrides.items()
                  if value is not None}
         weights = {**reco.DEFAULT_WEIGHTS, **given} if given else None
 
-        seed: int | dict = track_rowid
-        if mood:
-            try:
-                v, a = (float(part) for part in mood.split(","))
-            except ValueError:
-                raise HTTPException(422, "mood must be 'valence,arousal'")
-            if not (-1 <= v <= 1 and -1 <= a <= 1):
-                raise HTTPException(422, "mood values must be in [-1, 1]")
-            vectors = recommend.load_vectors(app.state.conn)
-            if track_rowid not in vectors:
-                raise HTTPException(404, f"No recommendable track {track_rowid}")
-            target = recommend.mood_target(vectors, v, a)
-            if target is not None:
-                seed = {**vectors[track_rowid], "emotion_vec": list(target)}
-
         results = recommend.recommend_for(
-            app.state.conn, seed, n=n,
-            exclude=_rowid_set(exclude) | ({track_rowid} if mood else set()),
+            app.state.conn, track_rowid, n=n,
+            exclude=_rowid_set(exclude),
             recent=_rowid_list(recent), weights=weights,
         )
         if results is None:

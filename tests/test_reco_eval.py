@@ -177,9 +177,3 @@ def test_retrieval_is_shared_through_the_cache(conn):
     cache[1] = set()  # a doctored entry proves the second call reads it
     out = reco_eval.evaluate(vectors, [T(1, 2)], k_values=(1,), retrieved=cache)
     assert out["accepted"]["retrieved"] == 0.0
-
-
-def test_run_includes_the_no_lyrics_variant():
-    import inspect
-    from muse import reco_eval
-    assert '"calibrated, no lyrics"' in inspect.getsource(reco_eval.run)

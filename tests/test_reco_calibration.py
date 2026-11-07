@@ -11,11 +11,10 @@ import pytest
 from muse import reco
 
 
-def vecs(audio=None, feature=None, lyrics=None, emotion=None, taste=None,
-         content=None):
+def vecs(audio=None, feature=None, taste=None, content=None):
     return {
-        "audio_vec": audio, "feature_vec": feature, "lyrics_vec": lyrics,
-        "emotion_vec": emotion, "taste_vec": taste, "content_vec": content,
+        "audio_vec": audio, "feature_vec": feature,
+        "taste_vec": taste, "content_vec": content,
     }
 
 
@@ -59,7 +58,7 @@ def test_calibrate_is_monotone():
 
 
 def test_calibrate_uniformizes_a_skewed_leg():
-    """A leg whose raw scores bunch near the top (features, emotion on this
+    """A leg whose raw scores bunch near the top (features on this
     library) comes out evenly spread: a random pair scores 0.5, not 0.86."""
     sims = [0.7 + 0.3 * (i / 1000) ** 0.3 for i in range(1001)]
     knots = reco.fit_calibration(sims)
@@ -102,17 +101,17 @@ def test_missing_leg_no_longer_shifts_a_typical_score():
     typical feature score is worth exactly what the other legs are."""
     feat_cal = reco.fit_calibration(
         [0.8 + 0.2 * i / 200 for i in range(201)])  # raw median 0.9
-    lyr_cal = reco.fit_calibration(
+    taste_cal = reco.fit_calibration(
         [0.0 + 1.0 * i / 200 for i in range(201)])  # raw median 0.5
-    cal = {"feature_vec": feat_cal, "lyrics_vec": lyr_cal}
+    cal = {"feature_vec": feat_cal, "taste_vec": taste_cal}
 
-    q_lyr = [1.0, 0.0]
-    typical_lyr = [0.5, 0.8660254]       # cosine 0.5 -> lyrics median
+    q_taste = [1.0, 0.0]
+    typical_taste = [0.5, 0.8660254]     # cosine 0.5 -> taste median
     q_feat = [1.0, 0.0]
     typical_feat = [0.9, 0.43588989]     # cosine 0.9 -> feature median
-    query = vecs(lyrics=q_lyr, feature=q_feat)
-    with_feat = candidate(1, lyrics=typical_lyr, feature=typical_feat)
-    without = candidate(2, lyrics=typical_lyr)
+    query = vecs(taste=q_taste, feature=q_feat)
+    with_feat = candidate(1, taste=typical_taste, feature=typical_feat)
+    without = candidate(2, taste=typical_taste)
 
     raw = {r["track_rowid"]: r["score"] for r in reco.rank(query, [with_feat, without])}
     assert raw[1] > raw[2] + 0.05
@@ -123,7 +122,7 @@ def test_missing_leg_no_longer_shifts_a_typical_score():
 
 
 def test_leg_without_knots_falls_back_to_raw():
-    cal = {"lyrics_vec": _uniform(0.0, 1.0)}
+    cal = {"taste_vec": _uniform(0.0, 1.0)}
     query = vecs(feature=[1.0, 0.0])
     out = reco.rank(query, [candidate(1, feature=[0.6, 0.8])], calibration=cal)
     assert out[0]["reasons"]["legs"]["w_feat"]["sim"] == pytest.approx(0.6)

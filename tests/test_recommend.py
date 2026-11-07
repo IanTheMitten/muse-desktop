@@ -105,7 +105,6 @@ def test_load_vectors_unpacks_each_leg(conn):
     embed_full(conn, 1, audio=[1.0, 0.0], lyrics=[0.25, 0.25])
     loaded = recommend.load_vectors(conn)
     assert loaded[1]["audio_vec"] == [1.0, 0.0]
-    assert loaded[1]["lyrics_vec"] == [0.25, 0.25]
     assert loaded[1]["feature_vec"] is None
 
 
@@ -206,10 +205,10 @@ def test_top_k_with_a_dict_seed_missing_a_leg_is_empty(conn):
     """The dict-seed path mirrors the rowid path: a leg absent from the seed
     contributes no candidates, rather than falling back to some arbitrary
     ordering."""
-    embed_full(conn, 1, audio=[1.0, 0.0], lyrics=[1.0, 0.0])
+    embed_full(conn, 1, audio=[1.0, 0.0], feature=[1.0, 0.0])
     loaded = recommend.load_vectors(conn)
-    query = {"audio_vec": [1.0, 0.0]}  # no lyrics_vec at all
-    assert recommend._top_k(loaded, query, "lyrics_vec", 5) == set()
+    query = {"audio_vec": [1.0, 0.0]}  # no feature_vec at all
+    assert recommend._top_k(loaded, query, "feature_vec", 5) == set()
 
 
 # --- ratings as a constraint, not a leg -----------------------------------

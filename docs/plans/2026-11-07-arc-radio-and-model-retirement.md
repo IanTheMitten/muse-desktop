@@ -145,7 +145,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 ## Phase 2 - Take the lyrics and emotion legs out of the sidecar (columns still exist)
 
 ### Task 4: Cut the lyrics and emotion legs from the recommender
-- [ ] status
+- [x] status
 **Objective:** `rank()` fuses three legs (`w_audio` 0.35, `w_feat` 0.15, `w_taste` 0.20); `/api/recommend` ignores `w_lyr`/`w_emo`/`mood`; `mood_target` and the `_no_lyrics` harness variant are gone.
 **Write-scope:** `muse/reco.py`, `muse/recommend.py`, `muse/arc_engine.py`, `muse/reco_eval.py`, `muse/library/queries.py`, `muse/api.py`, `tests/test_reco.py`, `tests/test_reco_rank.py`, `tests/test_reco_weights.py`, `tests/test_reco_calibration.py`, `tests/test_reco_audio_term.py`, `tests/test_recommend.py`, `tests/test_recommend_calibration.py`, `tests/test_api_recommend.py`, `tests/test_reco_eval.py`, `tests/test_mood_target.py`
 **Read-context:** `muse/reco.py:24-51`, `muse/reco.py:270-302`, `muse/recommend.py:44-130`, `muse/recommend.py:200-210`, `muse/recommend.py:473-489`, `muse/api.py:1318-1383`, `muse/arc_engine.py:22-25`, `muse/reco_eval.py:143-170`, `muse/library/queries.py:502-521`

@@ -18,10 +18,10 @@ from .library import offers as library_offers
 from .library import queries as library_queries
 from .library import ratings as library_ratings
 
-# Theme comes from tags, so the lyrics leg is out of both retrieval and
-# scoring here (D3). `/api/recommend` keeps it.
-ARC_LEGS = tuple(leg for leg in recommend.RETRIEVAL_LEGS if leg != "lyrics_vec")
-ARC_WEIGHTS = {**reco.DEFAULT_WEIGHTS, "w_lyr": 0.0}
+# Theme comes from tags; the recommender has no lyrics or emotion leg, so the
+# arc engine uses its legs and weights as they are.
+ARC_LEGS = recommend.RETRIEVAL_LEGS
+ARC_WEIGHTS = dict(reco.DEFAULT_WEIGHTS)
 
 UNTAGGED_SEED = "The seed has no lyric tags, so there is no arc to follow."
 

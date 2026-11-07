@@ -10,17 +10,19 @@ import pytest
 
 from muse import reco
 
-ALL_LEGS = ("w_audio", "w_feat", "w_lyr", "w_emo", "w_taste")
+ALL_LEGS = ("w_audio", "w_feat", "w_taste")
 
 
 def test_default_weights_use_adr_0003_names():
-    """ADR 0003 spells the five weights w_audio/w_feat/w_lyr/w_emo/w_taste.
+    """Three weights remain: w_audio/w_feat/w_taste.
     A rename here is a rename of the API's query parameters too."""
     assert set(reco.DEFAULT_WEIGHTS) == set(ALL_LEGS)
 
 
-def test_default_weights_sum_to_one():
-    assert reco.DEFAULT_WEIGHTS_SUM == pytest.approx(1.0)
+def test_default_weights_sum_to_the_three_leg_budget():
+    """0.35 + 0.15 + 0.20; `renormalize` rescales to 1 over whichever legs
+    a candidate has."""
+    assert reco.DEFAULT_WEIGHTS_SUM == pytest.approx(0.70)
 
 
 def test_audio_split_sums_to_one():
@@ -30,7 +32,9 @@ def test_audio_split_sums_to_one():
 
 def test_all_legs_available_leaves_weights_unchanged(): 
     out = reco.renormalize(reco.DEFAULT_WEIGHTS, ALL_LEGS)
-    assert out == pytest.approx(reco.DEFAULT_WEIGHTS)
+    total = reco.DEFAULT_WEIGHTS_SUM
+    assert out == pytest.approx(
+        {name: w / total for name, w in reco.DEFAULT_WEIGHTS.items()})
 
 
 def test_renormalized_weights_sum_to_one():
@@ -53,8 +57,8 @@ def test_redistribution_is_proportional():
 
 
 def test_single_available_leg_takes_all_the_weight():
-    out = reco.renormalize(reco.DEFAULT_WEIGHTS, ("w_lyr",))
-    assert out == pytest.approx({"w_lyr": 1.0})
+    out = reco.renormalize(reco.DEFAULT_WEIGHTS, ("w_taste",))
+    assert out == pytest.approx({"w_taste": 1.0})
 
 
 def test_no_available_legs_returns_empty_not_zero_division():

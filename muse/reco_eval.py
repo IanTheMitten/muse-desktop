@@ -140,10 +140,6 @@ def _no_taste(weights: dict[str, float]) -> dict[str, float]:
     return {**weights, "w_taste": 0.0}
 
 
-def _no_lyrics(weights: dict[str, float]) -> dict[str, float]:
-    return {**weights, "w_lyr": 0.0}
-
-
 def run(conn: sqlite3.Connection) -> dict[str, dict]:
     """Every variant the report prints, keyed by name."""
     from . import reco
@@ -161,11 +157,6 @@ def run(conn: sqlite3.Connection) -> dict[str, dict]:
                            calibration=calibration),
         "calibrated, no taste": dict(weights=_no_taste(reco.DEFAULT_WEIGHTS),
                                      calibration=calibration),
-        # The arc engine's continuity (ADR 0009). Retrieval here still
-        # includes the lyrics leg -- it is shared across variants -- so
-        # this isolates the scoring cost of dropping it.
-        "calibrated, no lyrics": dict(weights=_no_lyrics(reco.DEFAULT_WEIGHTS),
-                                      calibration=calibration),
     }
     return {
         name: evaluate(vectors, trans, content_stats=stats,
