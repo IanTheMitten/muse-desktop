@@ -128,7 +128,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** Energy must stay pure like `muse/reco.py`/`muse/arc.py` so the read path is the only impure half.
 
 ### Task 3: Add the one-off energy check script
-- [ ] status
+- [x] status
 **Objective:** `scripts/energy_check.py` prints CLAP-energy vs stored `audio_va` arousal Spearman rho on a pre-migration library, read-only.
 **Write-scope:** `scripts/energy_check.py` (new), `tests/test_energy_check.py` (new)
 **Read-context:** `muse/reco_eval.py:196-206`, `muse/worker.py:29-60`, `tests/test_updater_manifest.py:1-14`, `tests/conftest.py:88-95`
