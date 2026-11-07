@@ -376,7 +376,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** Owner request (Assumptions 9-10): songs without lyrics get no Laya tags, so Radio can only follow their sound.
 
 ### Task 19: Cover Radio and missing lyrics end to end
-- [ ] status
+- [x] status
 **Objective:** Playwright proves Radio fills Up next from the arc engine with the untagged note, Lift toggles, and the missing-lyrics card, list, No words and Add lyrics work.
 **Write-scope:** `scripts/e2e_server.py`, `web/e2e/flows.spec.ts`
 **Read-context:** `scripts/e2e_server.py:74-100`, `web/e2e/flows.spec.ts:1-75`, `web/e2e/app.ts:1-6`, `muse/scanner.py:121-131`, `muse/library/lyrics_state.py:106-141`

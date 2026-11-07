@@ -18,6 +18,39 @@ test.describe.serial("flows", () => {
     await expect(sheet(page).getByText("Song 05")).toBeVisible();
   });
 
+  test("radio follows the arc", async ({ page, request }) => {
+    // The page restores the last queue and counts it as heard; the Songs-tab play above queued all 12.
+    await request.put("/api/player/state?t=e2e-token", { data: { queue: [1000000011], client_state: "playing" } });
+    await open(page, "/library");
+    await page.getByRole("button", { name: "Albums" }).click();
+    await page.getByRole("link", { name: /Album 00/ }).first().click();
+    await page.getByRole("button", { name: /First Light/ }).first().click();
+    await page.getByRole("button", { name: "Pause", exact: true }).first().click({ timeout: 1500 }).catch(() => {}); // fixture tracks last 1s; may already be over
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Muse" }).click();
+    await expect(page.getByText(/ · Muse$/).first()).toBeVisible();
+    await expect(page.getByText("This song has no lyric tags, so Radio follows its sound.")).toBeVisible();
+    const lift = page.getByRole("switch", { name: "Lift" });
+    await expect(lift).toHaveAttribute("aria-checked", "true");
+    await lift.click();
+    await expect(lift).toHaveAttribute("aria-checked", "false");
+    // Leave the saved player where the next test expects a fresh page to find it.
+    await request.put("/api/player/state?t=e2e-token", { data: { queue: [1000000011], client_state: "playing" } });
+  });
+
+  test("missing lyrics", async ({ page }) => {
+    await open(page, "/");
+    await expect(page.getByText("2 songs have no lyrics")).toBeVisible();
+    await page.getByRole("link", { name: "Add lyrics" }).click();
+    await expect(page).toHaveURL(/\/library\/missing-lyrics/);
+    await page.getByRole("button", { name: "Song has no words: Song 02" }).click();
+    await expect(page.locator("p.vh[role=status]")).toHaveText("Marked Song 02 as having no words.");
+    await expect(page.getByText("1 song", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Add lyrics" }).click();
+    await page.getByRole("textbox", { name: "Lyrics" }).fill("la la");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Every song has lyrics or is marked as having none.")).toBeVisible();
+  });
+
   test("edit details survives a reload", async ({ page }) => {
     await open(page, "/library");
     await songs(page).click();

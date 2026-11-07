@@ -91,7 +91,15 @@ def main() -> None:
     })
     sys.path.insert(0, str(ROOT))
     try:
+        from muse import embed, library, scanner
         from muse.__main__ import main as muse_main
+        from muse.library import lyrics_state
+        conn = library.connect(data / "library.sqlite3")
+        scanner.scan(conn, [music], lyrics_root=data / "lyrics", art_root=data / "art")
+        embed.run_embed_batch(conn, embed.StubAudioEncoder())
+        for row in conn.execute("SELECT track_rowid FROM tracks WHERE track_name IN ('Song 02', 'Song 03')").fetchall():
+            lyrics_state.upsert(conn, row["track_rowid"], state="not_found", synced=False, checked_at=0)
+        conn.close()
         muse_main()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
