@@ -1,4 +1,5 @@
 import { apiFetch } from "./token";
+import { radioBody, radioPath, type RadioQuery } from "./player/radio";
 /* The one place that knows the API exists. */
 
 export type Health = {
@@ -186,6 +187,7 @@ export type SmartStatus = {
   state: "installed" | "not_installed" | "unsupported";
   download_bytes: number;
   job: Job | null;
+  energy_ready?: boolean;
 };
 
 export const getSmartStatus = (signal?: AbortSignal) =>
@@ -418,141 +420,47 @@ export const getDashboard = (signal?: AbortSignal) =>
 
 /* --- the recommender ----------------------------------------------------- */
 
-/** The five fusion legs, spelled the way the API spells them. `w_audio` is one
- *  term covering both audio encoders — CLAP and MERT share a single weight and
- *  split it internally (ADR 0004), which is why there is no `w_clap` here. */
-export type LegName = "w_audio" | "w_feat" | "w_lyr" | "w_emo" | "w_taste";
-
-export const LEG_ORDER: LegName[] = [
-  "w_audio",
-  "w_lyr",
-  "w_taste",
-  "w_feat",
-  "w_emo",
-];
-
-/** What each leg is called on screen. The listener never sees `w_lyr`. */
-export const LEG_LABELS: Record<LegName, string> = {
-  w_audio: "Sound",
-  w_feat: "Features",
-  w_lyr: "Lyrics",
-  w_emo: "Mood",
-  w_taste: "Your history",
-};
-
-export type LegContribution = {
-  /** Raw similarity, before weighting. */
-  sim: number;
-  /** The weight after the null legs dropped out and the rest renormalized —
-   *  so these sum to 1 across `available`, not to the requested weights. */
-  weight: number;
-  contribution: number;
-};
-
-/** Why a leg was null. These are the server's own strings; rendering them
- *  unchanged would leak the schema, so `NULL_LEG_COPY` translates them. */
-export type NullReason =
-  | "no_audio"
-  | "no_features"
-  | "no_lyrics"
-  | "no_emotion"
-  | "below_play_threshold"
-  | "content_gated"
-  | "no_content_vec";
-
-export const NULL_LEG_COPY: Record<NullReason, string> = {
-  no_audio: "no audio embedding",
-  no_features: "no Spotify features",
-  no_lyrics: "no lyrics",
-  no_emotion: "no mood reading",
-  below_play_threshold: "played too few times to have taught anything",
-  content_gated: "content coverage too thin to trust",
-  no_content_vec: "not content-embedded yet",
-};
-
-/** A rung of the relaxation ladder that had to be given up to find a track.
- *  Present and non-empty means radio is running dry — see DESIGN principle 3:
- *  degradation is shown, not hidden. */
-export type Relaxation = "freshness" | "artist_spacing" | "exclusion";
-
-export const RELAXATION_COPY: Record<Relaxation, string> = {
-  freshness: "ignored freshness",
-  artist_spacing: "allowed a repeated artist",
-  exclusion: "reached back into what you just heard",
-};
-
 export type Reasons = {
-  legs: Partial<Record<LegName, LegContribution>>;
-  available: LegName[];
-  null_legs: Partial<Record<LegName | "content", NullReason>>;
-  /** How `w_audio` was split between CLAP and MERT for this candidate. Null
-   *  when the audio leg itself was null. */
-  audio_split: { a_clap: number; a_content: number } | null;
-  content_used: boolean;
-  rating: Rating;
-  radio_eligible: boolean;
-  freshness: number;
-  offer_count: number;
-  relaxed: Relaxation[];
+  relaxed: string[];
+  arc: {
+    target: number | null;
+    darkness: number | null;
+    theme_sim: number | null;
+    filler: boolean;
+  } | null;
+  cost: number;
+  [key: string]: unknown;
 };
 
-export type Recommendation = {
+export type ArcPick = {
   track_rowid: number;
   score: number;
   reasons: Reasons;
   /** Hydrated server-side. The client needs whole tracks to render or play
-   *  one, and a round trip per recommendation is not worth saving bytes on. */
+   *  one, and a round trip per pick is not worth saving bytes on. */
   track: Track;
 };
 
-/** Per-request weight overrides (story 38). Omitted legs keep their default;
- *  passing any weight replaces the whole default set on the server, so send
- *  all five or none. */
-export type Weights = Partial<Record<LegName, number>>;
-
-export const DEFAULT_WEIGHTS: Record<LegName, number> = {
-  w_audio: 0.35,
-  w_feat: 0.15,
-  w_lyr: 0.25,
-  w_emo: 0.05,
-  w_taste: 0.2,
+export type ArcBlock = {
+  results: ArcPick[];
+  reason: string | null;
+  exhausted: boolean;
 };
 
-/** Tracks to play after `trackRowid`, best first.
- *
- * `exclude` is the rolling set of what not to offer again and `recent` is the
- * tail of what was actually played, most recent first — the server needs both
- * because they answer different questions: exclusion is a hard filter, recency
- * is what artist spacing measures against. Radio is repeated calls to this
- * with `n = 1` and a growing `exclude`; there is no radio endpoint and no
- * server-side session (story 35). */
-export function getRecommendations(
-  trackRowid: number,
-  options: {
-    n?: number;
-    exclude?: number[];
-    recent?: number[];
-    weights?: Weights;
-    mood?: { v: number; a: number };
-  } = {},
-  signal?: AbortSignal,
-): Promise<{ seed: number; results: Recommendation[] }> {
-  const params = new URLSearchParams();
-  if (options.n != null) params.set("n", String(options.n));
-  if (options.exclude?.length) params.set("exclude", options.exclude.join(","));
-  if (options.recent?.length) params.set("recent", options.recent.join(","));
-  for (const [leg, value] of Object.entries(options.weights ?? {})) {
-    if (value != null) params.set(leg, String(value));
-  }
-  if (options.mood) {
-    const { v, a } = options.mood;
-    params.set("mood", `${v.toFixed(3)},${a.toFixed(3)}`);
-  }
-  const query = params.toString();
-  return get<{ seed: number; results: Recommendation[] }>(
-    `/recommend/${trackRowid}${query ? `?${query}` : ""}`,
-    signal,
-  );
+/** Radio picks from the arc engine. Stateless: `pos`, `recent` and `exclude`
+ *  carry everything the server needs (story 35). */
+export function getArcRadio(q: RadioQuery, signal?: AbortSignal): Promise<ArcBlock> {
+  return get<ArcBlock>(radioPath(q), signal);
+}
+
+export function postArcRadio(body: {
+  spec: object;
+  n: number;
+  pos: number;
+  recent: number[];
+  exclude: number[];
+}): Promise<ArcBlock> {
+  return send<ArcBlock>("POST", "/arc", radioBody(body));
 }
 
 export type VibeHit = { track_rowid: number; score: number; track: Track };

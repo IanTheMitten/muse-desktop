@@ -330,7 +330,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 ## Phase 5 - Wire Radio to the arc engine and build the surfaces
 
 ### Task 16: Drive Radio from the arc engine with pos and lift
-- [ ] status
+- [x] status
 **Objective:** Radio fill and the mood re-pick call `/api/arc` (GET without mood, POST with), carry `radio_pos`/`radio_lift` through player state, and expose lift, untagged reason and energy readiness.
 **Write-scope:** `web/src/player/PlayerContext.tsx`, `web/src/player/sync.ts`, `web/src/api.ts`
 **Read-context:** `web/src/player/PlayerContext.tsx:80-160`, `web/src/player/PlayerContext.tsx:276-330`, `web/src/player/PlayerContext.tsx:456-690`, `web/src/player/PlayerContext.tsx:840-870`, `web/src/player/PlayerContext.tsx:955-975`, `web/src/player/sync.ts:12-30`, `web/src/api.ts:480-620`, `web/src/player/radio.ts` (from Task 15)

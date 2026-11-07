@@ -11,9 +11,10 @@ import {
 } from "react";
 
 import {
-  getRecommendations,
+  getArcRadio,
+  getSmartStatus,
+  postArcRadio,
   rateTrack,
-  RELAXATION_COPY,
   statusOf,
   type Rating,
   type Reasons,
@@ -29,6 +30,8 @@ import {
   handoffClose,
 } from "./crossfade";
 import { unplayableReason } from "./formats";
+import { toArcSpec } from "../muse/mood";
+import { NO_VECTORS_NOTE, relaxNote } from "./radio";
 import { append, insertNext, move, nextIndex, removeAt, upcomingIndex } from "./queue";
 import {
   PAUSE_TIMEOUT_MS,
@@ -97,6 +100,13 @@ type PlayerApi = {
   /** The listener's mood target; Muse picks are re-ranked toward it. */
   mood: MoodPoint | null;
   setMood: (p: MoodPoint | null) => void;
+  /** Whether radio climbs toward the light. */
+  radioLift: boolean;
+  setRadioLift: (on: boolean) => void;
+  /** Set when the seed has no lyric tags and radio follows its sound. */
+  radioReason: "untagged" | null;
+  /** The CLAP energy prompts are ready, so a mood can ask for calm/energetic. */
+  energyReady: boolean;
   /** Clears a stall, and retries a failed mood re-pick. */
   retryMuse: () => void;
   playingFrom: PlayingFrom | null;
@@ -185,6 +195,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
    * because "what did this session grow out of" is the one thing a listener
    * asks about a radio session an hour in. */
   const [radioSeed, setRadioSeed] = useState<number | null>(null);
+  const [radioPos, setRadioPos] = useState(0);
+  const [radioLift, setRadioLift] = useState(true);
+  const [radioReason, setRadioReason] = useState<"untagged" | null>(null);
+  const [energyReady, setEnergyReady] = useState(false);
   const [radioBusy, setRadioBusy] = useState(false);
   const [radioNote, setRadioNote] = useState<RadioNote | null>(null);
   const [mood, setMoodState] = useState<MoodPoint | null>(storedMood);
@@ -224,6 +238,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   indexRef.current = index;
   const radioSeedRef = useRef(radioSeed);
   radioSeedRef.current = radioSeed;
+  const radioPosRef = useRef(radioPos);
+  radioPosRef.current = radioPos;
+  const radioLiftRef = useRef(radioLift);
+  radioLiftRef.current = radioLift;
+  const energyReadyRef = useRef(energyReady);
+  energyReadyRef.current = energyReady;
   const moodFailed = useRef(false);
   const firstMood = useRef(true);
 
@@ -283,6 +303,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setShuffle(Boolean(state.shuffle));
         setRepeat(state.repeat_mode);
         setRadioSeed(state.radio_seed);
+        setRadioPos(state.radio_pos ?? 0);
+        setRadioLift(Boolean(state.radio_lift ?? 1));
         radioAdded.current = new Set(state.radio_added ?? []);
         resumeAt.current = state.position_ms;
       })
@@ -290,6 +312,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         /* A player that cannot reach its state still plays. */
       })
       .finally(() => setRestored(true));
+    return () => abort.abort();
+  }, []);
+
+  useEffect(() => {
+    const abort = new AbortController();
+    getSmartStatus(abort.signal)
+      .then((s) => setEnergyReady(Boolean(s.energy_ready)))
+      .catch(() => setEnergyReady(false));
     return () => abort.abort();
   }, []);
 
@@ -316,6 +346,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPositionMs(0);
       setPlayingFrom(from ?? null);
       // Everything but a playlist is followed by Muse.
+      setRadioPos(0);
       setRadioSeed(
         from?.kind === "playlist" ? null : tracks[startIndex]?.track_rowid ?? null,
       );
@@ -455,21 +486,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // --- radio (story 35) -------------------------------------------------
   //
-  // There is no radio endpoint and no server-side session. The client already
-  // owns the queue, so radio is repeated calls to `/api/recommend/` with the
-  // moving query point as the path parameter and the rolling exclusion set as
-  // `exclude` -- which is why the server can stay stateless and why a second
-  // source of truth about what is playing never comes into existence.
+  // There is no server-side session. Radio now asks the arc engine
+  // (`/api/arc`), still stateless: the client owns the queue and sends the
+  // fixed seed, how far along the curve it is (`pos`), what was just played
+  // (`recent`) and the rolling exclusion set (`exclude`) -- so a second source
+  // of truth about what is playing never comes into existence.
 
-  /* The query point is the queue's tail, not what is playing. Each pick is
-   * derived from the pick before it, so an hour of radio migrates away from
-   * the seed instead of orbiting it (story 36) -- and the listener hears the
-   * migration in the order they play, which is the order it was built in. */
+  /* The seed is the session's start, not the queue's tail: the engine walks
+   * its own curve from `pos`, so the hour of radio migrates by plan rather
+   * than by chaining each pick off the last one. */
   const anchor = queue.length > 0 ? queue[queue.length - 1] : null;
   const ahead = queue.length - index - 1;
 
   useEffect(() => {
     if (radioSeed == null || anchor == null) return;
+    const seedId = radioSeed;
     if (ahead >= RADIO_LOOKAHEAD) return;
     if (filling.current) return;
 
@@ -498,13 +529,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .map((track) => track.track_rowid)
       .reverse();
 
-    getRecommendations(anchor.track_rowid, {
-      n: 1,
-      exclude,
-      recent,
-      ...(moodRef.current ? { mood: moodRef.current } : {}),
-    })
+    const moodNow = moodRef.current;
+    const request = moodNow
+      ? postArcRadio({
+          spec: toArcSpec(moodNow, seedId, 1, radioLift, energyReady),
+          n: 1,
+          pos: radioPos,
+          recent,
+          exclude,
+        })
+      : getArcRadio({ seed: seedId, n: 1, pos: radioPos, recent, exclude, lift: radioLift });
+
+    request
       .then((response) => {
+        setRadioReason(response.reason != null ? "untagged" : null);
         const pick = response.results[0];
         if (!pick) {
           stalledAt.current = anchor.track_rowid;
@@ -522,6 +560,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
         stalledAt.current = null;
+        setRadioPos((p) => p + 1);
         radioAdded.current.add(pick.track_rowid);
         remember([pick.track_rowid]);
         setReasons((existing) => {
@@ -537,16 +576,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // A relaxed constraint is shown rather than swallowed: the listener
         // should be able to tell "the library is running dry" from "the
         // recommender got worse".
-        setRadioNote(
-          pick.reasons.relaxed.length > 0
-            ? {
-                text: `Running low — ${pick.reasons.relaxed
-                  .map((rung) => RELAXATION_COPY[rung])
-                  .join(", ")}.`,
-                failed: false,
-              }
-            : null,
-        );
+        const note = relaxNote(pick.reasons.relaxed);
+        setRadioNote(note ? { text: note, failed: false } : null);
       })
       .catch((cause: unknown) => {
         stalledAt.current = anchor.track_rowid;
@@ -556,7 +587,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           // have read any failure as a missing embedding.
           text:
             statusOf(cause) === 404
-              ? "This track has no embedding yet, so radio cannot follow it."
+              ? NO_VECTORS_NOTE
               : "Could not reach the recommender.",
           failed: true,
         });
@@ -565,7 +596,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         filling.current = false;
         setRadioBusy(false);
       });
-  }, [radioSeed, anchor, ahead, queue, index, remember]);
+  }, [radioSeed, anchor, ahead, queue, index, remember, radioPos, radioLift, energyReady]);
 
   /* The other half of the limit. The append above refuses to grow the queue
    * past eight ahead; this cuts it back when something else already has. The
@@ -622,9 +653,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         .map((t) => t.track_rowid),
     );
     if (stale.size === 0) return;
-    const anchorTrack =
-      [...tracks.slice(at)].reverse().find((t) => !added.has(t.track_rowid)) ??
-      tracks[at];
     // The picks being replaced are fair game again.
     const exclude = seen.current
       .filter((id) => !stale.has(id))
@@ -638,15 +666,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setRadioNote({ text: "Could not re-pick for this mood.", failed: true });
     };
     const target = moodRef.current;
-    getRecommendations(anchorTrack.track_rowid, {
-      n: RADIO_LOOKAHEAD,
-      exclude,
-      recent,
-      ...(target ? { mood: target } : {}),
-    })
+    const seedId = radioSeedRef.current;
+    const start = Math.max(0, radioPosRef.current - stale.size);
+    const request = target
+      ? postArcRadio({
+          spec: toArcSpec(target, seedId, RADIO_LOOKAHEAD, radioLiftRef.current, energyReadyRef.current),
+          n: RADIO_LOOKAHEAD,
+          pos: start,
+          recent,
+          exclude,
+        })
+      : getArcRadio({
+          seed: seedId,
+          n: RADIO_LOOKAHEAD,
+          pos: start,
+          recent,
+          exclude,
+          lift: radioLiftRef.current,
+        });
+    request
       .then((response) => {
         if (response.results.length === 0) return fail();
         moodFailed.current = false;
+        setRadioPos(start + response.results.length);
+        setRadioReason(response.reason != null ? "untagged" : null);
         setRadioNote(null);
         stale.forEach((id) => added.delete(id));
         response.results.forEach((r) => added.add(r.track_rowid));
@@ -856,9 +899,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         radio_added: queue
           .map((track) => track.track_rowid)
           .filter((rowid) => radioAdded.current.has(rowid)),
+        radio_pos: radioPos,
+        radio_lift: radioLift,
       });
     },
-    [queue, index, positionMs, shuffle, repeat, radioSeed],
+    [queue, index, positionMs, shuffle, repeat, radioSeed, radioPos, radioLift],
   );
 
   const pushRef = useRef(push);
@@ -961,6 +1006,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radio: radioSeed != null,
       radioBusy, radioNote, reasonsFor,
       mood, setMood, retryMuse, playingFrom, isMusePick,
+      radioLift, setRadioLift, radioReason, energyReady,
     }),
     [queue, index, current, playing, positionMs, durationMs, shuffle, repeat,
      restored, playQueue, enqueue, playNext, moveInQueue, removeFromQueue,
@@ -968,7 +1014,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
      toggleShuffle, cycleRepeat, rate,
      radioSeed, radioBusy, radioNote,
      reasonsFor,
-     mood, setMood, retryMuse, playingFrom, isMusePick],
+     mood, setMood, retryMuse, playingFrom, isMusePick,
+     radioLift, setRadioLift, radioReason, energyReady],
   );
 
   return (

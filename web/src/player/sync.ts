@@ -22,6 +22,10 @@ export type RemoteState = {
   /** Queued rowids radio put there, so their plays are tagged `radio` after a
    *  reload or on the other device as well as in the tab that queued them. */
   radio_added: number[];
+  /** How far along the arc engine's curve radio is, and whether it climbs to
+   *  the light. Persisted so the curve does not restart on reload. */
+  radio_pos: number;
+  radio_lift: number;
   updated_at: number;
   updated_by: string | null;
 };
@@ -60,6 +64,8 @@ export async function writeState(payload: {
   repeat_mode: RepeatMode;
   radio_seed: number | null;
   radio_added: number[];
+  radio_pos: number;
+  radio_lift: boolean;
 }): Promise<void> {
   // Fire and forget. A dropped heartbeat costs at most ten seconds of
   // position, and blocking playback on a failed write would be far worse than
