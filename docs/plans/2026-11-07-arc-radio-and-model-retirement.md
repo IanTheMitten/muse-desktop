@@ -195,7 +195,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:41-43, spec:116-121: removed from source, no shim, an older worker keeps working.
 
 ### Task 7: Drop MiniLM and VA from build scripts, CI and dependencies [mechanical]
-- [ ] status
+- [x] status
 **Objective:** CI, freeze and preflight scripts no longer fetch or smoke-test MiniLM/VA, and `sentence-transformers` is gone from `pyproject.toml` and `uv.lock`.
 **Write-scope:** `.github/workflows/package.yml`, `scripts/worker_smoke.py`, `scripts/worker_preflight.py`, `scripts/preflight_freeze_entry.py`, `scripts/fetch_weights.py`, `scripts/build_manifest.py`, `scripts/freeze_sidecar.py`, `pyproject.toml`, `uv.lock`
 **Read-context:** `.github/workflows/package.yml:84-86`, `scripts/worker_smoke.py:1-40`, `scripts/worker_preflight.py:10-25`, `scripts/worker_preflight.py:105-145`, `scripts/build_manifest.py:15-31`, `scripts/build_manifest.py:95-106`, `pyproject.toml:20-30`

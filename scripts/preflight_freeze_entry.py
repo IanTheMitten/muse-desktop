@@ -4,7 +4,6 @@ from pathlib import Path
 import av  # noqa: F401
 import laya
 import numpy as np
-import sentence_transformers  # noqa: F401
 import torch
 import transformers  # noqa: F401
 from huggingface_hub import snapshot_download
