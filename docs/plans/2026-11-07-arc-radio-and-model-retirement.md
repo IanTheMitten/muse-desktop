@@ -102,7 +102,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 ## Phase 1 - CLAP energy, pure, and the energy check
 
 ### Task 1: Write the energy module tests [test]
-- [ ] status
+- [x] status
 **Objective:** `tests/test_energy.py` pins `muse/energy.py`'s math and purity, red against the current tree.
 **Write-scope:** `tests/test_energy.py` (new)
 **Read-context:** `tests/test_arc_purity.py:1-20`, `muse/reco.py:133-143`
