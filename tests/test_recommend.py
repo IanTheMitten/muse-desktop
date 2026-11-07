@@ -89,8 +89,7 @@ def embed_full(conn, rowid, *, audio, feature=None, lyrics=None):
         conn, rowid,
         audio_vec=pack_vector(audio),
         feature_vec=pack_vector(feature) if feature else None,
-        lyrics_vec=pack_vector(lyrics) if lyrics else None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None,
+        audio_model="stub", lyrics_hash=None,
     )
 
 
@@ -105,7 +104,6 @@ def test_load_vectors_unpacks_each_leg(conn):
     embed_full(conn, 1, audio=[1.0, 0.0], lyrics=[0.25, 0.25])
     loaded = recommend.load_vectors(conn)
     assert loaded[1]["audio_vec"] == [1.0, 0.0]
-    assert loaded[1]["lyrics_vec"] == [0.25, 0.25]
     assert loaded[1]["feature_vec"] is None
 
 
@@ -149,18 +147,18 @@ def test_retrieval_unions_across_legs(conn):
     insert_track(conn, 1)
     library_embeddings.upsert(
         conn, 1, audio_vec=pack_vector([1.0, 0.0]),
-        feature_vec=pack_vector([1.0, 0.0]), lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None)
+        feature_vec=pack_vector([1.0, 0.0]),
+        audio_model="stub", lyrics_hash=None)
     insert_track(conn, 2)  # audio twin, feature opposite
     library_embeddings.upsert(
         conn, 2, audio_vec=pack_vector([1.0, 0.0]),
-        feature_vec=pack_vector([0.0, 1.0]), lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None)
+        feature_vec=pack_vector([0.0, 1.0]),
+        audio_model="stub", lyrics_hash=None)
     insert_track(conn, 3)  # feature twin, audio opposite
     library_embeddings.upsert(
         conn, 3, audio_vec=pack_vector([0.0, 1.0]),
-        feature_vec=pack_vector([1.0, 0.0]), lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None)
+        feature_vec=pack_vector([1.0, 0.0]),
+        audio_model="stub", lyrics_hash=None)
     loaded = recommend.load_vectors(conn)
     assert recommend.retrieve(loaded, 1, k=1) == {2, 3}
 
@@ -206,10 +204,10 @@ def test_top_k_with_a_dict_seed_missing_a_leg_is_empty(conn):
     """The dict-seed path mirrors the rowid path: a leg absent from the seed
     contributes no candidates, rather than falling back to some arbitrary
     ordering."""
-    embed_full(conn, 1, audio=[1.0, 0.0], lyrics=[1.0, 0.0])
+    embed_full(conn, 1, audio=[1.0, 0.0], feature=[1.0, 0.0])
     loaded = recommend.load_vectors(conn)
-    query = {"audio_vec": [1.0, 0.0]}  # no lyrics_vec at all
-    assert recommend._top_k(loaded, query, "lyrics_vec", 5) == set()
+    query = {"audio_vec": [1.0, 0.0]}  # no feature_vec at all
+    assert recommend._top_k(loaded, query, "feature_vec", 5) == set()
 
 
 # --- ratings as a constraint, not a leg -----------------------------------

@@ -8,7 +8,7 @@ from muse import smart
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--keys", required=True, help="comma-separated, e.g. mert,minilm")
+    parser.add_argument("--keys", required=True, help="comma-separated, e.g. mert,clap")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     prefixes = tuple(f"weights/{k}/" for k in args.keys.split(","))

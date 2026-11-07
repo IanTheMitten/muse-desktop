@@ -45,11 +45,11 @@ def test_content_absent_keeps_the_audio_budget_whole():
 
 def test_content_absence_does_not_renormalize_outward():
     """The violation this clause exists to forbid: treating a missing content
-    leg as an absent *leg* and redistributing its share across the other four.
+    leg as an absent *leg* and redistributing its share across the other legs.
     That is the null-leg contract applied one level too deep."""
-    available = ("w_audio", "w_feat", "w_lyr", "w_emo", "w_taste")
+    available = ("w_audio", "w_feat", "w_taste")
     weights = reco.renormalize(reco.DEFAULT_WEIGHTS, available)
-    assert weights["w_audio"] == pytest.approx(W_AUDIO)
+    assert weights["w_audio"] == pytest.approx(W_AUDIO / reco.DEFAULT_WEIGHTS_SUM)
 
 
 def test_clap_absent_content_present_keeps_the_budget_whole():
@@ -62,12 +62,12 @@ def test_clap_absent_content_present_keeps_the_budget_whole():
 def test_both_audio_legs_absent_drops_the_term():
     """Only here does audio become an absent leg. None is the signal to the
     caller to leave "w_audio" out of `available`, after which the ordinary
-    null-leg renormalization applies to the other four."""
+    null-leg renormalization applies to the other legs."""
     assert reco.audio_term(None, None) is None
 
 
-def test_both_absent_renormalizes_the_other_four():
-    available = ("w_feat", "w_lyr", "w_emo", "w_taste")
+def test_both_absent_renormalizes_the_other_legs():
+    available = ("w_feat", "w_taste")
     weights = reco.renormalize(reco.DEFAULT_WEIGHTS, available)
     assert sum(weights.values()) == pytest.approx(1.0)
     assert "w_audio" not in weights

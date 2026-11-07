@@ -13,12 +13,9 @@ from muse import content, embed
 from muse.worker import (
     LAYA_MODEL,
     WorkerAudioEncoder,
-    WorkerAudioVAEncoder,
     WorkerClient,
     WorkerContentEmbedder,
     WorkerError,
-    WorkerLyricsEncoder,
-    WorkerLyricsVAEncoder,
     WorkerReplyError,
     worker_ask,
     worker_command,
@@ -46,10 +43,6 @@ FAKE = textwrap.dedent('''
             time.sleep(60)
         elif op in ("clap_audio", "clap_text"):
             ok = [0.1] * 512
-        elif op == "minilm":
-            ok = [0.1] * 384
-        elif op in ("audio_va", "lyrics_va"):
-            ok = [0.5, -0.5]
         elif op == "mert":
             if args["path"].endswith("bad.wav"):
                 print(json.dumps({"id": i, "error": "bad file"}), flush=True)
@@ -170,16 +163,6 @@ def test_audio_adapter(make_client):
     enc = WorkerAudioEncoder(make_client())
     assert len(enc.encode(Path("x.wav"))) == 512
     assert len(enc.encode_text("hi")) == 512
-
-
-def test_lyrics_adapter(make_client):
-    assert len(WorkerLyricsEncoder(make_client()).encode("hi")) == 384
-
-
-def test_va_adapters_return_tuples(make_client):
-    c = make_client()
-    assert WorkerAudioVAEncoder(c).encode(Path("x.wav")) == (0.5, -0.5)
-    assert WorkerLyricsVAEncoder(c).encode("hi") == (0.5, -0.5)
 
 
 def test_content_embed_many(make_client):

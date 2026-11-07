@@ -61,7 +61,7 @@ def test_real_handlers_keys_and_no_torch():
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     ).stdout.split("\n")
     assert out[0] == str(
-        sorted(["align", "clap_audio", "clap_text", "minilm", "audio_va", "lyrics_va", "mert", "laya"])
+        sorted(["align", "clap_audio", "clap_text", "mert", "laya"])
     )
     assert out[1] == "False"
 

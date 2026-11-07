@@ -1,7 +1,7 @@
 import sqlite3
 
 from muse.library import migrate
-from muse.library.schema import MIGRATIONS
+from muse.library.schema import LATEST_VERSION, MIGRATIONS
 
 
 def _cols(conn, table):
@@ -19,7 +19,7 @@ def test_m022_adds_edit_tables_year_and_clears_local_mtime(tmp_path):
         "INSERT INTO tracks (track_rowid, origin, metadata_tier, artist_name, artist_names,"
         " album_name, track_name, status, added_at, file_mtime)"
         " VALUES (1000000001, 'local', 'tags', 'A', '[\"A\"]', 'B', 'T', 'done', 0, 5)")
-    assert migrate(raw) == 22
+    assert migrate(raw) == LATEST_VERSION
     for table in ("track_overrides", "hidden_artists", "artist_images"):
         assert _cols(raw, table)
     assert "year" in _cols(raw, "tracks")

@@ -274,8 +274,8 @@ def _embed_full(conn, rowid, *, audio):
     library_embeddings.upsert(
         conn, rowid,
         audio_vec=pack_vector(audio),
-        feature_vec=None, lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None,
+        feature_vec=None,
+        audio_model="stub", lyrics_hash=None,
     )
 
 

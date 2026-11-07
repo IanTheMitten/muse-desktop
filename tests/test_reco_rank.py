@@ -14,11 +14,10 @@ import pytest
 from muse import reco
 
 
-def vecs(audio=None, feature=None, lyrics=None, emotion=None, taste=None,
-         content=None):
+def vecs(audio=None, feature=None, taste=None, content=None):
     return {
-        "audio_vec": audio, "feature_vec": feature, "lyrics_vec": lyrics,
-        "emotion_vec": emotion, "taste_vec": taste, "content_vec": content,
+        "audio_vec": audio, "feature_vec": feature,
+        "taste_vec": taste, "content_vec": content,
     }
 
 
@@ -80,21 +79,21 @@ def test_candidate_with_no_legs_scores_zero_without_raising():
 
 
 def test_query_missing_a_leg_makes_that_leg_unavailable():
-    """Both sides need a vector. A seed with no lyrics contributes no lyrics
-    evidence even about a candidate that has some."""
+    """Both sides need a vector. A seed with no features contributes no
+    feature evidence even about a candidate that has some."""
     out = reco.rank(vecs(audio=[1.0, 0.0]), [candidate(1, audio=[1.0, 0.0],
-                                                       lyrics=[1.0, 0.0])])
-    assert "w_lyr" not in out[0]["reasons"]["available"]
+                                                       feature=[1.0, 0.0])])
+    assert "w_feat" not in out[0]["reasons"]["available"]
 
 
 def test_weights_are_overridable():
     """Story 38 -- ask for more like this sound."""
-    query = vecs(audio=[1.0, 0.0], lyrics=[1.0, 0.0])
-    cand = [candidate(1, audio=[0.0, 1.0], lyrics=[1.0, 0.0])]
-    sound = reco.rank(query, cand, weights={"w_audio": 1.0, "w_lyr": 0.0})
-    mood = reco.rank(query, cand, weights={"w_audio": 0.0, "w_lyr": 1.0})
+    query = vecs(audio=[1.0, 0.0], feature=[1.0, 0.0])
+    cand = [candidate(1, audio=[0.0, 1.0], feature=[1.0, 0.0])]
+    sound = reco.rank(query, cand, weights={"w_audio": 1.0, "w_feat": 0.0})
+    feat = reco.rank(query, cand, weights={"w_audio": 0.0, "w_feat": 1.0})
     assert sound[0]["score"] == pytest.approx(0.0)
-    assert mood[0]["score"] == pytest.approx(1.0)
+    assert feat[0]["score"] == pytest.approx(1.0)
 
 
 # --- the content leg's gate ----------------------------------------------
@@ -135,17 +134,17 @@ def test_reasons_carries_per_leg_contributions():
     """Story 37 -- see *why* a track was recommended. Every available leg
     reports its raw similarity, its renormalized weight, and their product,
     because a weight argument nobody can inspect is unfalsifiable."""
-    query = vecs(audio=[1.0, 0.0], lyrics=[1.0, 0.0])
+    query = vecs(audio=[1.0, 0.0], feature=[1.0, 0.0])
     out = reco.rank(query, [candidate(1, audio=[1.0, 0.0],
-                                      lyrics=[0.0, 1.0])])
+                                      feature=[0.0, 1.0])])
     leg = out[0]["reasons"]["legs"]["w_audio"]
     assert set(leg) == {"sim", "weight", "contribution"}
     assert leg["contribution"] == pytest.approx(leg["sim"] * leg["weight"])
 
 
 def test_reasons_contributions_sum_to_the_score():
-    query = vecs(audio=[1.0, 0.0], lyrics=[1.0, 0.0], feature=[1.0, 0.0])
-    out = reco.rank(query, [candidate(1, audio=[0.5, 0.5], lyrics=[1.0, 0.0],
+    query = vecs(audio=[1.0, 0.0], taste=[1.0, 0.0], feature=[1.0, 0.0])
+    out = reco.rank(query, [candidate(1, audio=[0.5, 0.5], taste=[1.0, 0.0],
                                       feature=[0.0, 1.0])])
     r = out[0]
     total = sum(leg["contribution"] for leg in r["reasons"]["legs"].values())
@@ -153,20 +152,11 @@ def test_reasons_contributions_sum_to_the_score():
 
 
 def test_reasons_names_why_each_leg_is_null():
-    query = vecs(audio=[1.0, 0.0], lyrics=[1.0, 0.0], taste=[1.0, 0.0])
+    query = vecs(audio=[1.0, 0.0], feature=[1.0, 0.0], taste=[1.0, 0.0])
     out = reco.rank(query, [candidate(1, audio=[1.0, 0.0])])
     null = out[0]["reasons"]["null_legs"]
-    assert null["w_lyr"] == "no_lyrics"
+    assert null["w_feat"] == "no_features"
     assert null["w_taste"] == "below_play_threshold"
-
-
-def test_emotion_leg_uses_emotion_sim_not_cosine():
-    """ADR 0003: VA is a bounded plane where proximity is the relationship,
-    not the angle from the origin. Two points just either side of zero are
-    close; cosine calls them opposite."""
-    query = vecs(emotion=(0.01, 0.0))
-    out = reco.rank(query, [candidate(1, emotion=(-0.01, 0.0))])
-    assert out[0]["score"] > 0.9
 
 
 # --- the content leg has to actually do something -------------------------
@@ -213,10 +203,9 @@ def test_no_leg_outside_the_weight_vector_can_score():
     -- but it means every scoring leg must appear in the weight vector, so
     assert that directly instead of relying on a leg to notice its own
     absence."""
-    query = vecs(audio=[1.0, 0.0], feature=[1.0, 0.0], lyrics=[1.0, 0.0],
-                 emotion=(0.5, 0.5), taste=[1.0, 0.0], content=[1.0, 0.0, 0.0])
+    query = vecs(audio=[1.0, 0.0], feature=[1.0, 0.0],
+                 taste=[1.0, 0.0], content=[1.0, 0.0, 0.0])
     out = reco.rank(query, [candidate(1, audio=[1.0, 0.0], feature=[1.0, 0.0],
-                                      lyrics=[1.0, 0.0], emotion=(0.5, 0.5),
                                       taste=[1.0, 0.0],
                                       content=[1.0, 0.0, 0.0])],
                     content_stats=STATS)

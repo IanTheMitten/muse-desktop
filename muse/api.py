@@ -39,6 +39,7 @@ from . import library
 from .art import ChainedArtProvider, CoverArtArchive, ItunesArt, YtdlpThumbnailArt
 from .catalog import EmptyCatalog
 from .config import Config
+from . import energy
 from . import arc_engine, charts, discover, nearest, reco, recommend, request_spec
 from .content import CONTENT_EMBED
 from .feedback import feedback_score
@@ -57,6 +58,7 @@ from .jobs import (
     run_download_job,
     run_download_worker,
     run_embed_backfill,
+    run_prompt_fill,
     run_align_job,
     run_smart_install,
     run_ytdlp_install,
@@ -64,14 +66,13 @@ from .jobs import (
 from .library import art as library_art
 from .library import content as library_content
 from .library import embeddings as library_embeddings
-from .library import emotion as library_emotion
-from .library import features as library_features
 from .library import artists as library_artists
 from .library import insights, lyrics_edit
 from .library import jobs as job_rows
 from .library import lyrics_state as library_lyrics_state
 from .library import playlists as library_playlists
 from .library import overrides, queries, removal
+from .library import prompts as library_prompts
 from .library import taste as library_taste
 from .library import tracks as library_tracks
 from .lrc import parse_lrc
@@ -84,11 +85,8 @@ from .jobs import _event as job_event
 from .worker import (
     LAYA_MODEL,
     WorkerAudioEncoder,
-    WorkerAudioVAEncoder,
     WorkerClient,
     WorkerContentEmbedder,
-    WorkerLyricsEncoder,
-    WorkerLyricsVAEncoder,
     worker_ask,
     worker_command,
 )
@@ -184,6 +182,8 @@ class StateWrite(BaseModel):
     # The queued rowids radio put there, so a play of one is tagged
     # `source='radio'` after a reload or on the other device too.
     radio_added: list[int] = Field(default_factory=list)
+    radio_pos: int = 0
+    radio_lift: bool = True
     updated_by: str | None = None
 
 
@@ -440,9 +440,6 @@ def create_app(
     art_provider=None,
     mb=None,
     audio_encoder=None,
-    lyrics_encoder=None,
-    audio_va_encoder=None,
-    lyrics_va_encoder=None,
     metadata_provider=None,
     audio_source=None,
     chart_fetch=None,
@@ -454,10 +451,8 @@ def create_app(
     """`art_provider` is injectable so tests never reach MusicBrainz. `mb` is
     the one MusicBrainz client this process gets, injectable for the same
     reason and resolved in the lifespan below.
-    `audio_encoder`/`lyrics_encoder`/`audio_va_encoder`/`lyrics_va_encoder`
-    are injectable the same way, so tests can exercise `config.embed_batch`
-    without loading CLAP, MiniLM, or the emotion models; all default to the
-    real thing. `metadata_provider`/`audio_source` are
+    `audio_encoder` is injectable the same way, so tests can exercise
+    `config.embed_batch` without loading CLAP; it defaults to the real thing. `metadata_provider`/`audio_source` are
     injectable the same way, so tests exercise `POST /api/jobs` without
     touching yt-dlp or MusicBrainz."""
     config = config or Config.from_env()
@@ -550,15 +545,6 @@ def create_app(
         def _audio_encoder():
             return audio_encoder or WorkerAudioEncoder(app.state.worker)
 
-        def _lyrics_encoder():
-            return lyrics_encoder or WorkerLyricsEncoder(app.state.worker)
-
-        def _audio_va_encoder():
-            return audio_va_encoder or WorkerAudioVAEncoder(app.state.worker)
-
-        def _lyrics_va_encoder():
-            return lyrics_va_encoder or WorkerLyricsVAEncoder(app.state.worker)
-
         # Scan, lyrics, art, then a stale retrain, one step at a time: the
         # shared connection cannot hold two transactions at once.
         app.state.chain_lock = chain_lock = asyncio.Lock()
@@ -606,11 +592,14 @@ def create_app(
                     app.state.worker.begin()
                     try:
                         await run_embed_backfill(
-                            conn, _audio_encoder, _lyrics_encoder, bus,
-                            _audio_va_encoder, _lyrics_va_encoder,
+                            conn, _audio_encoder, bus,
                         )
                     except Exception:
                         log.exception("Embed backfill failed")
+                    try:
+                        await asyncio.to_thread(run_prompt_fill, conn, _audio_encoder)
+                    except Exception:
+                        log.exception("Prompt fill failed")
                     try:
                         await asyncio.to_thread(
                             content_embed_batch.run, conn,
@@ -641,6 +630,11 @@ def create_app(
             return task
 
         app.state.spawn_chain = spawn_chain
+        try:
+            if smart.reconcile(config.models_dir, triple=smart.host_triple()):
+                log.info("Smart features upgraded in place")
+        except Exception:
+            log.exception("Smart upgrade check failed")
         app.state.chain_task = spawn_chain(True)
 
         watch_task = None
@@ -735,8 +729,7 @@ def create_app(
                 "art_provider": resolved_art_provider,
                 "embed_backfill": lambda: asyncio.run_coroutine_threadsafe(
                     run_embed_backfill(
-                        conn, _audio_encoder, _lyrics_encoder, bus,
-                        _audio_va_encoder, _lyrics_va_encoder,
+                        conn, _audio_encoder, bus,
                     ),
                     loop,
                 ).result(),
@@ -965,8 +958,13 @@ def create_app(
         cfg = app.state.config
         job = job_rows.active(app.state.conn, smart.SMART_INSTALL) or job_rows.last(
             app.state.conn, smart.SMART_INSTALL)
+        conn = app.state.conn
+        model = library_prompts.current_audio_model(conn)
+        ready = model is not None and all(
+            library_prompts.get(conn, model, name) is not None
+            for name in (energy.CALM, energy.ENERGETIC))
         return {**smart.status(cfg.models_dir, smart.load_manifest(), smart.host_triple()),
-                "job": job}
+                "job": job, "energy_ready": ready}
 
     @app.get("/api/smart")
     def get_smart() -> dict:
@@ -1008,7 +1006,6 @@ def create_app(
         return {
             **queries.health(app.state.conn),
             "embeddings": library_embeddings.coverage(app.state.conn),
-            "emotion": library_embeddings.emotion_coverage(app.state.conn),
             "taste": {
                 **library_taste.coverage(app.state.conn),
                 "last_retrain_at": last_retrain["updated_at"] if last_retrain else None,
@@ -1039,36 +1036,11 @@ def create_app(
         now_ms = int(time.time() * 1000)
         return {
             **insights.dashboard(conn),
+            "missing_lyrics": len(library_lyrics_state.missing(conn)),
             "for_fans_of": nearest.for_fans_of(conn, now_ms),
             "recommended_albums": nearest.recommended_albums(
                 conn, now_ms, _open_catalog(app.state.config)
             ),
-        }
-
-    @app.get("/api/mixes/{band}")
-    def mix(band: str) -> dict:
-        """A mood mix: that band, shuffled, capped.
-
-        Nothing is stored — asking again gives a different cut of the same
-        band. That is the whole contract, and it is why there is no DELETE.
-        """
-        if band not in library_features.BAND_SQL:
-            raise HTTPException(404, f"No mix {band!r}")
-        conn = app.state.conn
-        # Same rule as the dashboard's map: our own emotion vectors when there
-        # are any, the Spotify mirror's features when there are not. A mix has
-        # to come from the same plane the map drew, or tapping a quadrant plays
-        # a different set from the one under the finger.
-        if library_emotion.coverage(conn)["measured"]:
-            tracks = library_emotion.band_tracks(
-                conn, band, library_features.MIX_LIMIT
-            )
-        else:
-            tracks = library_features.band_tracks(conn, band)
-        return {
-            "band": band,
-            "label": library_features.BAND_LABELS[band],
-            "tracks": tracks,
         }
 
     @app.get("/api/library/artists")
@@ -1091,6 +1063,12 @@ def create_app(
     ) -> list[dict]:
         """Every owned song, for the Songs tab with an empty search."""
         return queries.songs(app.state.conn, sort, order)
+
+    @app.get("/api/library/lyrics/missing")
+    def library_lyrics_missing() -> dict:
+        conn = app.state.conn
+        ids = library_lyrics_state.missing(conn)
+        return {"count": len(ids), "tracks": queries.tracks_by_rowid(conn, ids)}
 
     @app.get("/api/library/duplicates")
     def library_duplicates() -> dict:
@@ -1323,10 +1301,7 @@ def create_app(
         recent: str = "",
         w_audio: float | None = None,
         w_feat: float | None = None,
-        w_lyr: float | None = None,
-        w_emo: float | None = None,
         w_taste: float | None = None,
-        mood: str = "",
     ) -> dict:
         """Tracks to play after this one, best first.
 
@@ -1348,31 +1323,16 @@ def create_app(
         audio legs one term with an internal split.
         """
         overrides = {
-            "w_audio": w_audio, "w_feat": w_feat, "w_lyr": w_lyr,
-            "w_emo": w_emo, "w_taste": w_taste,
+            "w_audio": w_audio, "w_feat": w_feat,
+            "w_taste": w_taste,
         }
         given = {name: value for name, value in overrides.items()
                  if value is not None}
         weights = {**reco.DEFAULT_WEIGHTS, **given} if given else None
 
-        seed: int | dict = track_rowid
-        if mood:
-            try:
-                v, a = (float(part) for part in mood.split(","))
-            except ValueError:
-                raise HTTPException(422, "mood must be 'valence,arousal'")
-            if not (-1 <= v <= 1 and -1 <= a <= 1):
-                raise HTTPException(422, "mood values must be in [-1, 1]")
-            vectors = recommend.load_vectors(app.state.conn)
-            if track_rowid not in vectors:
-                raise HTTPException(404, f"No recommendable track {track_rowid}")
-            target = recommend.mood_target(vectors, v, a)
-            if target is not None:
-                seed = {**vectors[track_rowid], "emotion_vec": list(target)}
-
         results = recommend.recommend_for(
-            app.state.conn, seed, n=n,
-            exclude=_rowid_set(exclude) | ({track_rowid} if mood else set()),
+            app.state.conn, track_rowid, n=n,
+            exclude=_rowid_set(exclude),
             recent=_rowid_list(recent), weights=weights,
         )
         if results is None:
@@ -1484,6 +1444,8 @@ def create_app(
             radio_seed=write.radio_seed,
             updated_by=write.updated_by,
             radio_added=write.radio_added,
+            radio_pos=write.radio_pos,
+            radio_lift=int(write.radio_lift),
         )
         state = library.read_state(conn)
         return {
@@ -1686,6 +1648,12 @@ def create_app(
         if out is None:
             raise HTTPException(404, f"No track {track_rowid}")
         return out
+
+    @app.post("/api/tracks/{track_rowid}/lyrics/no-words")
+    def track_lyrics_no_words(track_rowid: int) -> dict:
+        if not library_lyrics_state.mark_no_words(app.state.conn, track_rowid):
+            raise HTTPException(404, f"No track {track_rowid}")
+        return {"ok": True}
 
     @app.post("/api/tracks/{track_rowid}/lyrics/timings")
     def track_lyrics_timings(track_rowid: int, write: LyricsTimings) -> dict:

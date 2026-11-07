@@ -41,13 +41,8 @@ __all__ = ["K_PER_LEG", "apply_ratings", "calibration_for",
 # Small libraries need less recall than the number suggests.
 K_PER_LEG = 30
 
-# Which legs contribute candidates. Emotion is deliberately absent: it is two
-# dimensions, so its "top 30" is mostly ties and it adds almost no recall the
-# other legs do not already provide. It still *scores* in `rank()` -- being a
-# poor way to find candidates is not the same as being a poor way to rank
-# them.
-RETRIEVAL_LEGS = ("audio_vec", "feature_vec", "lyrics_vec", "content_vec",
-                  "taste_vec")
+# Which legs contribute candidates.
+RETRIEVAL_LEGS = ("audio_vec", "feature_vec", "content_vec", "taste_vec")
 
 
 def load_vectors(conn: sqlite3.Connection) -> dict[int, dict]:
@@ -83,8 +78,8 @@ def load_vectors(conn: sqlite3.Connection) -> dict[int, dict]:
             merged.setdefault(rowid, {})[key] = vector
 
     for entry in merged.values():
-        for key in ("audio_vec", "feature_vec", "lyrics_vec", "emotion_vec",
-                    "content_vec", "taste_vec"):
+        for key in ("audio_vec", "feature_vec", "content_vec",
+                    "taste_vec"):
             entry.setdefault(key, None)
     return merged
 
@@ -114,8 +109,7 @@ CALIBRATION_PAIRS = 2000
 # must always calibrate the same way, or scores drift between restarts.
 CALIBRATION_SEED = 0
 
-_CALIBRATED_LEGS = ("audio_vec", "feature_vec", "lyrics_vec", "emotion_vec",
-                    "taste_vec", "content_vec")
+_CALIBRATED_LEGS = ("audio_vec", "feature_vec", "taste_vec", "content_vec")
 
 _calibration_cache: dict = {}
 
@@ -125,8 +119,6 @@ def clear_calibration_cache() -> None:
 
 
 def _pair_sim(leg: str, a, b, content_stats: dict | None) -> float:
-    if leg == "emotion_vec":
-        return reco.emotion_sim(tuple(a), tuple(b))
     if leg == "content_vec":
         return reco.content_sim(list(a), list(b), mean=content_stats["mean_vec"],
                                 lo=content_stats["sim_lo"],
@@ -203,10 +195,7 @@ def _top_k(vectors: dict[int, dict], seed: int | dict, leg: str, k: int) -> set[
         other = entry.get(leg)
         if other is None:
             continue
-        if leg == "emotion_vec":
-            sim = reco.emotion_sim(tuple(seed_vec), tuple(other))
-        else:
-            sim = reco.cosine_sim(list(seed_vec), list(other))
+        sim = reco.cosine_sim(list(seed_vec), list(other))
         scored.append((sim, rowid))
 
     # Sorted by similarity, then by rowid, so a tie resolves the same way
@@ -468,25 +457,6 @@ def fresh_tracks(
     """
     since = now - FRESHNESS_WINDOW_DAYS * _SECONDS_PER_DAY
     return known - library_plays.played_since(conn, since)
-
-
-def mood_target(vectors: dict[int, dict], valence: float,
-                arousal: float) -> tuple[float, float] | None:
-    """Map a mood in [-1, 1]^2 onto the library's own emotion range: 0 is the
-    per-axis median, +1/-1 the 95th/5th percentile. None if no track has an
-    emotion vec."""
-    emotions = [v["emotion_vec"] for v in vectors.values()
-                if v.get("emotion_vec") is not None]
-    if not emotions:
-        return None
-    out = []
-    for axis, x in enumerate((valence, arousal)):
-        s = sorted(e[axis] for e in emotions)
-        p05, p50, p95 = (s[int(p * (len(s) - 1))] for p in (.05, .5, .95))
-        # Same line as p50 + x*(p50-p05), written so x=-1 lands exactly on p05.
-        out.append(p50 + x * (p95 - p50) if x >= 0
-                   else p05 + (1 + x) * (p50 - p05))
-    return out[0], out[1]
 
 
 def recommend_for(

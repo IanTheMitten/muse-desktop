@@ -1,4 +1,8 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+
+import { LyricsEditDialog } from "../components/LyricsEditDialog";
+import { UNTAGGED_NOTE } from "../player/radio";
 
 import { CoverArt } from "../components/CoverArt";
 import { TrackRow } from "../components/TrackRow";
@@ -9,8 +13,12 @@ import { usePlayer } from "../player/PlayerContext";
 import "../styles/muse.css";
 
 export function Muse() {
-  const { queue, index, current, mood, setMood, radioNote, retryMuse, playingFrom, isMusePick, playQueue } =
-    usePlayer();
+  const {
+    queue, index, current, mood, setMood, radioNote, retryMuse, playingFrom, isMusePick, playQueue,
+    radioLift, setRadioLift, radioReason, energyReady, radioSeed,
+  } = usePlayer();
+  const seedTrack = queue.find((t) => t.track_rowid === radioSeed) ?? current;
+  const [editing, setEditing] = useState(false);
   const feel = useFeel("muse.feel", mood, setMood);
   const upNext = queue.slice(index + 1);
 
@@ -22,6 +30,28 @@ export function Muse() {
         <section className="panel-card muse-steer" aria-labelledby="feelH">
           <h2 id="feelH">How are you feeling?</h2>
           <FeelPicker feel={feel} id="muse" />
+          <div className="lift">
+            <span id="lift-l" className="lift-name">Lift</span>
+            <button
+              type="button"
+              role="switch"
+              className="switch"
+              aria-checked={radioLift}
+              aria-labelledby="lift-l"
+              aria-describedby="lift-d"
+              onClick={() => setRadioLift(!radioLift)}
+            >
+              <span className="thumb" aria-hidden="true" />
+              <span className="switch-state">{radioLift ? "On" : "Off"}</span>
+            </button>
+            <p id="lift-d" className="note">Radio drifts from heavier songs toward lighter ones over about 30 songs.</p>
+            {!energyReady && (
+              <p className="note">
+                Energy needs smart features, so Muse matches only how dark or bright a mood is.{" "}
+                <Link to="/settings">Settings</Link>
+              </p>
+            )}
+          </div>
           {current && (
             <div className="from">
               <CoverArt src={`/api/tracks/${current.track_rowid}/art`} hasArt={current.has_art} size="thumb" />
@@ -46,6 +76,17 @@ export function Muse() {
                 {radioNote?.failed && (
                   <p className="note">
                     {radioNote.text} <button type="button" className="link-btn" onClick={retryMuse}>Retry</button>
+                  </p>
+                )}
+                {radioReason === "untagged" && (
+                  <p className="note">
+                    {UNTAGGED_NOTE}
+                    {seedTrack && !seedTrack.has_lyrics && (
+                      <>
+                        {" "}
+                        <button type="button" className="link-btn" onClick={() => setEditing(true)}>Add lyrics</button>
+                      </>
+                    )}
                   </p>
                 )}
                 <ol className="tracks">
@@ -74,6 +115,9 @@ export function Muse() {
           </section>
         </div>
       </div>
+      {editing && seedTrack && (
+        <LyricsEditDialog track={seedTrack} onClose={() => setEditing(false)} onSaved={() => {}} />
+      )}
     </div>
   );
 }

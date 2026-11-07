@@ -45,8 +45,7 @@ def save_text(
         "UPDATE tracks SET lyrics_path = ? WHERE track_rowid = ?", (path, track_rowid)
     )
     conn.execute(
-        "UPDATE embeddings SET lyrics_vec = NULL, lyrics_hash = NULL,"
-        " lyrics_model = NULL WHERE track_rowid = ?",
+        "UPDATE embeddings SET lyrics_hash = NULL WHERE track_rowid = ?",
         (track_rowid,),
     )
     conn.execute("DELETE FROM lyric_tag_sets WHERE track_rowid = ?", (track_rowid,))

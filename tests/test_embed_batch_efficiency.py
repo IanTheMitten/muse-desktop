@@ -22,7 +22,7 @@ def _with_lyrics(conn, tmp_path, rowid, text):
 def test_the_lyrics_changed_pass_does_not_query_once_per_track(conn, tmp_path):
     for rowid in range(1, 11):
         _with_lyrics(conn, tmp_path, rowid, f"Lyrics for track {rowid}")
-    embed.run_embed_batch(conn, embed.StubAudioEncoder(), embed.StubLyricsEncoder())
+    embed.run_embed_batch(conn, embed.StubAudioEncoder())
 
     real_execute = type(conn).execute
     lyrics_path_lookups = {"n": 0}
@@ -36,7 +36,7 @@ def test_the_lyrics_changed_pass_does_not_query_once_per_track(conn, tmp_path):
     original = conn_type.execute
     conn_type.execute = counting_execute
     try:
-        embed.run_embed_batch(conn, embed.StubAudioEncoder(), embed.StubLyricsEncoder())
+        embed.run_embed_batch(conn, embed.StubAudioEncoder())
     finally:
         conn_type.execute = original
 

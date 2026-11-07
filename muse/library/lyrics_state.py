@@ -139,3 +139,32 @@ def upsert(
         (track_rowid, state, int(synced), lrc_offset_ms, checked_at),
     )
     conn.commit()
+
+
+def missing(conn: sqlite3.Connection) -> list[int]:
+    """Playable songs the lyrics lookup found nothing for: no lyrics file, not
+    an instrumental, and a `not_found` state. Listed so the listener can add
+    the words by hand or say there are none."""
+    rows = conn.execute(
+        "SELECT t.track_rowid FROM tracks t JOIN lyrics_state ls USING (track_rowid)"
+        " WHERE t.status = 'done' AND t.lyrics_path IS NULL"
+        "   AND t.is_instrumental = 0 AND ls.state = 'not_found'"
+        " ORDER BY t.artist_name, t.album_name, t.track_name, t.track_rowid"
+    ).fetchall()
+    return [row["track_rowid"] for row in rows]
+
+
+def mark_no_words(
+    conn: sqlite3.Connection, track_rowid: int, *, now: int | None = None
+) -> bool:
+    """Take a song off the missing list: the listener says it has no words.
+    False when there is no such track."""
+    if conn.execute(
+        "SELECT 1 FROM tracks WHERE track_rowid = ?", (track_rowid,)
+    ).fetchone() is None:
+        return False
+    upsert(
+        conn, track_rowid, state="declared_instrumental", synced=False,
+        checked_at=now or _now(),
+    )
+    return True

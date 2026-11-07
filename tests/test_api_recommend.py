@@ -40,8 +40,8 @@ def seed_library(conn, count=6):
         library_embeddings.upsert(
             conn, rowid,
             audio_vec=pack_vector([1.0, float(rowid) / 100.0]),
-            feature_vec=None, lyrics_vec=None,
-            audio_model="stub", lyrics_model=None, lyrics_hash=None)
+            feature_vec=None,
+            audio_model="stub", lyrics_hash=None)
 
 
 def test_returns_results_with_reasons(app):
@@ -78,19 +78,13 @@ def test_weight_overrides_change_the_ordering(app):
     conn = app.state.conn
     insert_track(conn, 1, artist_name="A")
     library_embeddings.upsert(conn, 1, audio_vec=pack_vector([1.0, 0.0]),
-                              feature_vec=pack_vector([1.0, 0.0]),
-                              lyrics_vec=None, audio_model="stub",
-                              lyrics_model=None, lyrics_hash=None)
+                              feature_vec=pack_vector([1.0, 0.0]), audio_model="stub", lyrics_hash=None)
     insert_track(conn, 2, artist_name="B")   # audio twin, feature opposite
     library_embeddings.upsert(conn, 2, audio_vec=pack_vector([1.0, 0.0]),
-                              feature_vec=pack_vector([0.0, 1.0]),
-                              lyrics_vec=None, audio_model="stub",
-                              lyrics_model=None, lyrics_hash=None)
+                              feature_vec=pack_vector([0.0, 1.0]), audio_model="stub", lyrics_hash=None)
     insert_track(conn, 3, artist_name="C")   # feature twin, audio opposite
     library_embeddings.upsert(conn, 3, audio_vec=pack_vector([0.0, 1.0]),
-                              feature_vec=pack_vector([1.0, 0.0]),
-                              lyrics_vec=None, audio_model="stub",
-                              lyrics_model=None, lyrics_hash=None)
+                              feature_vec=pack_vector([1.0, 0.0]), audio_model="stub", lyrics_hash=None)
     endpoint = route(app, "/api/recommend/{track_rowid}")
     by_sound = endpoint(1, n=1, w_audio=1.0, w_feat=0.0)
     by_features = endpoint(1, n=1, w_audio=0.0, w_feat=1.0)
@@ -161,8 +155,7 @@ def test_artist_spacing_may_defer_a_higher_scoring_track(app):
         insert_track(conn, rowid, artist_name=artist)
         library_embeddings.upsert(
             conn, rowid, audio_vec=pack_vector(vectors[rowid]),
-            feature_vec=None, lyrics_vec=None, audio_model="stub",
-            lyrics_model=None, lyrics_hash=None)
+            feature_vec=None, audio_model="stub", lyrics_hash=None)
 
     out = route(app, "/api/recommend/{track_rowid}")(1, n=3)["results"]
     order = [r["track_rowid"] for r in out]
@@ -232,3 +225,22 @@ def test_a_result_with_no_track_row_is_dropped_not_nulled(app):
 
     assert [r["track_rowid"] for r in hydrated] == [2]
     assert hydrated[0]["score"] == 0.9
+
+
+def test_retired_lyrics_emotion_and_mood_params_are_ignored(app, tmp_path):
+    """Each call counts as an offer (freshness), so the two requests run on
+    two identical libraries rather than back to back on one."""
+    from fastapi.testclient import TestClient
+    from muse.library import db
+    other_dir = tmp_path / "other"
+    other_dir.mkdir()
+    other = create_app(_config(other_dir))
+    other.state.conn = db.connect(other_dir / "library.sqlite3")
+    seed_library(app.state.conn)
+    seed_library(other.state.conn)
+    plain = TestClient(app).get("/api/recommend/1?n=3")
+    extra = TestClient(other).get(
+        "/api/recommend/1?n=3&w_lyr=1&w_emo=1&mood=0,0")
+    assert plain.status_code == 200
+    assert extra.status_code == 200
+    assert extra.json() == plain.json()

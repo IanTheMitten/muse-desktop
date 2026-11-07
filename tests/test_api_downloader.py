@@ -12,9 +12,6 @@ from muse import settings
 from muse.api import create_app
 from muse.embed import (
     StubAudioEncoder,
-    StubAudioVAEncoder,
-    StubLyricsEncoder,
-    StubLyricsVAEncoder,
 )
 from muse.library import jobs as job_rows
 from muse.tags import FileTags
@@ -41,9 +38,7 @@ def _tags(path):
 def _app(config, **kw):
     return create_app(
         config, art_provider=FakeArtProvider(), read_tags=_tags,
-        audio_encoder=StubAudioEncoder(), lyrics_encoder=StubLyricsEncoder(),
-        audio_va_encoder=StubAudioVAEncoder(),
-        lyrics_va_encoder=StubLyricsVAEncoder(), **kw)
+        audio_encoder=StubAudioEncoder(), **kw)
 
 
 def _kinds(app):

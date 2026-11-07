@@ -36,7 +36,7 @@ DELTA = 1.0              # cost weight on the gap to the asked-for sound band
 RELAX_COST = 0.5         # per relaxed rung name: a path that needed the ladder loses to an equal one that did not
 FILLER_COST = 0.5        # an untagged pick's cost in place of the darkness and theme terms
 SHAPE_HOLD = {"steady": 0.0, "gradual": HOLD_FRAC, "late": 0.7}  # share of the span held per shape
-SOUND_BANDS = {"calm": (-1.0, 0.25), "mid": (0.25, 0.57), "energetic": (0.57, 1.0)}  # arousal range per sound
+SOUND_BANDS = {"calm": (-1.0, -1 / 3), "mid": (-1 / 3, 1 / 3), "energetic": (1 / 3, 1.0)}  # CLAP energy thirds, spec Decision
 LIMIT_CEILING = {"anything": None, "no_explicit": 0.5, "clean": 0.2}  # highest heavy content per limit
 
 
@@ -153,13 +153,13 @@ def filler_ok(history: list[bool]) -> bool:
     return not any(history[: FILLER_EVERY - 1])
 
 
-def sound_gap(arousal: float | None, sound: str) -> float:
-    """Distance from `arousal` to the asked-for band; 0 when unknown or `any`."""
+def sound_gap(energy: float | None, sound: str) -> float:
+    """Distance from `energy` to the asked-for band; 0 when unknown or `any`."""
     band = SOUND_BANDS.get(sound)
-    if arousal is None or band is None:
+    if energy is None or band is None:
         return 0.0
     low, high = band
-    return max(0.0, low - arousal, arousal - high)
+    return max(0.0, low - energy, energy - high)
 
 
 def limits_ok(heavy: float | None, limits: str) -> bool:

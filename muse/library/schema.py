@@ -697,6 +697,23 @@ def _m022_edits(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE tracks SET file_mtime = NULL WHERE origin = 'local'")
 
 
+def _m023_arc_radio(conn: sqlite3.Connection) -> None:
+    """Arc radio and model retirement (spec:96, Assumption 1): drop the columns the retired lyrics and emotion models wrote, add the radio position and lift to player_state, and the cached CLAP prompt vectors."""
+    present = {row[1] for row in conn.execute("PRAGMA table_info(embeddings)")}
+    for column in ("lyrics_vec", "lyrics_model", "audio_va", "lyrics_va",
+                   "emotion_vec", "audio_va_model", "lyrics_va_model"):
+        if column in present:
+            conn.execute(f"ALTER TABLE embeddings DROP COLUMN {column}")
+    state = {row[1] for row in conn.execute("PRAGMA table_info(player_state)")}
+    if "radio_pos" not in state:
+        conn.execute("ALTER TABLE player_state ADD COLUMN radio_pos INTEGER NOT NULL DEFAULT 0")
+    if "radio_lift" not in state:
+        conn.execute("ALTER TABLE player_state ADD COLUMN radio_lift INTEGER NOT NULL DEFAULT 1")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS prompt_vectors (audio_model TEXT NOT NULL, name TEXT NOT NULL,"
+        " vec BLOB NOT NULL, PRIMARY KEY (audio_model, name))")
+
+
 # Append only. Index in this list + 1 is the version a migration produces.
 MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
     _m001_initial,
@@ -721,6 +738,7 @@ MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
     _m020_reask_missing_art,
     _m021_local_files,
     _m022_edits,
+    _m023_arc_radio,
 ]
 
 LATEST_VERSION = len(MIGRATIONS)

@@ -4,47 +4,35 @@
 the per-leg math, pure and dependency-free so it is testable without a
 database or a model.
 
-Two legs deviate from a plain cosine, in different ways. `emotion_sim` is
-the odd one out on *metric*: VA is a bounded plane where proximity of two
-points is the meaningful relationship (Russell's circumplex model), not the
-angle between them from the origin -- two points can point in opposite
-directions from (0, 0) while sitting right next to each other (e.g. barely
-positive vs. barely negative valence at the same low arousal), which cosine
-would score as maximally dissimilar and Euclidean distance correctly scores
-as close. `content_sim` keeps cosine as the metric but deviates on either
-side of it: it corrects the input vectors (mean-centering, to undo MERT's
-anisotropy) before the cosine, and rescales the result (through measured
-corpus percentiles) after. Every other leg (CLAP, feature, lyrics) compares
-high-dimensional L2-normalized vectors by plain cosine.
+One leg deviates from a plain cosine. `content_sim` keeps cosine as the
+metric but deviates on either side of it: it corrects the input vectors
+(mean-centering, to undo MERT's anisotropy) before the cosine, and rescales
+the result (through measured corpus percentiles) after. Every other leg
+(CLAP, feature, taste) compares high-dimensional L2-normalized vectors by
+plain cosine.
 """
 
 import math
 
-# The farthest two points on the [-1, 1] x [-1, 1] VA plane can be from each
-# other -- opposite corners -- used to scale a raw distance into [0, 1].
-_MAX_VA_DISTANCE = math.dist((-1.0, -1.0), (1.0, 1.0))
-
 
 # --- Fusion weights -------------------------------------------------------
 #
-# Five weighted terms, spelled as ADR 0003 spells them. These numbers are
-# *traceable, not measured*. They are derived from PRD §553's four-leg vector
-# (w_clap 0.35, w_feat 0.15, w_lyr 0.30, w_fb 0.20) by two substitutions:
+# Three weighted terms remain: the lyrics and emotion legs were cut, deleted
+# rather than zeroed so `renormalize` covers only legs that exist. These
+# numbers are *traceable, not measured*. They are the PRD §553 vector
+# (w_clap 0.35, w_feat 0.15, w_fb 0.20) with two substitutions:
 # w_clap becomes w_audio and now covers both audio legs (ADR 0004), and w_fb
 # becomes w_taste, inherited wholesale because ADR 0003 replaced the
-# feedback_score scalar with the taste embedding. w_emo is new and funded out
-# of w_lyr, since emotion partly derives from the same lyrics.
+# feedback_score scalar with the taste embedding.
 #
 # Nothing has tested whether they are good. The offline harness now exists
 # (`muse/reco_eval.py`, O8) and ADR 0008 records its baseline, but at 126
 # played-through transitions one transition is worth 0.008 of hit@k, so
-# tuning five weights against it would fit noise. Do not adjust these
+# tuning three weights against it would fit noise. Do not adjust these
 # without a run that beats the recorded baseline by more than that.
 DEFAULT_WEIGHTS: dict[str, float] = {
     "w_audio": 0.35,
     "w_feat": 0.15,
-    "w_lyr": 0.25,
-    "w_emo": 0.05,
     "w_taste": 0.20,
 }
 
@@ -109,7 +97,7 @@ def audio_term(
     `a_clap * clap_sim` -- that is the natural-looking expression, and it
     shrinks the audio term to 60% of `w_audio` on exactly the tracks where
     CLAP is the only audio signal there is, undoing the first clause. Not
-    outward renormalization across the other four legs either, for the same
+    outward renormalization across the other legs either, for the same
     reason: audio would end up worth less than `w_audio` precisely where it
     should be worth all of it. The term stays whole with one leg supplying
     it.
@@ -140,14 +128,6 @@ def cosine_sim(a: list[float], b: list[float]) -> float:
     if norm_a == 0 or norm_b == 0:
         return 0.0
     return dot / (norm_a * norm_b)
-
-
-def emotion_sim(a: tuple[float, float], b: tuple[float, float]) -> float:
-    """Euclidean distance between two VA points, converted to a [0, 1]
-    similarity -- not cosine (see module docstring). 1.0 for identical
-    points, 0.0 for the two farthest-apart points the plane allows."""
-    distance = math.dist(a, b)
-    return max(0.0, 1.0 - distance / _MAX_VA_DISTANCE)
 
 
 def content_sim(
@@ -211,7 +191,7 @@ def content_sim(
 # --- Calibration ------------------------------------------------------------
 #
 # ADR 0008. Each leg's raw similarity lives on its own scale: on this library
-# a random pair scores ~0.87 on features and emotion, ~0.44 on lyrics, ~0.0
+# a random pair scores ~0.87 on features, ~0.0
 # on taste. `rank()` averages whichever legs a candidate has, so with raw
 # scores the *set* of legs present moved the score by itself -- a post-freeze
 # track lost a leg that hands everyone 0.87, an instrumental shed one that
@@ -270,13 +250,11 @@ def _calibrated(sim: float | None, key: str, calibration: dict | None) -> float 
     return calibrate(sim, calibration[key])
 
 
-# Which query/candidate key each weight compares, for the four legs that are
-# a plain cosine or a plain distance. Audio is absent because it is two legs
+# Which query/candidate key each weight compares, for the two legs that are
+# a plain cosine. Audio is absent because it is two legs
 # behind one weight (see `audio_term`).
 _LEG_VECTORS: dict[str, str] = {
     "w_feat": "feature_vec",
-    "w_lyr": "lyrics_vec",
-    "w_emo": "emotion_vec",
     "w_taste": "taste_vec",
 }
 
@@ -286,8 +264,6 @@ _LEG_VECTORS: dict[str, str] = {
 # has no taste vector because three plays is not yet a taste.
 _NULL_REASONS: dict[str, str] = {
     "w_feat": "no_features",
-    "w_lyr": "no_lyrics",
-    "w_emo": "no_emotion",
     "w_taste": "below_play_threshold",
 }
 
@@ -296,8 +272,6 @@ def _leg_sim(name: str, query_vec, candidate_vec) -> float | None:
     """One leg's similarity, or None when either side has no vector."""
     if query_vec is None or candidate_vec is None:
         return None
-    if name == "w_emo":
-        return emotion_sim(tuple(query_vec), tuple(candidate_vec))
     return cosine_sim(list(query_vec), list(candidate_vec))
 
 
@@ -318,7 +292,7 @@ def rank(
     or the whole argument being None, keeps its raw similarity.
 
     `query` and each candidate are mappings of vectors -- `audio_vec`,
-    `feature_vec`, `lyrics_vec`, `emotion_vec`, `taste_vec`, `content_vec` --
+    `feature_vec`, `taste_vec`, `content_vec` --
     already loaded by the caller, along with `content_stats` already read.
     Nothing here opens or knows about a database. That is what lets story
     44's learned scorer replace this function without touching anything else,

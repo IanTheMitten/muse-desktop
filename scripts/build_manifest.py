@@ -19,15 +19,6 @@ PINNED = {
     "clap": ("laion/larger_clap_music_and_speech", "195c3a3e68faebb3e2088b9a79e79b43ddbda76b", [
         "config.json", "merges.txt", "preprocessor_config.json", "pytorch_model.bin",
         "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json", "vocab.json"]),
-    "minilm": ("sentence-transformers/all-MiniLM-L6-v2", "1110a243fdf4706b3f48f1d95db1a4f5529b4d41", [
-        "1_Pooling/config.json", "config.json", "config_sentence_transformers.json",
-        "model.safetensors", "modules.json", "sentence_bert_config.json",
-        "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json", "vocab.txt"]),
-    "audio_va": ("audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim", "6eba34a2485ea31cb03600241787c3a5edab8626", [
-        "LICENSE", "config.json", "model.safetensors", "preprocessor_config.json", "vocab.json"]),
-    "lyrics_va": ("j-hartmann/emotion-english-distilroberta-base", "0e1cd914e3d46199ed785853e12b57304e04178b", [
-        "config.json", "merges.txt", "pytorch_model.bin", "special_tokens_map.json",
-        "tokenizer.json", "tokenizer_config.json", "vocab.json"]),
     "mms": ("MahmoudAshraf/mms-300m-1130-forced-aligner", "49402e9577b1158620820667c218cd494cc44486", [
         "config.json", "model.safetensors", "vocab.json"]),
 }
@@ -102,7 +93,7 @@ def main() -> None:
         weights += hf_entries(key, repo, rev, files)
     weights += RAW
     weights += laya_entries(args.laya_dir, args.laya_repo)
-    args.out.write_text(json.dumps({"version": 2, "weights": weights, "workers": workers}, indent=2) + "\n")
+    args.out.write_text(json.dumps({"version": 3, "weights": weights, "workers": workers}, indent=2) + "\n")
     print(f"{len(weights)} files, {sum(w['size'] for w in weights)} bytes")
 
 

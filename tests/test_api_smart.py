@@ -99,7 +99,8 @@ def _wait(client, state, timeout=10):
 def test_get_not_installed(tmp_path, monkeypatch):
     with TestClient(_app(tmp_path, monkeypatch)) as client:
         assert client.get("/api/smart").json() == {
-            "state": "not_installed", "download_bytes": len(BODY) + len(ZIP), "job": None}
+            "state": "not_installed", "download_bytes": len(BODY) + len(ZIP), "job": None,
+            "energy_ready": False}
 
 
 def test_get_unsupported(tmp_path, monkeypatch):
@@ -160,8 +161,7 @@ def test_chain_runs_content_and_lyric_tag_steps_when_installed(tmp_path, monkeyp
     monkeypatch.setattr(smart, "load_manifest", lambda *a, **k: MANIFEST)
     app = create_app(
         config, worker_client=worker,
-        audio_encoder=embed.StubAudioEncoder(), lyrics_encoder=embed.StubLyricsEncoder(),
-        audio_va_encoder=embed.StubAudioVAEncoder(), lyrics_va_encoder=embed.StubLyricsVAEncoder(),
+        audio_encoder=embed.StubAudioEncoder(),
     )
     with TestClient(app) as client:
         insert_track(app.state.conn, 1, status="done")

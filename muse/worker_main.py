@@ -81,21 +81,6 @@ def real_handlers(weights: Path) -> dict[str, Callable[[dict], object]]:
 
         return get("clap", lambda: ClapAudioEncoder(source=src("clap")))
 
-    def minilm():
-        from .embed import MiniLmLyricsEncoder
-
-        return get("minilm", lambda: MiniLmLyricsEncoder(source=src("minilm")))
-
-    def audio_va():
-        from .embed import MerAudioVAEncoder
-
-        return get("audio_va", lambda: MerAudioVAEncoder(source=src("audio_va")))
-
-    def lyrics_va():
-        from .embed import TextVAEncoder
-
-        return get("lyrics_va", lambda: TextVAEncoder(source=src("lyrics_va")))
-
     def mert():
         from .mert import MertEncoder
 
@@ -146,9 +131,6 @@ def real_handlers(weights: Path) -> dict[str, Callable[[dict], object]]:
         "align": align,
         "clap_audio": lambda a: clap().encode(Path(a["path"])),
         "clap_text": lambda a: clap().encode_text(a["text"]),
-        "minilm": lambda a: minilm().encode(a["text"]),
-        "audio_va": lambda a: list(audio_va().encode(Path(a["path"]))),
-        "lyrics_va": lambda a: list(lyrics_va().encode(a["text"])),
         "mert": lambda a: mert().encode(Path(a["path"])),
         "laya": laya,
     }

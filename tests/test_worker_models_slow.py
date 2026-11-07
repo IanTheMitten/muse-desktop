@@ -18,26 +18,6 @@ def test_clap():
     assert len(enc.encode_text("calm piano")) == 512
 
 
-def test_minilm():
-    from muse.embed import MiniLmLyricsEncoder
-
-    assert len(MiniLmLyricsEncoder().encode("hello world")) == 384
-
-
-def test_audio_va():
-    from muse.embed import MerAudioVAEncoder
-
-    v = MerAudioVAEncoder().encode(TONE)
-    assert len(v) == 2 and all(-1.0 <= x <= 1.0 for x in v)
-
-
-def test_lyrics_va():
-    from muse.embed import TextVAEncoder
-
-    v = TextVAEncoder().encode("I am so happy")
-    assert len(v) == 2 and all(-1.0 <= x <= 1.0 for x in v)
-
-
 def test_mert():
     from muse.mert import MertEncoder
 

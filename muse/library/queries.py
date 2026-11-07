@@ -517,5 +517,6 @@ def vector_fingerprint(conn: sqlite3.Connection) -> tuple:
             "SELECT COUNT(*), MAX(trained_at) FROM taste_embeddings",
             "SELECT MAX(computed_at) FROM content_stats",
             "SELECT COUNT(*) FROM tracks WHERE status = 'done'",
+            "SELECT MAX(version) FROM schema_version",
         )
     )

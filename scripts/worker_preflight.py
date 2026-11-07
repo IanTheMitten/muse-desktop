@@ -14,9 +14,6 @@ import numpy as np  # noqa: E402
 REPOS = {
     "mert": "m-a-p/MERT-v1-95M",
     "clap": "laion/larger_clap_music_and_speech",
-    "minilm": "sentence-transformers/all-MiniLM-L6-v2",
-    "audio_va": "audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim",
-    "lyrics_va": "j-hartmann/emotion-english-distilroberta-base",
 }
 LAYA = Path.home() / "models/laya-muse-v4"
 rows = []
@@ -106,40 +103,6 @@ def main():
             return m.get_audio_features(**x).pooler_output[0]
 
     timed("clap", clap_load, clap_inf)
-
-    def minilm_load():
-        from sentence_transformers import SentenceTransformer
-
-        return SentenceTransformer(d["minilm"])
-
-    timed("minilm", minilm_load, lambda m: m.encode("hello world", normalize_embeddings=True))
-
-    def ava_load():
-        import huggingface_hub
-        from muse import embed
-
-        # production reads <source>/model.safetensors; stand in for hf_hub_download
-        orig = huggingface_hub.hf_hub_download
-        huggingface_hub.hf_hub_download = lambda *a, **k: str(Path(d["audio_va"]) / "model.safetensors")
-        try:
-            return embed._build_audio_va_model(d["audio_va"]).eval()
-        finally:
-            huggingface_hub.hf_hub_download = orig
-
-    def ava_inf(m):
-        a = decode(ROOT / "tests/fixtures/smoke/tone.wav", 16000)
-        x = torch.from_numpy(a[:16000])[None]
-        with torch.no_grad():
-            return m(x)[1][0]
-
-    timed("audio_va", ava_load, ava_inf)
-
-    def lva_load():
-        from transformers import pipeline
-
-        return pipeline("text-classification", model=d["lyrics_va"], top_k=None)
-
-    timed("lyrics_va", lva_load, lambda p: np.array([s["score"] for s in p("I am so happy")[0]]))
 
     def laya_load():
         import laya

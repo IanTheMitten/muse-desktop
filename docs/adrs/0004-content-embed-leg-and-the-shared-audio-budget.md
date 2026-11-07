@@ -1,5 +1,7 @@
 # ADR 0004: The recommender gains a MERT content leg, and it shares CLAP's weight budget
 
+> **Superseded in part (2026-11-07):** The shared audio budget stands, but `rank()` now has three legs (audio CLAP+MERT, features, taste) at `w_audio` 0.35, `w_feat` 0.15, `w_taste` 0.20; the lyrics and emotion legs this ADR's weights were split against are deleted. See `docs/specs/2026-11-07-arc-radio-and-model-retirement.md`.
+
 - **Status:** Accepted
 - **Date:** 2026-08-24
 - **Slice:** 2 (Recommender)

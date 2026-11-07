@@ -123,6 +123,24 @@ export function Home() {
             />
           )}
 
+          {dash.missing_lyrics > 0 && (
+            <section className="section" aria-labelledby="ml-h">
+              <div className="ml-card">
+                <div className="eyebrow">Lyrics</div>
+                <h2 id="ml-h">
+                  {dash.missing_lyrics === 1
+                    ? "1 song has no lyrics"
+                    : `${dash.missing_lyrics} songs have no lyrics`}
+                </h2>
+                <p>
+                  Muse looked for their words and found none. Add them so Radio can follow
+                  what a song is about, not only how it sounds.
+                </p>
+                <Link className="btn primary" to="/library/missing-lyrics">Add lyrics</Link>
+              </div>
+            </section>
+          )}
+
           {albumShelf("Recents", dash.recent_albums)}
 
           <Shelf title="On repeat" show={dash.on_repeat.length > 0} wrap={false}>

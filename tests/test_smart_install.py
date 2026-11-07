@@ -21,6 +21,7 @@ from muse.smart import (
     install,
     installed,
     load_manifest,
+    prune,
     status,
 )
 
@@ -243,3 +244,60 @@ def test_shipped_manifest_shape():
 def test_signature_constants():
     assert smart.SMART_INSTALL == "smart_install"
     assert smart.MANIFEST_PATH.name == "smart_manifest.json"
+
+
+def _seed_weights(tmp_path):
+    for d in ("clap", "minilm"):
+        (tmp_path / "weights" / d).mkdir(parents=True)
+        (tmp_path / "weights" / d / "f.bin").write_bytes(b"x")
+    (tmp_path / "keep.txt").write_text("k")
+    (tmp_path / "worker").mkdir()
+
+
+def _upgrade(tmp_path, previous):
+    manifest, bodies = _build()
+    manifest["version"] = 2
+    if previous is not None:
+        (tmp_path / "installed.json").write_text(json.dumps({"manifest_version": previous}))
+    install(tmp_path, manifest, TRIPLE, session=FakeSession(bodies), disk_free=lambda p: SimpleNamespace(free=BIG))
+
+
+def test_upgrade_prunes_unlisted_weights(tmp_path):
+    _seed_weights(tmp_path)
+    _upgrade(tmp_path, 1)
+    assert not (tmp_path / "weights" / "minilm").exists()
+    assert (tmp_path / "weights" / "clap").exists()
+    assert (tmp_path / "keep.txt").exists()
+    assert (tmp_path / "worker").is_dir()
+
+
+def test_fresh_install_prunes_nothing(tmp_path):
+    _seed_weights(tmp_path)
+    _upgrade(tmp_path, None)
+    assert (tmp_path / "weights" / "minilm").exists()
+
+
+def test_prune_oserror_leaves_folder_and_install_completes(tmp_path, monkeypatch):
+    _seed_weights(tmp_path)
+
+    def boom(*a, **k):
+        raise OSError("locked")
+
+    monkeypatch.setattr(smart.shutil, "rmtree", boom)
+    _upgrade(tmp_path, 1)
+    assert (tmp_path / "weights" / "minilm").exists()
+    assert json.loads((tmp_path / "installed.json").read_text())["manifest_version"] == 2
+
+
+def test_prune_returns_sorted_names(tmp_path):
+    manifest, _ = _build()
+    for d in ("zeta", "minilm", "clap"):
+        (tmp_path / "weights" / d).mkdir(parents=True)
+    assert prune(tmp_path, manifest) == ["minilm", "zeta"]
+
+
+def test_shipped_manifest_retired_models_gone():
+    m = load_manifest()
+    assert m["version"] == 3
+    for w in m["weights"]:
+        assert not w["path"].startswith(("weights/minilm/", "weights/audio_va/", "weights/lyrics_va/"))

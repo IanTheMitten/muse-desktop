@@ -28,7 +28,7 @@ _Avoid_: Backend, worker (the ML worker is a different process, below).
 
 **ML worker**:
 The separate process (`muse/worker_main.py`, frozen as `muse-worker`) that
-holds every model: CLAP, MiniLM, both emotion models, MERT and Laya. The sidecar
+holds every model: CLAP, MERT, Laya and the aligners. The sidecar
 talks to it through `muse/worker.py` (`WorkerClient`), starts it on the first
 request, stops it after 120 s idle and starts it at most twice per `begin()`
 session (a crashing worker fails the job once and is relaunched once). Only it imports torch.
@@ -38,7 +38,7 @@ _Avoid_: Sidecar (that is the API server), backend.
 `PROTOCOL = 1`. One JSON object per stdin line, `{"id": <int>, "op": <str>, ...}`;
 one reply per stdout line, `{"id": <int>, "ok": <result>}` or
 `{"id": <int|null>, "error": "<message>"}`. Ops: `hello`, `clap_audio`,
-`clap_text`, `minilm`, `audio_va`, `lyrics_va`, `mert`, `laya`, `align`. stdout carries
+`clap_text`, `mert`, `laya`, `align`. stdout carries
 only protocol lines; stdin EOF ends the worker.
 
 **Auto-align**:
@@ -144,7 +144,7 @@ hold two transactions.
 **Leg**:
 One term in the recommender's `rank()` fusion sum — a similarity score
 between a query track and a candidate track, computed from one signal source
-(CLAP audio, Spotify-style features, lyrics, emotion, taste, MERT content) and
+(CLAP audio, Spotify-style features, taste, MERT content) and
 weighted before summing. The two audio-content legs — CLAP `audio_vec` and
 MERT `content_vec` — share one weight in the sum rather than holding one
 each (ADR 0004).
@@ -154,16 +154,17 @@ inside the fusion formula).
 **Embedding batch**:
 The resumable, per-track job (`jobs.kind = 'embed'`) that computes and stores
 a track's `audio_vec` (CLAP), `feature_vec` (min-max normalized Spotify
-features), and `lyrics_vec` (MiniLM) into the `embeddings` table.
+features) into the `embeddings` table, and keeps `lyrics_hash` current.
 `embeddings.audio_vec IS NULL` is the work queue, so a killed run resumes
 rather than restarting; a `lyrics_hash` mismatch on an already-embedded track
-re-embeds just that track's lyrics leg. Distinct from the retrain job, which
+refreshes just that hash, which is what puts its lyric tags back in the queue. Distinct from the retrain job, which
 is whole-library and schedule-triggered rather than per-track and
 source-triggered.
 _Avoid_: Retrain job (see below — that term is reserved for the taste
 embedding's nightly, whole-library recompute).
 
 **Encoder protocol**:
+_Retired 2026-11-07 (docs/specs/2026-11-07-arc-radio-and-model-retirement.md): only `AudioEncoder` remains; `LyricsEncoder` and the VA encoders are gone. Text below kept for history._
 The `AudioEncoder`/`LyricsEncoder` seam (`muse/embed.py`) that lets the embed
 batch, and everything that tests it, run against a deterministic stub
 (hash of input → fixed-dimension, L2-normalized vector) instead of the real
@@ -178,6 +179,7 @@ _Avoid_: Model wrapper (too generic — the point of the name is the seam,
 not that it wraps a model).
 
 **Emotion vec**:
+_Retired 2026-11-07 (same spec): the audio_va and lyrics_va models, `emotion_vec` and the emotion leg are removed; Laya tags carry lyric emotion. Text below kept for history._
 A 2D valence-arousal point per track (`embeddings.emotion_vec`), fused from
 audio-VA (`embeddings.audio_va`, a pretrained music-emotion-recognition
 model run on the audio file — always available, computed alongside
@@ -193,7 +195,7 @@ audio+text).
 A 768-dimension per-track vector (`content_embeddings.content_vec`) from
 pretrained MERT-v1-95M, computed by the ML worker (`mert` op) in a batch
 (`python -m muse.content_embed_batch`, or the launch chain). Stored **raw**, not
-L2-normalized like `audio_vec` and `lyrics_vec`: MERT's output is
+L2-normalized like `audio_vec`: MERT's output is
 anisotropic, so `reco.content_sim` subtracts the corpus mean
 (`content_stats.mean_vec`) before comparing and rescales through two
 measured percentile anchors. Shares one audio-content weight budget with
@@ -203,6 +205,7 @@ different embeddings of the same signal), MERT vec (name the role, not the
 checkpoint, so replacing the model does not rename the concept).
 
 **Valence-arousal / VA**:
+_Retired 2026-11-07 (same spec): nothing in the app computes VA any more; see Energy. Text below kept for history._
 The two-axis emotion representation this project uses: valence (positive↔
 negative) and arousal (calm↔energetic). Two points close together in this
 plane represent similar moods, compared by Euclidean distance — not by angle
@@ -292,11 +295,12 @@ one of those.
 
 **Radio session**:
 A stretch of listening in which the client keeps its own queue topped up by
-asking `GET /api/recommend/` (or, not yet wired into the UI, `GET /api/arc/`
-with `mode=radio`) for one more track. Both are stateless: there is no
+asking `GET /api/arc/` with `mode=radio` (or `POST /api/arc` with a mood) for
+more tracks; `GET /api/recommend/` remains a debug surface. All are stateless: there is no
 server-side session object and no server-side queue — "the session" is
 `player_state.radio_seed` (the track it started from; NULL means radio is
-off) plus the client's rolling exclusion set. The seed is stored rather than
+off), `radio_pos` (arc picks placed so far) and `radio_lift` (the Lift switch),
+plus the client's rolling exclusion set. The seed is stored rather than
 a bare on/off flag because it is the one thing a listener asks about a
 session an hour in, and it sits in `player_state` beside `shuffle` and
 `repeat_mode` so radio survives a restart like the other two modes do.
@@ -314,6 +318,7 @@ spacing to measure against.
 _Avoid_: Seed (that is the *start* of the session and does not move).
 
 **Mood target**:
+_Retired 2026-11-07 (same spec): `mood=` on `/api/recommend` is gone; the mood picker now sends a request spec to `POST /api/arc`. Text below kept for history._
 A normalized `[valence, arousal]` pair, each in `[-1, 1]`, sent to
 `GET /api/recommend/` as `mood=valence,arousal`. The emotion leg measures
 distance to it instead of to the query point's own emotion vec. It is mapped
@@ -327,6 +332,20 @@ A queue entry the recommender added, as opposed to one the listener chose. The
 ids are carried in `player_state.radio_added` (`radio_added` on the wire). A
 re-rank toward a new mood target replaces only the Muse picks.
 _Avoid_: Radio track.
+
+**Energy**:
+How loud and intense a track sounds, from CLAP zero-shot: the track's
+`audio_vec` dotted with a "energetic" and a "calm" text-prompt vector
+(`muse/energy.py`, vectors cached in `prompt_vectors`), ranked across the
+library and mapped to a percentile on [-1, 1]. Drives the mood picker's
+calm / mid / energetic and the arc's `sound` cost.
+_Avoid_: Arousal, VA (the retired emotion models' axis).
+
+**Missing lyrics**:
+Playable, non-instrumental songs whose lyrics lookup found nothing
+(`lyrics_state.missing`), listed by `GET /api/library/lyrics/missing` and
+counted as `missing_lyrics` on the dashboard, so the listener can add the words
+by hand or say there are none.
 
 **Playlist**:
 A fixed, ordered list of tracks the listener saved, held in `playlists` and

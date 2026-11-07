@@ -49,3 +49,17 @@
 .moodmap svg:focus-visible { outline: 2px solid var(--text); outline-offset: 6px; }
 .panel-card a, .note a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
 .toast a { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* ---------- lift switch ---------- */
+.lift { margin-top: 22px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 12px; }
+.lift-name { font-weight: 700; }
+.lift .note { grid-column: 1 / -1; margin-top: 4px; }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; font-weight: 700; color: var(--text); }
+.switch::before { content: ""; flex: none; width: 44px; height: 26px; border-radius: var(--r-pill); background: var(--hairline); }
+.switch[aria-checked="true"]::before { background: var(--accent); }
+.switch .thumb { position: absolute; left: 3px; top: 50%; width: 20px; height: 20px; margin-top: -10px; border-radius: var(--r-pill); background: var(--text); transition: transform .2s var(--ease); }
+.switch[aria-checked="true"] .thumb { background: var(--on-accent); transform: translateX(18px); }
+.switch-state { min-width: 3ch; }
+.switch:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; }
+.switch:disabled { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .switch .thumb { transition: none; } }

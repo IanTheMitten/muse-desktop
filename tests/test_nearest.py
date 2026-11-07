@@ -29,8 +29,7 @@ def lib(conn):
             insert_track(conn, rowid, album_rowid=album, artist_name=artist,
                          album_name=f"Album {artist}")
             library_embeddings.upsert(
-                conn, rowid, audio_vec=pack_vector(vec), feature_vec=None,
-                lyrics_vec=None, audio_model="stub", lyrics_model=None,
+                conn, rowid, audio_vec=pack_vector(vec), feature_vec=None, audio_model="stub",
                 lyrics_hash=None)
     return conn
 

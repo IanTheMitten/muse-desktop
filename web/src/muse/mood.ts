@@ -44,16 +44,17 @@ export function wordsForPoint(p: MoodPoint): string {
     : `${a.e.name}, with some ${b.e.name.toLowerCase()}`;
 }
 
-export function toArcSpec(p: MoodPoint, seed: number | null, n: number): object {
+export function toArcSpec(p: MoodPoint, seed: number | null, n: number, lift = false, energy = true): object {
   const darkness = Math.round(((1 - p.v) / 2) * 100) / 100;
-  const sound = p.a <= -0.33 ? "calm" : p.a >= 0.33 ? "energetic" : "mid";
+  const goalDark = lift ? Math.min(darkness, 0.25) : darkness;
+  const sound = !energy ? "any" : p.a <= -0.33 ? "calm" : p.a >= 0.33 ? "energetic" : "mid";
   return {
     version: 1,
     kind: "mood",
     seed,
     start: { subject: null, darkness },
-    goal: { subject: null, darkness },
-    shape: "steady",
+    goal: { subject: null, darkness: goalDark },
+    shape: lift ? "gradual" : "steady",
     sound,
     length: n,
     limits: "anything",

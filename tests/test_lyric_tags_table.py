@@ -44,9 +44,7 @@ def _ready(conn, rowid, *, lyrics_hash="H", mbid=None):
     insert_track(conn, rowid)
     conn.execute("UPDATE tracks SET lyrics_path = ?, recording_mbid = ? WHERE track_rowid = ?",
                  (f"/x/{rowid}.lyrics.txt", mbid, rowid))
-    library_embeddings.upsert(conn, rowid, audio_vec=b"a" * 4, feature_vec=None,
-                              lyrics_vec=b"l" * 4, audio_model="clap",
-                              lyrics_model="minilm", lyrics_hash=lyrics_hash)
+    library_embeddings.upsert(conn, rowid, audio_vec=b"a" * 4, feature_vec=None, audio_model="clap", lyrics_hash=lyrics_hash)
 
 
 def _write(conn, rowid, **overrides):

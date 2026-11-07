@@ -22,6 +22,8 @@ DEFAULT_STATE = {
     "repeat_mode": "off",
     "radio_seed": None,
     "radio_added": [],
+    "radio_pos": 0,
+    "radio_lift": 1,
     "updated_at": 0,
     "updated_by": None,
 }
@@ -72,6 +74,8 @@ def write_state(
     radio_seed: int | None = None,
     updated_by: str | None = None,
     radio_added: list[int] | None = None,
+    radio_pos: int = 0,
+    radio_lift: int = 1,
     updated_at: int | None = None,
 ) -> bool:
     """Apply a guarded write. Returns whether it was accepted."""
@@ -83,14 +87,15 @@ def write_state(
     conn.execute(
         "INSERT INTO player_state"
         "  (id, queue, queue_index, position_ms, shuffle, repeat_mode,"
-        "   radio_seed, updated_at, updated_by, radio_added)"
-        " VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "   radio_seed, updated_at, updated_by, radio_added, radio_pos, radio_lift)"
+        " VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         " ON CONFLICT(id) DO UPDATE SET"
         "   queue=excluded.queue, queue_index=excluded.queue_index,"
         "   position_ms=excluded.position_ms, shuffle=excluded.shuffle,"
         "   repeat_mode=excluded.repeat_mode, radio_seed=excluded.radio_seed,"
         "   updated_at=excluded.updated_at, updated_by=excluded.updated_by,"
-        "   radio_added=excluded.radio_added",
+        "   radio_added=excluded.radio_added, radio_pos=excluded.radio_pos,"
+        "   radio_lift=excluded.radio_lift",
         (
             json.dumps(queue),
             queue_index,
@@ -101,6 +106,8 @@ def write_state(
             now,
             updated_by,
             json.dumps(radio_added or []),
+            radio_pos,
+            radio_lift,
         ),
     )
     return True

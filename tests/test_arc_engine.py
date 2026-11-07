@@ -5,6 +5,7 @@ import pytest
 from muse import arc, arc_engine, recommend, request_spec
 from muse.embed import pack_vector
 from muse.library import embeddings as library_embeddings
+from muse.library import prompts as library_prompts
 from muse.library import lyric_tags as library_lyric_tags
 from muse.library import queries as library_queries
 from muse.library import ratings as library_ratings
@@ -34,7 +35,7 @@ def tags_for(darkness, theme="love", harm=0.0, heavy=None):
 
 
 def add_song(conn, rowid, *, darkness=None, theme="love", harm=0.0, heavy=None,
-             artist=None, title=None, text_hash=None, audio=None, arousal=None):
+             artist=None, title=None, text_hash=None, audio=None):
     """A playable track with an audio vector and, when `darkness` is given,
     a tagged lyric set. Distinct artists by default so spacing never walls
     off a test that is not about spacing."""
@@ -43,9 +44,8 @@ def add_song(conn, rowid, *, darkness=None, theme="love", harm=0.0, heavy=None,
     library_embeddings.upsert(
         conn, rowid,
         audio_vec=pack_vector(audio or [1.0, rowid / 1000.0]),
-        feature_vec=None, lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None,
-        **({} if arousal is None else {"audio_va": pack_vector([0.0, arousal])}),
+        feature_vec=None,
+        audio_model="stub", lyrics_hash=None,
     )
     if darkness is not None:
         library_lyric_tags.write_set(
@@ -355,12 +355,15 @@ def test_plan_clean_limit_skips_heavy_and_untagged(conn):
 
 
 def test_plan_calm_sound_prefers_the_quiet_twin(conn):
+    library_prompts.put(conn, "stub", "calm", [1, 0])
+    library_prompts.put(conn, "stub", "energetic", [0, 1])
     add_song(conn, 1, darkness=0.9)
-    add_song(conn, 2, darkness=0.9, audio=[1.0, 0.0], arousal=0.9)
-    add_song(conn, 3, darkness=0.9, audio=[1.0, 0.0], arousal=-0.5)
+    add_song(conn, 2, darkness=0.9, audio=[0.6, 0.8])
+    add_song(conn, 3, darkness=0.9, audio=[0.8, 0.6])
+    add_song(conn, 4, darkness=0.9, audio=[0.7, 0.7])
     spec = spec_of(request_spec.seed_spec(1, lift=False), sound="calm")
-    picks = pick_ids(arc_engine.plan(conn, spec, n=2, record=False))
-    assert picks == [3, 2]
+    picks = pick_ids(arc_engine.plan(conn, spec, n=3, record=False))
+    assert picks[0] == 3
 
 
 def test_plan_seedless_mood_picks_only_the_subject(conn):

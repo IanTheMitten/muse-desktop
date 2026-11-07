@@ -45,3 +45,18 @@
 .field select { width: 100%; min-height: 48px; padding: 0 16px; border-radius: var(--r-m); font-size: 1rem; border: 1px solid var(--hairline); background: var(--glass); color: var(--text); }
 .field select:disabled { opacity: .45; }
 @media (min-width: 760px) { .toolbar:has(#lib-sort) { grid-template-columns: minmax(0, 420px) 200px auto; } }
+
+/* missing lyrics: list rows carry two actions after the title */
+.ml-link { justify-self: start; align-self: center; text-decoration: underline; text-underline-offset: 3px; }
+.ml-link:hover { color: var(--text); }
+.ml-link:focus-visible, .ml-actions .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ml-lede { margin-top: 12px; color: var(--text-2); max-width: 60ch; }
+.ml-list > li { display: flex; align-items: center; gap: 8px; }
+.ml-list > li > .row-btn { flex: 1; min-width: 0; }
+.ml-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.ml-actions .btn { min-height: 44px; }
+@media (max-width: 419px) {
+  .ml-list > li { flex-wrap: wrap; }
+  .ml-list > li > .row-btn { flex-basis: 100%; }
+  .ml-actions { flex-wrap: wrap; padding-left: 8px; }
+}

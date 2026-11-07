@@ -24,7 +24,7 @@ log = logging.getLogger("muse.content")
 CONTENT_EMBED = "content_embed"
 
 # MERT-v1-95M's hidden size, and therefore the width of every vector this
-# leg stores. Not L2-normalized, unlike audio_vec and lyrics_vec: the
+# leg stores. Not L2-normalized, unlike audio_vec: the
 # normalization this leg needs is centering, which has to happen before any
 # rescale, so a vector normalized at write time would have already lost the
 # information the correction operates on.

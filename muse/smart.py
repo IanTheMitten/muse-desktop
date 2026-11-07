@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import os
 import platform
 import shutil
@@ -11,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
+
+log = logging.getLogger(__name__)
 
 MANIFEST_PATH = Path(__file__).with_name("smart_manifest.json")
 SMART_INSTALL = "smart_install"
@@ -128,6 +131,24 @@ def _extract(zip_path: Path, dest: Path) -> None:
                 os.chmod(target, mode)
 
 
+def prune(models_dir: Path, manifest: dict) -> list[str]:
+    listed = {p.split("/")[1] for p in (e["path"] for e in manifest["weights"]) if p.startswith("weights/")}
+    root = models_dir / "weights"
+    removed = []
+    if not root.is_dir():
+        return removed
+    for child in root.iterdir():
+        if not child.is_dir() or child.name in listed:
+            continue
+        try:
+            shutil.rmtree(child)
+        except OSError as e:
+            log.warning("could not remove retired weights %s: %s", child, e)
+            continue
+        removed.append(child.name)
+    return sorted(removed)
+
+
 def install(
     models_dir: Path,
     manifest: dict,
@@ -140,6 +161,10 @@ def install(
     files = files_for(manifest, triple)
     worker = files[-1]
     models_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        previous = json.loads((models_dir / "installed.json").read_text()).get("manifest_version")
+    except (OSError, ValueError, AttributeError):
+        previous = None
     todo = _missing(models_dir, files)
     needed = sum(f.size for f in todo) + 3 * worker.size
     if disk_free(models_dir).free < needed:
@@ -168,3 +193,37 @@ def install(
     tmp = models_dir / "installed.json.tmp"
     tmp.write_text(json.dumps({"manifest_version": manifest["version"], "triple": triple}))
     os.replace(tmp, models_dir / "installed.json")
+    if isinstance(previous, int) and previous < manifest["version"]:
+        prune(models_dir, manifest)
+
+
+def reconcile(models_dir: Path, manifest: dict | None = None, triple: str | None = None) -> bool:
+    """Upgrade an older install in place when every needed file is already on disk. Never downloads."""
+    manifest = manifest or load_manifest()
+    if installed(models_dir, manifest):
+        return False
+    try:
+        done = json.loads((models_dir / "installed.json").read_text())
+    except (OSError, ValueError):
+        return False
+    previous = done.get("manifest_version") if isinstance(done, dict) else None
+    if not isinstance(previous, int) or previous >= manifest["version"]:
+        return False
+    try:
+        files = files_for(manifest, triple)
+    except Unsupported:
+        return False
+    # install() extracts the worker zip and deletes it, so the worker counts as
+    # present when the zip or the extracted executable is there.
+    exe = "muse-worker.exe" if os.name == "nt" else "muse-worker"
+    worker_ok = (models_dir / files[-1].path).exists() or (models_dir / "worker" / "muse-worker" / exe).exists()
+    if _missing(models_dir, files[:-1]) or not worker_ok:
+        return False
+    tmp = models_dir / "installed.json.tmp"
+    tmp.write_text(json.dumps({"manifest_version": manifest["version"], "triple": triple}))
+    os.replace(tmp, models_dir / "installed.json")
+    try:
+        prune(models_dir, manifest)
+    except OSError as e:
+        log.warning("smart upgrade prune failed: %s", e)
+    return True

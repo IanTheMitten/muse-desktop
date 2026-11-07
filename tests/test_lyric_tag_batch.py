@@ -26,9 +26,7 @@ def _track(conn, tmp_path, rowid, text=TEXT, mbid=None, ehash="E"):
     path.write_text(text, encoding="utf-8")
     conn.execute("UPDATE tracks SET lyrics_path = ?, recording_mbid = ? WHERE track_rowid = ?",
                  (str(path), mbid, rowid))
-    library_embeddings.upsert(conn, rowid, audio_vec=b"a" * 4, feature_vec=None,
-                              lyrics_vec=b"l" * 4, audio_model="clap",
-                              lyrics_model="minilm", lyrics_hash=ehash)
+    library_embeddings.upsert(conn, rowid, audio_vec=b"a" * 4, feature_vec=None, audio_model="clap", lyrics_hash=ehash)
     return path
 
 

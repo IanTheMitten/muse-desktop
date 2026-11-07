@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-DIMS = {"mert": 768, "clap_audio": 512, "minilm": 384}
+DIMS = {"mert": 768, "clap_audio": 512}
 PATH_OPS = {"mert", "clap_audio"}
 QUESTION = {"mood": {"type": "choice", "instructions": "Pick the mood.", "criteria": ["happy", "sad"]}}
 
@@ -27,8 +27,6 @@ def main(argv: list[str] | None = None) -> int:
         req = {"id": rid, "op": op}
         if op in PATH_OPS:
             req["path"] = str(args.fixture.resolve())
-        elif op == "minilm":
-            req["text"] = "sunshine and joy"
         elif op == "align":
             req.update(path=str(args.fixture.resolve()), lines=["hello there", "how are you"])
         elif op == "laya":
