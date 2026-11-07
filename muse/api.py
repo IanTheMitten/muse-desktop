@@ -550,15 +550,6 @@ def create_app(
         def _audio_encoder():
             return audio_encoder or WorkerAudioEncoder(app.state.worker)
 
-        def _lyrics_encoder():
-            return lyrics_encoder or WorkerLyricsEncoder(app.state.worker)
-
-        def _audio_va_encoder():
-            return audio_va_encoder or WorkerAudioVAEncoder(app.state.worker)
-
-        def _lyrics_va_encoder():
-            return lyrics_va_encoder or WorkerLyricsVAEncoder(app.state.worker)
-
         # Scan, lyrics, art, then a stale retrain, one step at a time: the
         # shared connection cannot hold two transactions at once.
         app.state.chain_lock = chain_lock = asyncio.Lock()
@@ -606,8 +597,7 @@ def create_app(
                     app.state.worker.begin()
                     try:
                         await run_embed_backfill(
-                            conn, _audio_encoder, _lyrics_encoder, bus,
-                            _audio_va_encoder, _lyrics_va_encoder,
+                            conn, _audio_encoder, bus,
                         )
                     except Exception:
                         log.exception("Embed backfill failed")
@@ -735,8 +725,7 @@ def create_app(
                 "art_provider": resolved_art_provider,
                 "embed_backfill": lambda: asyncio.run_coroutine_threadsafe(
                     run_embed_backfill(
-                        conn, _audio_encoder, _lyrics_encoder, bus,
-                        _audio_va_encoder, _lyrics_va_encoder,
+                        conn, _audio_encoder, bus,
                     ),
                     loop,
                 ).result(),
@@ -1008,7 +997,6 @@ def create_app(
         return {
             **queries.health(app.state.conn),
             "embeddings": library_embeddings.coverage(app.state.conn),
-            "emotion": library_embeddings.emotion_coverage(app.state.conn),
             "taste": {
                 **library_taste.coverage(app.state.conn),
                 "last_retrain_at": last_retrain["updated_at"] if last_retrain else None,

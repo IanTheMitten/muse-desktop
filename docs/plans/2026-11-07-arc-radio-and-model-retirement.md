@@ -162,7 +162,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:35, spec:71-76. Deleted, not zeroed, so `renormalize` covers only legs that exist.
 
 ### Task 5: Stop the embed batch encoding lyrics and emotion
-- [ ] status
+- [x] status
 **Objective:** The embed batch writes `audio_vec`, `feature_vec`, `audio_model`, `lyrics_hash` only; `lyrics_hash` still refreshes on a lyrics change; nothing writes or reads `lyrics_vec`, `lyrics_model`, `lyrics_va`, `emotion_vec`, `audio_va_model`, `lyrics_va_model`.
 **Write-scope:** `muse/embed.py`, `muse/library/embeddings.py`, `muse/jobs.py`, `muse/library/lyrics_edit.py`, `muse/api.py`, `tests/test_embed_batch.py`, `tests/test_embed_batch_efficiency.py`, `tests/test_embeddings_table.py`, `tests/test_jobs_embed.py`, `tests/test_lyrics_edit.py`, `tests/test_embed_startup_wiring.py`, `tests/test_embeddings_arousal.py`, `tests/test_api_recommend.py`, `tests/test_api_vibe.py`, `tests/test_arc_engine.py`, `tests/test_lyric_tag_batch.py`, `tests/test_lyric_tags_table.py`, `tests/test_nearest.py`, `tests/test_radio.py`, `tests/test_reco_eval.py`, `tests/test_recommend.py`, `tests/test_recommend_calibration.py`
 **Read-context:** `muse/embed.py:625-819`, `muse/library/embeddings.py:27-241`, `muse/jobs.py:180-308`, `muse/api.py:545-562`, `muse/api.py:604-612`, `muse/api.py:733-744`, `muse/api.py:1008-1012`, `muse/library/lyrics_edit.py:44-51`, `tests/test_arc_engine.py:36-50`

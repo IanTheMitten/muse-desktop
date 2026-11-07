@@ -179,33 +179,10 @@ async def run_art_backfill(
     return finished
 
 
-def _optional_encoder(factory, what: str, *, unavailable=None):
-    """Build an optional encoder, or None if it cannot be built.
-
-    Degrade in quality, never in availability (principle 4). A model that has
-    disappeared from its host is exactly the "slow or dead external service"
-    that principle names, and the leg it feeds is one the recommender already
-    knows how to score without.
-    """
-    if factory is None:
-        return None
-    try:
-        return factory()
-    except Exception as error:
-        log.warning("%s encoder unavailable, leg will be null: %s", what, error)
-        # `unavailable`, not None: run_embed_batch reads None as "use the
-        # stub", which would write hash-derived coordinates into a real
-        # library and make a dead model indistinguishable from a measurement.
-        return unavailable() if unavailable is not None else None
-
-
 async def run_embed_backfill(
     conn,
     audio_encoder_factory: Callable[[], embed_module.AudioEncoder],
-    lyrics_encoder_factory: Callable[[], embed_module.LyricsEncoder],
     bus: JobBus,
-    audio_va_encoder_factory: Callable[[], embed_module.AudioVAEncoder] | None = None,
-    lyrics_va_encoder_factory: Callable[[], embed_module.LyricsVAEncoder] | None = None,
 ) -> dict | None:
     """Embed every pending track, then check every already-embedded track's
     lyrics for a manual edit.
@@ -215,14 +192,12 @@ async def run_embed_backfill(
     alone is ~70 s of model load; building it on the caller's thread (the
     event loop, in production) would stall every concurrent request for
     that whole window, which is exactly what running this in the background
-    is supposed to prevent. The VA factories are optional -- omitted, the
-    batch falls back to the VA stubs the same way `run_embed_batch` already
-    does, so every existing caller of this function keeps working unchanged.
+    is supposed to prevent.
 
     Always runs, even with an empty pending queue — unlike the art backfill,
     a run with nothing new to embed is not necessarily a no-op: it is also
     the only place a `lyrics_hash` mismatch from a manual edit gets noticed
-    and re-embedded (story 56). Returns the finished job row, or None if a
+    and refreshed (story 56). Returns the finished job row, or None if a
     batch is already running.
     """
     if job_rows.active(conn, embed_module.EMBED):
@@ -255,29 +230,8 @@ async def run_embed_backfill(
     def _work():
         # Built here, inside the worker thread — never by the caller.
         audio_encoder = audio_encoder_factory()
-        lyrics_encoder = lyrics_encoder_factory()
-        # The VA encoders are optional and are allowed to be unavailable.
-        # `audio_vec` and `lyrics_vec` are not: a run that cannot embed audio
-        # has nothing to fall back on, so those stay unguarded and a failure
-        # there still fails the batch rather than reporting work it did not
-        # do. Emotion is a leg the null-leg contract already covers.
-        #
-        # Not hypothetical: MerAudioVAEncoder named a model id that does not
-        # exist (audeering/wav2vec2-large-robust-12-ffn1024-msp-dim -- a
-        # typo for the real ...-12-ft-emotion-msp-dim, not a takedown), so
-        # every construction 401'd, and before this guard that one
-        # unreachable external model failed the whole batch and left CLAP,
-        # lyrics, and features unwritten too.
-        audio_va_encoder = _optional_encoder(
-            audio_va_encoder_factory, "audio-VA",
-            unavailable=embed_module.NullAudioVAEncoder,
-        )
-        lyrics_va_encoder = _optional_encoder(
-            lyrics_va_encoder_factory, "lyrics-VA",
-        )
         return embed_module.run_embed_batch(
-            conn, audio_encoder, lyrics_encoder, audio_va_encoder,
-            lyrics_va_encoder, on_progress=on_progress,
+            conn, audio_encoder, on_progress=on_progress
         )
 
     try:

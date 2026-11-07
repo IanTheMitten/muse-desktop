@@ -26,8 +26,8 @@ def test_save_writes_file_and_path(conn, tmp_path):
 def test_save_invalidates_embedding_tags_and_state(conn, tmp_path):
     _track(conn)
     conn.execute(
-        "INSERT INTO embeddings (track_rowid, audio_vec, lyrics_vec, lyrics_hash,"
-        " lyrics_model, indexed_at) VALUES (1, x'01', x'02', 'h', 'm', 0)"
+        "INSERT INTO embeddings (track_rowid, audio_vec, lyrics_hash,"
+        " indexed_at) VALUES (1, x'01', 'h', 0)"
     )
     conn.execute(
         "INSERT INTO lyric_tag_sets (id, track_rowid, state, text_hash,"
@@ -41,8 +41,7 @@ def test_save_invalidates_embedding_tags_and_state(conn, tmp_path):
     lyrics_edit.save_text(conn, 1, "new", lyrics_root=tmp_path / "lyrics", now=7)
     row = conn.execute("SELECT * FROM embeddings WHERE track_rowid = 1").fetchone()
     assert row["audio_vec"] == b"\x01"
-    assert row["lyrics_vec"] is None and row["lyrics_hash"] is None
-    assert row["lyrics_model"] is None
+    assert row["lyrics_hash"] is None
     assert conn.execute("SELECT COUNT(*) FROM lyric_tag_sets").fetchone()[0] == 0
     assert conn.execute("SELECT COUNT(*) FROM lyric_tags").fetchone()[0] == 0
     st = conn.execute("SELECT state, synced FROM lyrics_state WHERE track_rowid = 1").fetchone()

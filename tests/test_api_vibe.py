@@ -47,13 +47,13 @@ def app(tmp_path):
 def seed(conn):
     insert_track(conn, 1, artist_name="A")
     library_embeddings.upsert(conn, 1, audio_vec=pack_vector([1.0, 0.0]),
-                              feature_vec=None, lyrics_vec=None,
-                              audio_model="stub", lyrics_model=None,
+                              feature_vec=None,
+                              audio_model="stub",
                               lyrics_hash=None)
     insert_track(conn, 2, artist_name="B")
     library_embeddings.upsert(conn, 2, audio_vec=pack_vector([0.0, 1.0]),
-                              feature_vec=None, lyrics_vec=None,
-                              audio_model="stub", lyrics_model=None,
+                              feature_vec=None,
+                              audio_model="stub",
                               lyrics_hash=None)
 
 

@@ -41,8 +41,6 @@ def test_chain_embeds_when_enabled(tmp_path):
         config,
         audio_encoder=embed.StubAudioEncoder(),
         lyrics_encoder=embed.StubLyricsEncoder(),
-        audio_va_encoder=embed.StubAudioVAEncoder(),
-        lyrics_va_encoder=embed.StubLyricsVAEncoder(),
         worker_client=FakeWorker(),
     )
 
@@ -64,12 +62,11 @@ def test_chain_embeds_when_enabled(tmp_path):
                 if row is not None and row["audio_vec"] is not None:
                     break
 
-            return library_embeddings.coverage(conn), library_embeddings.emotion_coverage(conn)
+            return library_embeddings.coverage(conn)
 
-    coverage, emotion_coverage = asyncio.run(drive())
+    coverage = asyncio.run(drive())
 
     assert coverage == {"playable": 1, "embedded": 1}
-    assert emotion_coverage == {"playable": 1, "embedded": 1}
 
 
 def test_chain_does_not_embed_when_disabled_and_not_installed(tmp_path):

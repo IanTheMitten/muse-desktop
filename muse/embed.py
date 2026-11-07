@@ -659,48 +659,21 @@ def _cleaned_lyrics(lyrics_path: str | None) -> str | None:
     return cleaned or None
 
 
-def _audio_va_by_track(conn, track_rowids: list[int]) -> dict[int, bytes | None]:
-    """`audio_va` for a batch of already-embedded tracks in one query --
-    same reasoning as `_lyrics_paths`: the lyrics-changed pass looks at
-    every one of them on every run, so re-fusing `emotion_vec` must not cost
-    a query per track."""
-    if not track_rowids:
-        return {}
-    placeholders = ",".join("?" * len(track_rowids))
-    rows = conn.execute(
-        f"SELECT track_rowid, audio_va FROM embeddings"
-        f" WHERE track_rowid IN ({placeholders})",
-        track_rowids,
-    ).fetchall()
-    return {row["track_rowid"]: row["audio_va"] for row in rows}
-
-
 def run_embed_batch(
     conn,
     audio_encoder: AudioEncoder,
-    lyrics_encoder: LyricsEncoder,
-    audio_va_encoder: AudioVAEncoder | None = None,
-    lyrics_va_encoder: LyricsVAEncoder | None = None,
     *,
     on_progress: Callable[[int, int, str], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
 ) -> EmbedResult:
-    """Embed every pending track, then re-embed lyrics for any already-
+    """Embed every pending track, then refresh `lyrics_hash` for any already-
     embedded track whose cleaned lyrics text has changed since.
 
     Resumable by construction: the pending queue comes from
     `library.embeddings.pending`, which is exactly the set a killed run
     would leave behind. A track's failure is counted and skipped rather than
     ending the run, same as the art backfill.
-
-    `audio_va_encoder`/`lyrics_va_encoder` default to the stubs -- unlike
-    `audio_encoder`/`lyrics_encoder`, which every caller already has an
-    opinion about, most callers of this function do not care about the
-    emotion leg specifically and should not have to say so.
     """
-    audio_va_encoder = audio_va_encoder or StubAudioVAEncoder()
-    lyrics_va_encoder = lyrics_va_encoder or StubLyricsVAEncoder()
-
     result = EmbedResult()
     queue = library_embeddings.pending(conn)
     # Captured before any writes below, so a track embedded in this same run
@@ -713,10 +686,7 @@ def run_embed_batch(
         if should_stop is not None and should_stop():
             break
         try:
-            _embed_one(
-                conn, track, audio_encoder, lyrics_encoder,
-                audio_va_encoder, lyrics_va_encoder, bounds,
-            )
+            _embed_one(conn, track, audio_encoder, bounds)
         except Exception:
             log.exception("Embedding failed for track %d", track["track_rowid"])
             result.failed += 1
@@ -726,7 +696,6 @@ def run_embed_batch(
             on_progress(done, len(queue), f"track {track['track_rowid']}")
 
     lyrics_paths = _lyrics_paths(conn, list(stored_hashes))
-    audio_vas = _audio_va_by_track(conn, list(stored_hashes))
 
     for track_rowid, stored_hash in stored_hashes.items():
         if should_stop is not None and should_stop():
@@ -738,36 +707,11 @@ def run_embed_batch(
         if fresh_hash == stored_hash:
             continue
         try:
-            # An already-embedded track *usually* has an audio_va, set
-            # alongside audio_vec in _embed_one -- but not always. When the
-            # audio-VA model cannot be loaded at all the leg is written NULL
-            # on purpose, so this path has to cope with having no audio side
-            # to fall back to or fuse with. The comment that used to sit here
-            # asserted the opposite as an invariant.
-            audio_va = unpack_vector(audio_vas[track_rowid])
-            audio_va = tuple(audio_va) if audio_va is not None else None
-            if cleaned is None:
-                library_embeddings.update_lyrics(
-                    conn, track_rowid, lyrics_vec=None, lyrics_model=None,
-                    lyrics_hash=None, lyrics_va=None,
-                    emotion_vec=(pack_vector(audio_va)
-                                 if audio_va is not None else None),
-                    lyrics_va_model=None,
-                )
-            else:
-                vector = pack_vector(lyrics_encoder.encode(cleaned))
-                lyrics_va = lyrics_va_encoder.encode(cleaned)
-                emotion_vec = fuse_emotion_vec(audio_va, lyrics_va)
-                library_embeddings.update_lyrics(
-                    conn, track_rowid, lyrics_vec=vector,
-                    lyrics_model=lyrics_encoder.model_name,
-                    lyrics_hash=fresh_hash, lyrics_va=pack_vector(lyrics_va),
-                    emotion_vec=(pack_vector(emotion_vec)
-                     if emotion_vec is not None else None),
-                    lyrics_va_model=lyrics_va_encoder.model_name,
-                )
+            library_embeddings.update_lyrics_hash(
+                conn, track_rowid, lyrics_hash=fresh_hash
+            )
         except Exception:
-            log.exception("Lyrics re-embed failed for track %d", track_rowid)
+            log.exception("Lyrics hash refresh failed for track %d", track_rowid)
             result.failed += 1
         else:
             result.lyrics_reembedded += 1
@@ -775,27 +719,14 @@ def run_embed_batch(
     return result
 
 
-def _embed_one(
-    conn, track, audio_encoder, lyrics_encoder, audio_va_encoder,
-    lyrics_va_encoder, bounds,
-) -> None:
+def _embed_one(conn, track, audio_encoder, bounds) -> None:
     track_rowid = track["track_rowid"]
     audio_path = Path(track["file_path"])
 
     audio_vec = pack_vector(audio_encoder.encode(audio_path))
-    audio_va = audio_va_encoder.encode(audio_path)
 
     cleaned = _cleaned_lyrics(track["lyrics_path"])
-    if cleaned is None:
-        lyrics_vec = lyrics_model = hash_ = lyrics_va = lyrics_va_model = None
-    else:
-        lyrics_vec = pack_vector(lyrics_encoder.encode(cleaned))
-        lyrics_model = lyrics_encoder.model_name
-        hash_ = lyrics_hash(cleaned)
-        lyrics_va = lyrics_va_encoder.encode(cleaned)
-        lyrics_va_model = lyrics_va_encoder.model_name
-
-    emotion_vec = fuse_emotion_vec(audio_va, lyrics_va)
+    hash_ = lyrics_hash(cleaned) if cleaned is not None else None
 
     raw = library_features.raw_feature_values(conn, track_rowid)
     normalized = normalize_feature_vector(raw, bounds)
@@ -806,14 +737,6 @@ def _embed_one(
         track_rowid,
         audio_vec=audio_vec,
         feature_vec=feature_vec,
-        lyrics_vec=lyrics_vec,
         audio_model=audio_encoder.model_name,
-        lyrics_model=lyrics_model,
         lyrics_hash=hash_,
-        audio_va=pack_vector(audio_va) if audio_va is not None else None,
-        lyrics_va=pack_vector(lyrics_va) if lyrics_va is not None else None,
-        emotion_vec=(pack_vector(emotion_vec)
-                     if emotion_vec is not None else None),
-        audio_va_model=audio_va_encoder.model_name,
-        lyrics_va_model=lyrics_va_model,
     )

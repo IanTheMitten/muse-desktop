@@ -11,10 +11,14 @@ def put(conn, rowid, audio_va):
     library_embeddings.upsert(
         conn, rowid,
         audio_vec=pack_vector([1.0, 0.0]),
-        feature_vec=None, lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None,
-        audio_va=audio_va,
+        feature_vec=None,
+        audio_model="stub", lyrics_hash=None,
     )
+    conn.execute(
+        "UPDATE embeddings SET audio_va = ? WHERE track_rowid = ?",
+        (audio_va, rowid),
+    )
+    conn.commit()
 
 
 def test_reads_the_second_component(conn):

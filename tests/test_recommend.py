@@ -89,8 +89,7 @@ def embed_full(conn, rowid, *, audio, feature=None, lyrics=None):
         conn, rowid,
         audio_vec=pack_vector(audio),
         feature_vec=pack_vector(feature) if feature else None,
-        lyrics_vec=pack_vector(lyrics) if lyrics else None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None,
+        audio_model="stub", lyrics_hash=None,
     )
 
 
@@ -148,18 +147,18 @@ def test_retrieval_unions_across_legs(conn):
     insert_track(conn, 1)
     library_embeddings.upsert(
         conn, 1, audio_vec=pack_vector([1.0, 0.0]),
-        feature_vec=pack_vector([1.0, 0.0]), lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None)
+        feature_vec=pack_vector([1.0, 0.0]),
+        audio_model="stub", lyrics_hash=None)
     insert_track(conn, 2)  # audio twin, feature opposite
     library_embeddings.upsert(
         conn, 2, audio_vec=pack_vector([1.0, 0.0]),
-        feature_vec=pack_vector([0.0, 1.0]), lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None)
+        feature_vec=pack_vector([0.0, 1.0]),
+        audio_model="stub", lyrics_hash=None)
     insert_track(conn, 3)  # feature twin, audio opposite
     library_embeddings.upsert(
         conn, 3, audio_vec=pack_vector([0.0, 1.0]),
-        feature_vec=pack_vector([1.0, 0.0]), lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None)
+        feature_vec=pack_vector([1.0, 0.0]),
+        audio_model="stub", lyrics_hash=None)
     loaded = recommend.load_vectors(conn)
     assert recommend.retrieve(loaded, 1, k=1) == {2, 3}
 

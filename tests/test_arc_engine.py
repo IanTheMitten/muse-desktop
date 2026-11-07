@@ -43,10 +43,15 @@ def add_song(conn, rowid, *, darkness=None, theme="love", harm=0.0, heavy=None,
     library_embeddings.upsert(
         conn, rowid,
         audio_vec=pack_vector(audio or [1.0, rowid / 1000.0]),
-        feature_vec=None, lyrics_vec=None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None,
-        **({} if arousal is None else {"audio_va": pack_vector([0.0, arousal])}),
+        feature_vec=None,
+        audio_model="stub", lyrics_hash=None,
     )
+    if arousal is not None:
+        conn.execute(
+            "UPDATE embeddings SET audio_va = ? WHERE track_rowid = ?",
+            (pack_vector([0.0, arousal]), rowid),
+        )
+        conn.commit()
     if darkness is not None:
         library_lyric_tags.write_set(
             conn, track_rowid=rowid, recording_mbid=None, state="tagged",

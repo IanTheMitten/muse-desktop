@@ -89,8 +89,7 @@ def unit(angle):
 def embed(conn, rowid, angle):
     insert_track(conn, rowid)
     library_embeddings.upsert(
-        conn, rowid, audio_vec=pack_vector(unit(angle)), feature_vec=None,
-        lyrics_vec=None, audio_model="stub", lyrics_model=None, lyrics_hash=None,
+        conn, rowid, audio_vec=pack_vector(unit(angle)), feature_vec=None, audio_model="stub", lyrics_hash=None,
     )
 
 

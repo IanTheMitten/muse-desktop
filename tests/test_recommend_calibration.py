@@ -19,8 +19,7 @@ def embed(conn, rowid, *, audio, lyrics=None):
     library_embeddings.upsert(
         conn, rowid,
         audio_vec=pack_vector(audio), feature_vec=None,
-        lyrics_vec=pack_vector(lyrics) if lyrics else None,
-        audio_model="stub", lyrics_model=None, lyrics_hash=None,
+        audio_model="stub", lyrics_hash=None,
     )
 
 
