@@ -1017,6 +1017,7 @@ def create_app(
         now_ms = int(time.time() * 1000)
         return {
             **insights.dashboard(conn),
+            "missing_lyrics": len(library_lyrics_state.missing(conn)),
             "for_fans_of": nearest.for_fans_of(conn, now_ms),
             "recommended_albums": nearest.recommended_albums(
                 conn, now_ms, _open_catalog(app.state.config)
@@ -1043,6 +1044,12 @@ def create_app(
     ) -> list[dict]:
         """Every owned song, for the Songs tab with an empty search."""
         return queries.songs(app.state.conn, sort, order)
+
+    @app.get("/api/library/lyrics/missing")
+    def library_lyrics_missing() -> dict:
+        conn = app.state.conn
+        ids = library_lyrics_state.missing(conn)
+        return {"count": len(ids), "tracks": queries.tracks_by_rowid(conn, ids)}
 
     @app.get("/api/library/duplicates")
     def library_duplicates() -> dict:
@@ -1620,6 +1627,12 @@ def create_app(
         if out is None:
             raise HTTPException(404, f"No track {track_rowid}")
         return out
+
+    @app.post("/api/tracks/{track_rowid}/lyrics/no-words")
+    def track_lyrics_no_words(track_rowid: int) -> dict:
+        if not library_lyrics_state.mark_no_words(app.state.conn, track_rowid):
+            raise HTTPException(404, f"No track {track_rowid}")
+        return {"ok": True}
 
     @app.post("/api/tracks/{track_rowid}/lyrics/timings")
     def track_lyrics_timings(track_rowid: int, write: LyricsTimings) -> dict:

@@ -238,7 +238,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:96: nothing in the UI renders these and their data is dropped in migration 23.
 
 ### Task 10: Add the missing-lyrics list and "no words" endpoints
-- [ ] status
+- [x] status
 **Objective:** `GET /api/library/lyrics/missing` lists songs whose lookup failed; `POST /api/tracks/{id}/lyrics/no-words` takes one off it; the dashboard carries `missing_lyrics`.
 **Write-scope:** `muse/library/lyrics_state.py`, `muse/api.py`, `tests/test_missing_lyrics.py` (new)
 **Read-context:** `muse/library/lyrics_state.py:19-41`, `muse/library/lyrics_state.py:106-141`, `muse/api.py:1032-1046`, `muse/api.py:1665-1690`, `muse/library/queries.py:348-360`, `tests/conftest.py:88-150`
