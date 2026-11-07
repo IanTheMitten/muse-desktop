@@ -115,7 +115,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:146 asks pure tests red first; Task 2 turns them green.
 
 ### Task 2: Add the pure energy module
-- [ ] status
+- [x] status
 **Objective:** `muse/energy.py` exists, imports only `math`, and Task 1's tests pass.
 **Write-scope:** `muse/energy.py` (new)
 **Read-context:** `tests/test_energy.py` (from Task 1), `docs/specs/2026-11-07-arc-radio-and-model-retirement.md:85-90`
