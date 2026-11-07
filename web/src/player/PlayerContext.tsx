@@ -85,6 +85,8 @@ type PlayerApi = {
   /* --- radio (story 35) ------------------------------------------------ */
   /** On when the queue is being kept topped up by the recommender. */
   radio: boolean;
+  /** The session's seed rowid, null when radio is off. */
+  radioSeed: number | null;
   /** A fetch is in flight. Shown, not hidden: over the tailnet the append is
    *  usually invisible, and on a cold CLAP load it is not. */
   radioBusy: boolean;
@@ -347,6 +349,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPlayingFrom(from ?? null);
       // Everything but a playlist is followed by Muse.
       setRadioPos(0);
+      setRadioReason(null);
       setRadioSeed(
         from?.kind === "playlist" ? null : tracks[startIndex]?.track_rowid ?? null,
       );
@@ -581,6 +584,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       })
       .catch((cause: unknown) => {
         stalledAt.current = anchor.track_rowid;
+        setRadioReason(null);
         setRadioNote({
           // Was a substring test for "404" against the message, which the
           // path is also part of: a seed whose rowid happens to be 404 would
@@ -1004,6 +1008,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       clearQueue, toggle, next, previous, seek,
       toggleShuffle, cycleRepeat, rate,
       radio: radioSeed != null,
+      radioSeed,
       radioBusy, radioNote, reasonsFor,
       mood, setMood, retryMuse, playingFrom, isMusePick,
       radioLift, setRadioLift, radioReason, energyReady,

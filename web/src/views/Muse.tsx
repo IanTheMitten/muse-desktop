@@ -15,8 +15,9 @@ import "../styles/muse.css";
 export function Muse() {
   const {
     queue, index, current, mood, setMood, radioNote, retryMuse, playingFrom, isMusePick, playQueue,
-    radioLift, setRadioLift, radioReason, energyReady,
+    radioLift, setRadioLift, radioReason, energyReady, radioSeed,
   } = usePlayer();
+  const seedTrack = queue.find((t) => t.track_rowid === radioSeed) ?? current;
   const [editing, setEditing] = useState(false);
   const feel = useFeel("muse.feel", mood, setMood);
   const upNext = queue.slice(index + 1);
@@ -80,7 +81,7 @@ export function Muse() {
                 {radioReason === "untagged" && (
                   <p className="note">
                     {UNTAGGED_NOTE}
-                    {!current.has_lyrics && (
+                    {seedTrack && !seedTrack.has_lyrics && (
                       <>
                         {" "}
                         <button type="button" className="link-btn" onClick={() => setEditing(true)}>Add lyrics</button>
@@ -114,8 +115,8 @@ export function Muse() {
           </section>
         </div>
       </div>
-      {editing && current && (
-        <LyricsEditDialog track={current} onClose={() => setEditing(false)} onSaved={() => {}} />
+      {editing && seedTrack && (
+        <LyricsEditDialog track={seedTrack} onClose={() => setEditing(false)} onSaved={() => {}} />
       )}
     </div>
   );
