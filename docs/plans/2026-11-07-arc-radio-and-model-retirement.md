@@ -405,7 +405,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:171.
 
 ### Task 21: Write the owner's quality-gate runbook [docs]
-- [ ] status
+- [x] status
 **Objective:** `docs/runbooks/2026-11-07-arc-radio-quality-gate.md` tells the owner exactly how to run both merge gates on the server and where to post the numbers.
 **Write-scope:** `docs/runbooks/2026-11-07-arc-radio-quality-gate.md` (new)
 **Read-context:** `docs/specs/2026-11-07-arc-radio-and-model-retirement.md:106-114`, `scripts/energy_check.py` (from Task 3), `muse/arc_eval.py:1-30`, `muse/reco_eval.py:196-206`
