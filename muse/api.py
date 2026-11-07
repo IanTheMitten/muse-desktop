@@ -630,6 +630,11 @@ def create_app(
             return task
 
         app.state.spawn_chain = spawn_chain
+        try:
+            if smart.reconcile(config.models_dir, triple=smart.host_triple()):
+                log.info("Smart features upgraded in place")
+        except Exception:
+            log.exception("Smart upgrade check failed")
         app.state.chain_task = spawn_chain(True)
 
         watch_task = None
