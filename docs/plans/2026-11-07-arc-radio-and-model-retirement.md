@@ -315,7 +315,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** vitest runs pure modules only (`web/package.json:9`), so the radio wiring's logic lives in a pure module Task 15 writes.
 
 ### Task 15: Add the pure radio module and the lift-aware arc spec
-- [ ] status
+- [x] status
 **Objective:** `web/src/player/radio.ts` exists and `toArcSpec` takes `lift` and `energy`; Task 14's tests pass.
 **Write-scope:** `web/src/player/radio.ts` (new), `web/src/muse/mood.ts`
 **Read-context:** `web/src/player/radio.test.ts` (from Task 14), `web/src/muse/mood.test.ts` (from Task 14), `web/src/muse/mood.ts:45-61`
