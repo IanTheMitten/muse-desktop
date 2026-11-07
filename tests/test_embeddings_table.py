@@ -95,7 +95,6 @@ def test_update_lyrics_hash_leaves_the_vectors_untouched(conn):
     assert row["audio_vec"] == b"a" * 4
     assert row["feature_vec"] == b"f" * 4
     assert row["lyrics_hash"] == "new-hash"
-    assert row["lyrics_vec"] is None
     assert row["indexed_at"] == 200
 
 

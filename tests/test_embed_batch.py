@@ -65,7 +65,6 @@ def test_embeds_audio_feature_and_lyrics_hash_for_a_fully_measured_track(conn, t
     assert embed.unpack_vector(row["audio_vec"]) is not None
     assert len(embed.unpack_vector(row["audio_vec"])) == embed.AUDIO_DIM
     assert len(embed.unpack_vector(row["feature_vec"])) == 13
-    assert row["lyrics_vec"] is None
     assert row["audio_model"] == embed.STUB_AUDIO_MODEL
     assert row["lyrics_hash"] == embed.lyrics_hash("Hello world")
     assert row["indexed_at"] is not None
@@ -83,7 +82,6 @@ def test_a_track_with_no_lyrics_still_gets_a_row_with_null_lyrics_hash(conn, tmp
     row = conn.execute("SELECT * FROM embeddings WHERE track_rowid = 1").fetchone()
     assert row is not None
     assert embed.unpack_vector(row["audio_vec"]) is not None
-    assert row["lyrics_vec"] is None
     assert row["lyrics_hash"] is None
 
 
@@ -157,11 +155,10 @@ def test_editing_the_lyrics_file_refreshes_only_the_lyrics_hash(conn, tmp_path):
     assert result.lyrics_reembedded == 1
     assert audio.calls == []  # the audio leg was never touched
 
-    after = conn.execute("SELECT audio_vec, feature_vec, lyrics_vec, lyrics_hash FROM embeddings WHERE track_rowid = 1").fetchone()
+    after = conn.execute("SELECT audio_vec, feature_vec, lyrics_hash FROM embeddings WHERE track_rowid = 1").fetchone()
     assert after["audio_vec"] == before["audio_vec"]
     assert after["feature_vec"] == before["feature_vec"]
     assert after["lyrics_hash"] == embed.lyrics_hash("A brand new verse")
-    assert after["lyrics_vec"] is None
 
 
 def test_unchanged_lyrics_are_not_refreshed_on_a_later_run(conn, tmp_path):

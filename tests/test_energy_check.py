@@ -1,13 +1,14 @@
 """scripts/energy_check.py: CLAP energy vs stored audio_va arousal."""
 
 import importlib.util
+import sqlite3
 from pathlib import Path
 
 import pytest
 
-from muse import library
 from muse.embed import pack_vector
 from muse import energy
+from muse.library.schema import MIGRATIONS
 from tests.conftest import insert_track
 
 _spec = importlib.util.spec_from_file_location(
@@ -31,11 +32,17 @@ def _add(conn, rowid, audio_vec, va):
     conn.commit()
 
 
+# the script is a pre-migration-23 gate, so the fixture stops at v22
 @pytest.fixture
 def conn(tmp_path):
-    c = library.connect(tmp_path / "lib.sqlite3")
-    yield c
-    c.close()
+    raw = sqlite3.connect(tmp_path / "lib.sqlite3", isolation_level=None)
+    raw.row_factory = sqlite3.Row
+    raw.execute("CREATE TABLE schema_version (version INTEGER NOT NULL, applied_at INTEGER NOT NULL)")
+    for i, fn in enumerate(MIGRATIONS[:22]):
+        fn(raw)
+        raw.execute("INSERT INTO schema_version VALUES (?, 0)", (i + 1,))
+    yield raw
+    raw.close()
 
 
 def _fill(conn, reverse):
