@@ -23,6 +23,7 @@ import { ArtistAlbums } from "./views/ArtistAlbums";
 import { Library } from "./views/Library";
 import { Add } from "./views/Add";
 import { Home } from "./views/Home";
+import { MissingLyrics } from "./views/MissingLyrics";
 import { Muse } from "./views/Muse";
 import { Settings } from "./views/Settings";
 import { Playlists } from "./views/Playlists";
@@ -57,6 +58,7 @@ export function App() {
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/library" element={<Library />} />
+                  <Route path="/library/missing-lyrics" element={<MissingLyrics />} />
                   <Route path="/artists/:artist" element={<ArtistAlbums />} />
                   <Route path="/albums/:albumRowid" element={<AlbumTracks />} />
                   {/* Search was a destination; it is a field inside the library

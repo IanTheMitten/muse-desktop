@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   getAlbum,
   getAlbums,
+  getMissingLyrics,
   getArtists,
   getSongs,
   type SongSort,
@@ -72,6 +73,13 @@ export function Library() {
   const [searchVersion, setSearchVersion] = useState(0);
   const { playQueue, current, playing } = usePlayer();
   const { libraryVersion } = useJobs();
+  const [missing, setMissing] = useState(0);
+  useEffect(() => {
+    if (segment !== "songs") return;
+    const ac = new AbortController();
+    getMissingLyrics(ac.signal).then((r) => setMissing(r.count), () => {});
+    return () => ac.abort();
+  }, [segment]);
 
   const update = (next: { tab?: Segment; q?: string; sort?: string }) => {
     const out = new URLSearchParams(params);
@@ -254,6 +262,11 @@ export function Library() {
               ))}
             </select>
           </div>
+        )}
+        {segment === "songs" && missing > 0 && (
+          <Link className="link-btn ml-link" to="/library/missing-lyrics">
+            {missing} missing lyrics
+          </Link>
         )}
       </div>
 

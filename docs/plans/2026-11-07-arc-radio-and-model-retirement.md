@@ -360,7 +360,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:68-69, spec:136-140.
 
 ### Task 18: Build the missing-lyrics Home card and list view [design]
-- [ ] status
+- [x] status
 **Objective:** Home shows the missing-lyrics card when any exist; `/library/missing-lyrics` lists them with Add lyrics and No words; Library > Songs links to it.
 **Write-scope:** `web/src/views/Home.tsx`, `web/src/views/MissingLyrics.tsx` (new), `web/src/views/Library.tsx`, `web/src/App.tsx`, `web/src/api.ts`, `web/src/styles/home.css`, `web/src/styles/library.css`
 **Read-context:** `web/src/views/Home.tsx:100-140`, `web/src/views/Home.tsx:317-382`, `web/src/views/Library.tsx:240-262`, `web/src/views/Library.tsx:300-345`, `web/src/App.tsx:57-79`, `web/src/components/LyricsEditDialog.tsx:1-66`, `web/src/components/TrackRow.tsx:1-40`, `web/src/styles/home.css:1-15`

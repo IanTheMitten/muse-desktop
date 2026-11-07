@@ -388,6 +388,8 @@ export type RecommendedAlbum =
   | { owned: false; album_name: string; artist_name: string; reason: string };
 
 export type Dashboard = {
+  /** Songs the lyrics lookup found nothing for and nobody marked wordless. */
+  missing_lyrics: number;
   generated_at: number;
   sounds_like: { seed: Track | null; tracks: Track[] };
   resume: { track: Track; position_ms: number; queue_length: number; queue_index: number } | null;
@@ -414,6 +416,12 @@ export type Dashboard = {
     top_artists: { artist_name: string; plays: number; heard_ms: number }[] | null;
   };
 };
+
+export const getMissingLyrics = (signal?: AbortSignal) =>
+  get<{ count: number; tracks: Track[] }>("/library/lyrics/missing", signal);
+
+export const markNoWords = (trackRowid: number) =>
+  post<{ ok: boolean }>(`/tracks/${trackRowid}/lyrics/no-words`);
 
 export const getDashboard = (signal?: AbortSignal) =>
   get<Dashboard>("/dashboard", signal);

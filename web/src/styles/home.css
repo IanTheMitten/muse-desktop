@@ -70,3 +70,8 @@ a.btn { text-decoration: none; }
 
 /* titles wrap rather than ellipsize in the shelf rows */
 .hits .row-name { white-space: normal; overflow: visible; }
+
+/* missing-lyrics card: a fact, not an alert */
+.ml-card { display: grid; gap: 6px; justify-items: start; padding: clamp(16px, 3vw, 28px); border-radius: var(--r-l); background: var(--glass); box-shadow: inset 0 0 0 1px var(--hairline); }
+.ml-card h2 { font-family: var(--serif); font-size: var(--t-xl); font-weight: 600; margin-top: 2px; }
+.ml-card p { margin: 0 0 12px; color: var(--text-2); max-width: 56ch; }
