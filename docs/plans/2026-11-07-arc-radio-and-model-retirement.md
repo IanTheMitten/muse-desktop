@@ -255,7 +255,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 ## Phase 3 - Migration 23, player state and the energy read path
 
 ### Task 11: Write migration 23, state and energy read tests [test]
-- [ ] status
+- [x] status
 **Objective:** Red tests pin migration 23, the radio state round trip, the prompt-vector store, `audio_energy`, and the thirds `SOUND_BANDS`.
 **Write-scope:** `tests/test_m023_schema.py` (new), `tests/test_prompt_vectors.py` (new), `tests/test_plays.py`, `tests/test_arc.py`, `tests/test_arc_engine.py`
 **Read-context:** `tests/test_m022_schema.py:1-30`, `tests/test_plays.py:186-205`, `tests/test_arc.py:216-225`, `tests/test_arc_engine.py:355-364`, `muse/library/state.py:63-105`

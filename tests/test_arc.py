@@ -215,11 +215,18 @@ def test_blend_of_empty_vectors_is_empty():
 
 # --- sound_gap ----------------------------------------------------------------
 
+def test_sound_bands_are_thirds():
+    assert set(arc.SOUND_BANDS) == {"calm", "mid", "energetic"}
+    for name, (low, high) in {"calm": (-1.0, -1 / 3), "mid": (-1 / 3, 1 / 3),
+                              "energetic": (1 / 3, 1.0)}.items():
+        assert arc.SOUND_BANDS[name] == (pytest.approx(low), pytest.approx(high))
+
+
 def test_sound_gap():
     assert arc.sound_gap(None, "calm") == 0
     assert arc.sound_gap(0.9, "any") == 0
-    assert arc.sound_gap(0.0, "calm") == 0
-    assert arc.sound_gap(0.9, "calm") == pytest.approx(0.65)
+    assert arc.sound_gap(0.0, "calm") == pytest.approx(1 / 3)
+    assert arc.sound_gap(0.9, "calm") == pytest.approx(0.9 + 1 / 3)
 
 
 # --- limits_ok ----------------------------------------------------------------

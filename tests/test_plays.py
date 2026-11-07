@@ -202,3 +202,33 @@ def test_radio_added_defaults_to_empty(conn):
     assert read_state(conn)["radio_added"] == []
     write_state(conn, [1], 0, 0, "playing", updated_at=1_000)
     assert read_state(conn)["radio_added"] == []
+
+
+def test_radio_pos_and_lift_defaults(conn):
+    state = read_state(conn)
+    assert state["radio_pos"] == 0
+    assert state["radio_lift"] == 1
+    write_state(conn, [1], 0, 0, "playing", updated_at=1_000)
+    state = read_state(conn)
+    assert state["radio_pos"] == 0
+    assert state["radio_lift"] == 1
+
+
+def test_radio_pos_and_lift_round_trip_in_the_store(conn):
+    write_state(conn, [1], 0, 0, "playing", radio_pos=5, radio_lift=0, updated_at=1_000)
+    state = read_state(conn)
+    assert state["radio_pos"] == 5
+    assert state["radio_lift"] == 0
+
+
+def test_radio_pos_and_lift_round_trip_through_the_api(tmp_path):
+    from muse.api import StateWrite
+
+    app = _app(tmp_path)
+    _route(app, "/api/player/state", "PUT")(
+        StateWrite(queue=[1], queue_index=0, position_ms=0,
+                   client_state="playing", radio_seed=1, radio_pos=5, radio_lift=0))
+
+    got = _route(app, "/api/player/state", "GET")()
+    assert got["radio_pos"] == 5
+    assert got["radio_lift"] == 0
