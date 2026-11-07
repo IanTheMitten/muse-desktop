@@ -99,7 +99,8 @@ def _wait(client, state, timeout=10):
 def test_get_not_installed(tmp_path, monkeypatch):
     with TestClient(_app(tmp_path, monkeypatch)) as client:
         assert client.get("/api/smart").json() == {
-            "state": "not_installed", "download_bytes": len(BODY) + len(ZIP), "job": None}
+            "state": "not_installed", "download_bytes": len(BODY) + len(ZIP), "job": None,
+            "energy_ready": False}
 
 
 def test_get_unsupported(tmp_path, monkeypatch):

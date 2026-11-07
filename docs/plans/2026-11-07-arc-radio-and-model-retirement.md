@@ -287,7 +287,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 ## Phase 4 - Fill the prompt cache, and the pure radio client
 
 ### Task 13: Fill the CLAP prompt cache in the launch chain and report energy readiness
-- [ ] status
+- [x] status
 **Objective:** After the embed backfill the chain stores the two prompt vectors once per audio model; `GET /api/smart` adds `energy_ready`.
 **Write-scope:** `muse/jobs.py`, `muse/api.py`, `tests/test_prompt_fill.py` (new), `tests/test_api_smart.py`
 **Read-context:** `muse/api.py:545-552`, `muse/api.py:604-625`, `muse/api.py:964-973`, `tests/test_embed_startup_wiring.py:30-80`, `tests/test_api_smart.py:95-105`

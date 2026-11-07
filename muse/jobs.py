@@ -20,7 +20,7 @@ from pathlib import Path
 import requests
 
 from . import art as art_module
-from . import content_embed_batch
+from . import content_embed_batch, energy
 from . import embed as embed_module
 from . import lyrics_lrclib as lyrics_lrclib_module
 from . import scanner, smart, ytdlp
@@ -30,6 +30,7 @@ from .library import art as library_art
 from .library import embeddings as library_embeddings
 from .library import jobs as job_rows
 from .library import lyrics_edit
+from .library import prompts as library_prompts
 from .library import lyrics_state as library_lyrics_state
 from .worker import WorkerError, WorkerReplyError
 
@@ -177,6 +178,23 @@ async def run_art_backfill(
     finished = job_rows.get(conn, job_id)
     bus.publish(_event(finished))
     return finished
+
+
+def run_prompt_fill(conn, audio_encoder_factory) -> bool:
+    """Store the two CLAP prompt vectors for the audio model, once."""
+    try:
+        encoder = audio_encoder_factory()
+        model = encoder.model_name
+        if (library_prompts.get(conn, model, energy.CALM) is not None
+                and library_prompts.get(conn, model, energy.ENERGETIC) is not None):
+            return False
+        library_prompts.put(conn, model, energy.CALM, encoder.encode_text(energy.CALM_PROMPT))
+        library_prompts.put(
+            conn, model, energy.ENERGETIC, encoder.encode_text(energy.ENERGETIC_PROMPT))
+        return True
+    except Exception as error:
+        log.warning("CLAP prompt vectors unavailable: %s", error)
+        return False
 
 
 async def run_embed_backfill(

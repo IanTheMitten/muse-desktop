@@ -39,6 +39,7 @@ from . import library
 from .art import ChainedArtProvider, CoverArtArchive, ItunesArt, YtdlpThumbnailArt
 from .catalog import EmptyCatalog
 from .config import Config
+from . import energy
 from . import arc_engine, charts, discover, nearest, reco, recommend, request_spec
 from .content import CONTENT_EMBED
 from .feedback import feedback_score
@@ -57,6 +58,7 @@ from .jobs import (
     run_download_job,
     run_download_worker,
     run_embed_backfill,
+    run_prompt_fill,
     run_align_job,
     run_smart_install,
     run_ytdlp_install,
@@ -70,6 +72,7 @@ from .library import jobs as job_rows
 from .library import lyrics_state as library_lyrics_state
 from .library import playlists as library_playlists
 from .library import overrides, queries, removal
+from .library import prompts as library_prompts
 from .library import taste as library_taste
 from .library import tracks as library_tracks
 from .lrc import parse_lrc
@@ -594,6 +597,10 @@ def create_app(
                     except Exception:
                         log.exception("Embed backfill failed")
                     try:
+                        await asyncio.to_thread(run_prompt_fill, conn, _audio_encoder)
+                    except Exception:
+                        log.exception("Prompt fill failed")
+                    try:
                         await asyncio.to_thread(
                             content_embed_batch.run, conn,
                             WorkerContentEmbedder(app.state.worker))
@@ -946,8 +953,13 @@ def create_app(
         cfg = app.state.config
         job = job_rows.active(app.state.conn, smart.SMART_INSTALL) or job_rows.last(
             app.state.conn, smart.SMART_INSTALL)
+        conn = app.state.conn
+        model = library_prompts.current_audio_model(conn)
+        ready = model is not None and all(
+            library_prompts.get(conn, model, name) is not None
+            for name in (energy.CALM, energy.ENERGETIC))
         return {**smart.status(cfg.models_dir, smart.load_manifest(), smart.host_triple()),
-                "job": job}
+                "job": job, "energy_ready": ready}
 
     @app.get("/api/smart")
     def get_smart() -> dict:
