@@ -392,7 +392,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 ## Phase 6 - Docs and the owner's gate
 
 ### Task 20: Update CONTEXT.md, CLAUDE.md and ADR notes [docs]
-- [ ] status
+- [x] status
 **Objective:** The glossary, CLAUDE.md and ADRs 0003, 0004, 0008, 0009 describe one Laya-based path with three recommender legs and CLAP energy.
 **Write-scope:** `CONTEXT.md`, `CLAUDE.md`, `docs/adrs/0003-emotion-and-taste-legs-in-the-recommender.md`, `docs/adrs/0004-content-embed-leg-and-the-shared-audio-budget.md`, `docs/adrs/0008-per-leg-calibration-and-the-offline-harness.md`, `docs/adrs/0009-the-arc-engine.md`, `muse/content.py`
 **Read-context:** `docs/specs/2026-11-07-arc-radio-and-model-retirement.md:22-46`, `docs/specs/2026-11-07-arc-radio-and-model-retirement.md:171`, `CONTEXT.md`, `CLAUDE.md`

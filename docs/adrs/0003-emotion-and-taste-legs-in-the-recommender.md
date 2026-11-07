@@ -1,5 +1,7 @@
 # ADR 0003: The recommender gains an emotion leg and replaces feedback_score with a learned taste embedding
 
+> **Superseded in part (2026-11-07):** The emotion leg (audio-VA and lyrics-VA models, `emotion_vec`, `emotion_sim`) and the lyrics leg are removed from `rank()`; the taste embedding half of this decision stands. Valence-arousal as the mood axis is replaced by CLAP zero-shot energy (`muse/energy.py`). See `docs/specs/2026-11-07-arc-radio-and-model-retirement.md`.
+
 - **Status:** Accepted
 - **Date:** 2026-08-11
 - **Slice:** 2 (Recommender)

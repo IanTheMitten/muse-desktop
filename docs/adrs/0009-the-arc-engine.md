@@ -1,5 +1,7 @@
 # ADR 0009: The arc engine
 
+> **Superseded in part (2026-11-07):** Radio now runs on the arc engine in the UI (`GET /api/arc/{seed}` with `mode=radio`, `pos`, `lift`, or `POST /api/arc` with a mood), not `/api/recommend`, which stays a debug and `reco_eval` surface. The lyrics leg and the MiniLM and emotion models are gone, and the `sound` cost reads CLAP energy. See `docs/specs/2026-11-07-arc-radio-and-model-retirement.md`.
+
 - **Status:** Accepted
 - **Date:** 2026-10-17
 - **Supersedes:** `docs/adrs/0005-archetype-radio-and-the-drift-policy.md`,

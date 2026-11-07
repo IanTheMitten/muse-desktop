@@ -1,5 +1,7 @@
 # ADR 0008: Every leg is calibrated through its own CDF before fusion, and an offline harness measures the recommender
 
+> **Superseded in part (2026-11-07):** Calibration and the harness stand; the lyrics and emotion legs it calibrated are removed, so the CDFs and `reco_eval` cover the three remaining legs (audio, features, taste). See `docs/specs/2026-11-07-arc-radio-and-model-retirement.md`.
+
 - **Status:** Accepted
 - **Date:** 2026-10-09
 - **Slice:** 2 (Recommender)
