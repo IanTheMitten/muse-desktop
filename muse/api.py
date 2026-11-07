@@ -84,11 +84,8 @@ from .jobs import _event as job_event
 from .worker import (
     LAYA_MODEL,
     WorkerAudioEncoder,
-    WorkerAudioVAEncoder,
     WorkerClient,
     WorkerContentEmbedder,
-    WorkerLyricsEncoder,
-    WorkerLyricsVAEncoder,
     worker_ask,
     worker_command,
 )
@@ -440,9 +437,6 @@ def create_app(
     art_provider=None,
     mb=None,
     audio_encoder=None,
-    lyrics_encoder=None,
-    audio_va_encoder=None,
-    lyrics_va_encoder=None,
     metadata_provider=None,
     audio_source=None,
     chart_fetch=None,
@@ -454,10 +448,8 @@ def create_app(
     """`art_provider` is injectable so tests never reach MusicBrainz. `mb` is
     the one MusicBrainz client this process gets, injectable for the same
     reason and resolved in the lifespan below.
-    `audio_encoder`/`lyrics_encoder`/`audio_va_encoder`/`lyrics_va_encoder`
-    are injectable the same way, so tests can exercise `config.embed_batch`
-    without loading CLAP, MiniLM, or the emotion models; all default to the
-    real thing. `metadata_provider`/`audio_source` are
+    `audio_encoder` is injectable the same way, so tests can exercise
+    `config.embed_batch` without loading CLAP; it defaults to the real thing. `metadata_provider`/`audio_source` are
     injectable the same way, so tests exercise `POST /api/jobs` without
     touching yt-dlp or MusicBrainz."""
     config = config or Config.from_env()

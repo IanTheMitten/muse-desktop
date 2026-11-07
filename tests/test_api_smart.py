@@ -160,8 +160,7 @@ def test_chain_runs_content_and_lyric_tag_steps_when_installed(tmp_path, monkeyp
     monkeypatch.setattr(smart, "load_manifest", lambda *a, **k: MANIFEST)
     app = create_app(
         config, worker_client=worker,
-        audio_encoder=embed.StubAudioEncoder(), lyrics_encoder=embed.StubLyricsEncoder(),
-        audio_va_encoder=embed.StubAudioVAEncoder(), lyrics_va_encoder=embed.StubLyricsVAEncoder(),
+        audio_encoder=embed.StubAudioEncoder(),
     )
     with TestClient(app) as client:
         insert_track(app.state.conn, 1, status="done")

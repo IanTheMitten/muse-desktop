@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Iterator
 
 from .content import MERT_MODEL
-from .embed import AUDIO_VA_MODEL, CLAP_MODEL, LYRICS_VA_MODEL, MINILM_MODEL
+from .embed import CLAP_MODEL
 
 LAYA_MODEL = "laya-muse-v4"
 MAX_STARTS = 2
@@ -152,36 +152,6 @@ class WorkerAudioEncoder:
 
     def encode_text(self, text: str) -> list[float]:
         return self._c.request("clap_text", text=text)
-
-
-class WorkerLyricsEncoder:
-    model_name = MINILM_MODEL
-
-    def __init__(self, client: WorkerClient):
-        self._c = client
-
-    def encode(self, text: str) -> list[float]:
-        return self._c.request("minilm", text=text)
-
-
-class WorkerAudioVAEncoder:
-    model_name = AUDIO_VA_MODEL
-
-    def __init__(self, client: WorkerClient):
-        self._c = client
-
-    def encode(self, audio_path: Path) -> tuple[float, float]:
-        return tuple(self._c.request("audio_va", path=str(audio_path)))
-
-
-class WorkerLyricsVAEncoder:
-    model_name = LYRICS_VA_MODEL
-
-    def __init__(self, client: WorkerClient):
-        self._c = client
-
-    def encode(self, text: str) -> tuple[float, float]:
-        return tuple(self._c.request("lyrics_va", text=text))
 
 
 class WorkerContentEmbedder:

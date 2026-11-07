@@ -40,7 +40,6 @@ def test_chain_embeds_when_enabled(tmp_path):
     app = create_app(
         config,
         audio_encoder=embed.StubAudioEncoder(),
-        lyrics_encoder=embed.StubLyricsEncoder(),
         worker_client=FakeWorker(),
     )
 
@@ -74,7 +73,6 @@ def test_chain_does_not_embed_when_disabled_and_not_installed(tmp_path):
     app = create_app(
         config,
         audio_encoder=embed.StubAudioEncoder(),
-        lyrics_encoder=embed.StubLyricsEncoder(),
         worker_client=FakeWorker(),
     )
 

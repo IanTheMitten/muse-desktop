@@ -20,9 +20,6 @@ from fastapi.testclient import TestClient
 from muse.api import create_app
 from muse.embed import (
     StubAudioEncoder,
-    StubAudioVAEncoder,
-    StubLyricsEncoder,
-    StubLyricsVAEncoder,
 )
 from tests.conftest import make_config, unlock
 from muse.library import jobs as job_rows
@@ -216,15 +213,12 @@ def client(tmp_path, monkeypatch):
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),
         # Stub encoders for the same reason `art_provider` is a fake: the
-        # defaults are the real CLAP/MiniLM/MER/TextVA, and `run_download`'s
+        # defaults are the real CLAP, and `run_download`'s
         # final step is an embed backfill that runs whether or not
         # `config.embed_batch` is set. Without these the test reaches Hugging
         # Face for ~1 GB of weights, and the download job it is asserting on
         # is still `running` when the fixture tears the connection down.
         audio_encoder=StubAudioEncoder(),
-        lyrics_encoder=StubLyricsEncoder(),
-        audio_va_encoder=StubAudioVAEncoder(),
-        lyrics_va_encoder=StubLyricsVAEncoder(),
     )
     with TestClient(app) as test_client:
         yield test_client, app
@@ -879,9 +873,6 @@ def test_mb_release_stamps_the_track_id_the_isrc_joins_to(tmp_path, monkeypatch)
         audio_source=FakeAudioSource(),
         art_provider=FakeArtProvider(),
         audio_encoder=StubAudioEncoder(),
-        lyrics_encoder=StubLyricsEncoder(),
-        audio_va_encoder=StubAudioVAEncoder(),
-        lyrics_va_encoder=StubLyricsVAEncoder(),
     )
     with TestClient(app) as test_client:
         response = test_client.post(

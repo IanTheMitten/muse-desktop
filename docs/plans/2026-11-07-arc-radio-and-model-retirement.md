@@ -179,7 +179,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:44-46, spec:130. Lyric-tag staleness keys on `lyrics_hash`, so the hash write must survive MiniLM's removal.
 
 ### Task 6: Remove the retired encoders, worker ops and create_app params
-- [ ] status
+- [x] status
 **Objective:** No source mentions MiniLM, the VA encoders or their stubs; the worker serves `align, clap_audio, clap_text, laya, mert`; `create_app` takes only `audio_encoder` among encoders.
 **Write-scope:** `muse/embed.py`, `muse/worker.py`, `muse/worker_main.py`, `muse/api.py`, `tests/test_embed_pure.py`, `tests/test_embed_slow.py`, `tests/test_worker_client.py`, `tests/test_worker_main.py`, `tests/test_worker_main_slow.py`, `tests/test_worker_models_slow.py`, `tests/test_api_jobs.py`, `tests/test_api_discover.py`, `tests/test_api_downloader.py`, `tests/test_api_smart.py`, `tests/test_embed_startup_wiring.py`
 **Read-context:** `muse/embed.py:35-235`, `muse/embed.py:323-572`, `muse/worker.py:144-185`, `muse/worker_main.py:84-148`, `muse/api.py:436-462`

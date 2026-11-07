@@ -55,16 +55,6 @@ def test_stub_audio_encoder_is_the_right_shape_and_l2_normalized():
     assert abs(norm - 1.0) < 1e-6
 
 
-def test_stub_lyrics_encoder_is_the_right_shape_and_l2_normalized():
-    encoder = embed.StubLyricsEncoder()
-
-    vector = encoder.encode("some cleaned lyrics")
-
-    assert len(vector) == embed.LYRICS_DIM
-    norm = sum(v * v for v in vector) ** 0.5
-    assert abs(norm - 1.0) < 1e-6
-
-
 def test_clean_lyrics_strips_bracketed_section_headers():
     text = "[Chorus]\nHello there\n\n[Verse 1]\nWorld"
 
@@ -131,48 +121,10 @@ def test_normalize_feature_vector_is_none_without_raw_values():
     assert embed.normalize_feature_vector(None, bounds) is None
 
 
-def test_stub_audio_va_encoder_is_deterministic_and_in_range():
-    encoder = embed.StubAudioVAEncoder()
+def test_stub_audio_encoder_encode_text_is_512_long_and_deterministic():
+    encoder = embed.StubAudioEncoder()
 
-    first = encoder.encode(Path("MUSIC/1.m4a"))
-    second = encoder.encode(Path("MUSIC/1.m4a"))
+    first = encoder.encode_text("x")
 
-    assert first == second
-    assert len(first) == 2
-    assert all(-1.0 <= v <= 1.0 for v in first)
-
-
-def test_stub_audio_va_encoder_differs_by_input():
-    encoder = embed.StubAudioVAEncoder()
-
-    a = encoder.encode(Path("MUSIC/1.m4a"))
-    b = encoder.encode(Path("MUSIC/2.m4a"))
-
-    assert a != b
-
-
-def test_stub_lyrics_va_encoder_is_deterministic_and_in_range():
-    encoder = embed.StubLyricsVAEncoder()
-
-    first = encoder.encode("some cleaned lyrics")
-    second = encoder.encode("some cleaned lyrics")
-
-    assert first == second
-    assert len(first) == 2
-    assert all(-1.0 <= v <= 1.0 for v in first)
-
-
-def test_fuse_emotion_vec_falls_back_to_audio_va_alone_without_lyrics_va():
-    audio_va = (0.3, -0.4)
-
-    assert embed.fuse_emotion_vec(audio_va, None) == audio_va
-
-
-def test_fuse_emotion_vec_blends_audio_and_lyrics_by_the_fixed_weight():
-    audio_va = (1.0, 1.0)
-    lyrics_va = (0.0, 0.0)
-    w = embed.EMOTION_AUDIO_WEIGHT
-
-    fused = embed.fuse_emotion_vec(audio_va, lyrics_va)
-
-    assert fused == (w * 1.0 + (1 - w) * 0.0, w * 1.0 + (1 - w) * 0.0)
+    assert len(first) == 512
+    assert first == encoder.encode_text("x")
