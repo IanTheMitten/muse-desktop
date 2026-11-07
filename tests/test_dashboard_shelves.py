@@ -43,8 +43,7 @@ def test_recently_added_albums_newest_first_capped_at_eight(conn):
 def test_existing_keys_survive(conn):
     insert_track(conn, 1)
     board = insights.dashboard(conn, NOW)
-    assert {"resume", "sounds_like", "stats", "mixes"} <= set(board)
-    assert len(board["mixes"]) == 4
+    assert {"resume", "sounds_like", "stats"} <= set(board)
 
 
 def test_startup_warms_the_home_shelf_scores(tmp_path, monkeypatch):
@@ -63,3 +62,13 @@ def test_startup_warms_the_home_shelf_scores(tmp_path, monkeypatch):
     config = make_config(tmp_path)
     with TestClient(create_app(config)):
         assert warmed.wait(5)
+
+
+def test_mixes_route_is_gone(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from muse.api import create_app
+    from tests.conftest import make_config
+
+    with TestClient(create_app(make_config(tmp_path))) as client:
+        assert client.get("/api/mixes/bright").status_code == 404

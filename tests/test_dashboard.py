@@ -45,23 +45,6 @@ def test_a_library_nobody_has_played_yet(conn):
     assert board["sounds_like"]["tracks"] == []
     assert board["stats"]["top_artists"] is None
     assert [day["minutes"] for day in board["stats"]["week"]] == [0] * 7
-    assert len(board["mixes"]) == 4
-
-
-def test_mixes_carry_their_share_of_the_measured_library(conn):
-    stock(conn, 1, 0.9, 0.9)
-    stock(conn, 2, 0.9, 0.9)
-    stock(conn, 3, 0.1, 0.1)
-    insert_track(conn, 4)  # unmeasured: not part of any share
-
-    shares = {mix["key"]: mix["share"] for mix in insights.dashboard(conn)["mixes"]}
-
-    # Two of the three *measured* tracks, not two of the four rows: the
-    # unmeasured track is outside what the bands can speak for.
-    assert shares["bright"] == 0.6667
-    assert shares["low"] == 0.3333
-    assert shares["warm"] == 0
-    assert round(sum(shares.values())) == 1
 
 
 def test_resume_is_whatever_the_queue_is_pointing_at(conn):
@@ -178,13 +161,3 @@ def test_top_artists_stay_hidden_until_there_is_history_worth_ranking(conn):
 
     assert top[0]["artist_name"] == "One"
     assert top[0]["plays"] == insights.TOP_ARTISTS_MIN_PLAYS
-
-
-def test_the_map_and_the_counts_agree_about_what_is_measured(conn):
-    stock(conn, 1, 0.9, 0.9)
-    insert_track(conn, 2)
-
-    stats = insights.dashboard(conn)["stats"]
-
-    assert stats["measured"] == {"playable": 2, "measured": 1}
-    assert len(stats["map"]) == 1

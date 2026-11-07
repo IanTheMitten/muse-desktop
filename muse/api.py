@@ -64,8 +64,6 @@ from .jobs import (
 from .library import art as library_art
 from .library import content as library_content
 from .library import embeddings as library_embeddings
-from .library import emotion as library_emotion
-from .library import features as library_features
 from .library import artists as library_artists
 from .library import insights, lyrics_edit
 from .library import jobs as job_rows
@@ -1023,32 +1021,6 @@ def create_app(
             "recommended_albums": nearest.recommended_albums(
                 conn, now_ms, _open_catalog(app.state.config)
             ),
-        }
-
-    @app.get("/api/mixes/{band}")
-    def mix(band: str) -> dict:
-        """A mood mix: that band, shuffled, capped.
-
-        Nothing is stored — asking again gives a different cut of the same
-        band. That is the whole contract, and it is why there is no DELETE.
-        """
-        if band not in library_features.BAND_SQL:
-            raise HTTPException(404, f"No mix {band!r}")
-        conn = app.state.conn
-        # Same rule as the dashboard's map: our own emotion vectors when there
-        # are any, the Spotify mirror's features when there are not. A mix has
-        # to come from the same plane the map drew, or tapping a quadrant plays
-        # a different set from the one under the finger.
-        if library_emotion.coverage(conn)["measured"]:
-            tracks = library_emotion.band_tracks(
-                conn, band, library_features.MIX_LIMIT
-            )
-        else:
-            tracks = library_features.band_tracks(conn, band)
-        return {
-            "band": band,
-            "label": library_features.BAND_LABELS[band],
-            "tracks": tracks,
         }
 
     @app.get("/api/library/artists")

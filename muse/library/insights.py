@@ -17,7 +17,7 @@ import sqlite3
 import time
 from datetime import datetime, timedelta
 
-from . import emotion, features
+from . import features
 from .queries import TRACK_FIELDS, _track, track as one_track
 
 # Below this, a ranking is a list of whatever happened to be played first.
@@ -255,28 +255,11 @@ def _listening(conn: sqlite3.Connection) -> dict:
 def dashboard(conn: sqlite3.Connection, now_ms: int | None = None) -> dict:
     now_ms = now_ms if now_ms is not None else int(time.time() * 1000)
 
-    # The plane comes from our own emotion vectors when there are any, and
-    # from the Spotify mirror's features when there are not. Which one drew it
-    # is said in the payload rather than left for the client to guess, because
-    # the axes are not the same thing: `arousal` is a model's measurement and
-    # `energy` is Spotify's blend.
-    plane = emotion if emotion.coverage(conn)["measured"] else features
-    measured = plane.coverage(conn)
-    bands = plane.band_summary(conn)
-    total_measured = measured["measured"] or 0
-    for band in bands:
-        # Share of what is measured, not of the library — a share computed
-        # against 723 when only 705 are measured would never reach 1.
-        band["share"] = (
-            round(band["tracks"] / total_measured, 4) if total_measured else 0
-        )
-
     seed = _seed(conn)
 
     return {
         "generated_at": now_ms,
         "resume": _resume(conn),
-        "mixes": bands,
         "sounds_like": {
             "seed": seed,
             "tracks": (
@@ -292,12 +275,6 @@ def dashboard(conn: sqlite3.Connection, now_ms: int | None = None) -> dict:
         "forgotten": _forgotten(conn, now_ms),
         "stats": {
             "library": _library(conn),
-            "measured": measured,
-            "map": plane.map_points(conn),
-            "map_source": "emotion" if plane is emotion else "features",
-            "map_centre": (
-                emotion.medians(conn) if plane is emotion else None
-            ),
             "week": _week(conn, now_ms),
             "listening": _listening(conn),
             "top_artists": _top_artists(conn),

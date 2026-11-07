@@ -372,51 +372,6 @@ export const searchLibrary = (query: string, signal?: AbortSignal) =>
 
 /* --- the dashboard ------------------------------------------------------- */
 
-/** One of the four mood bands — a quadrant of the valence/energy plane, not a
- *  ramp. `bright` and `low` are diagonal opposites; so are `warm` and
- *  `intense`. See DESIGN.md §12. */
-export type BandKey = "bright" | "warm" | "low" | "intense";
-
-/** Reading order of the bands as they sit on the mood map: top-left,
- *  top-right, bottom-left, bottom-right (see `QUADRANTS` in MoodMap.tsx).
- *  The share bar and legend follow this same order, not the API's, so a
- *  segment's position teaches where its band sits on the map. */
-export const BAND_ORDER: BandKey[] = ["intense", "bright", "low", "warm"];
-
-export type Mix = {
-  key: BandKey;
-  label: string;
-  /** What the band sounds like. Never what the listener feels. */
-  note: string;
-  tracks: number;
-  runtime_ms: number;
-  /** Of the measured library, not of every row — see `measured`. */
-  share: number;
-};
-
-/** A point on the mood plane.
- *
- *  `arousal` when the plane came from our own emotion vectors, `energy` when it
- *  fell back to the Spotify mirror. They are not the same measurement and the
- *  payload says which one it is (`stats.map_source`), so nothing has to guess. */
-export type MoodPoint = {
-  track_rowid: number;
-  valence: number;
-  arousal?: number;
-  energy?: number;
-  band: BandKey;
-};
-
-/** Where this library's own centre sits. The map is split at the median rather
- *  than at zero, because the models do not emit a centred plane; without this
- *  a real library lands 64% in one quadrant. Null when the mirror drew the map,
- *  which splits at a fixed 0.5 instead. */
-export type MapCentre = {
-  valence: number;
-  arousal: number;
-  measured: number;
-};
-
 export type LibraryAlbum = {
   album_rowid: number;
   album_name: string;
@@ -432,7 +387,6 @@ export type RecommendedAlbum =
 
 export type Dashboard = {
   generated_at: number;
-  mixes: Mix[];
   sounds_like: { seed: Track | null; tracks: Track[] };
   resume: { track: Track; position_ms: number; queue_length: number; queue_index: number } | null;
   /** Albums played most recently, newest first: "carry on with what I was
@@ -452,13 +406,6 @@ export type Dashboard = {
       artists: number;
       runtime_ms: number;
     };
-    /** How much of the library the mood surfaces can speak for. Said out loud
-     *  rather than quietly plotting fewer tracks than the library has. */
-    measured: { playable: number; measured: number };
-    map: MoodPoint[];
-    /** Which plane drew the map: our own emotion vectors, or the mirror. */
-    map_source: "emotion" | "features";
-    map_centre: MapCentre | null;
     week: { day: string; weekday: string; minutes: number }[];
     listening: { plays: number; heard_ms: number };
     /** Null until there is enough history to rank honestly. */
@@ -468,14 +415,6 @@ export type Dashboard = {
 
 export const getDashboard = (signal?: AbortSignal) =>
   get<Dashboard>("/dashboard", signal);
-
-/** A mix is generated per request and never stored, so this is a fresh cut of
- *  the band every time it is asked for. */
-export const getMix = (band: BandKey, signal?: AbortSignal) =>
-  get<{ band: BandKey; label: string; tracks: Track[] }>(
-    `/mixes/${band}`,
-    signal,
-  );
 
 /* --- the recommender ----------------------------------------------------- */
 

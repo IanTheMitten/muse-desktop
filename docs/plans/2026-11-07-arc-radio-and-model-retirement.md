@@ -223,7 +223,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:99-104: about 1.08 GB of retired weights stay on upgraded installs otherwise.
 
 ### Task 9: Delete the emotion plane, mixes and the dashboard map
-- [ ] status
+- [x] status
 **Objective:** `muse/library/emotion.py`, `/api/mixes/{band}` and the dashboard's mood-surface fields are gone server and client side.
 **Write-scope:** `muse/library/emotion.py`, `muse/library/insights.py`, `muse/api.py`, `web/src/api.ts`, `tests/test_emotion_plane.py`, `tests/test_dashboard.py`, `tests/test_dashboard_shelves.py`
 **Read-context:** `muse/library/insights.py:15-25`, `muse/library/insights.py:255-305`, `muse/api.py:1048-1072`, `web/src/api.ts:373-478`
