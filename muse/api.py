@@ -179,6 +179,8 @@ class StateWrite(BaseModel):
     # The queued rowids radio put there, so a play of one is tagged
     # `source='radio'` after a reload or on the other device too.
     radio_added: list[int] = Field(default_factory=list)
+    radio_pos: int = 0
+    radio_lift: bool = True
     updated_by: str | None = None
 
 
@@ -1425,6 +1427,8 @@ def create_app(
             radio_seed=write.radio_seed,
             updated_by=write.updated_by,
             radio_added=write.radio_added,
+            radio_pos=write.radio_pos,
+            radio_lift=int(write.radio_lift),
         )
         state = library.read_state(conn)
         return {

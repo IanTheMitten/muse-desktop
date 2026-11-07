@@ -142,15 +142,40 @@ def vectors(conn: sqlite3.Connection) -> dict[int, dict]:
     return out
 
 
-def audio_arousal(conn: sqlite3.Connection) -> dict[int, float]:
-    """Stored audio arousal (the second component of `audio_va`) per playable
-    track. A track with no `audio_va` is absent, not zero."""
-    from ..embed import unpack_vector  # same edge as `vectors`
+_energy_cache: dict = {}
 
+
+def clear_energy_cache() -> None:
+    _energy_cache.clear()
+
+
+def audio_energy(conn: sqlite3.Connection) -> dict[int, float]:
+    """CLAP zero-shot energy on [-1, 1] per playable track of the current
+    audio model. Empty until both energy prompt vectors are stored."""
+    from .. import energy
+    from ..embed import unpack_vector  # same edge as `vectors`
+    from . import prompts, queries
+
+    model = prompts.current_audio_model(conn)
+    if model is None:
+        return {}
+    calm = prompts.get(conn, model, energy.CALM)
+    energetic = prompts.get(conn, model, energy.ENERGETIC)
+    if calm is None or energetic is None:
+        return {}
+    database = conn.execute("PRAGMA database_list").fetchone()[2]
+    key = (database, queries.vector_fingerprint(conn), prompts.stamp(conn), model)
+    cached = _energy_cache.get("entry")
+    if cached is not None and cached[0] == key:
+        return cached[1]
     rows = conn.execute(
-        "SELECT e.track_rowid, e.audio_va"
+        "SELECT e.track_rowid, e.audio_vec"
         "  FROM embeddings e JOIN tracks t USING (track_rowid)"
-        " WHERE t.status = 'done' AND e.audio_va IS NOT NULL"
-        " ORDER BY e.track_rowid"
+        " WHERE t.status = 'done' AND e.audio_vec IS NOT NULL AND e.audio_model = ?"
+        " ORDER BY e.track_rowid", (model,)
     ).fetchall()
-    return {row["track_rowid"]: unpack_vector(row["audio_va"])[1] for row in rows}
+    raw = {row["track_rowid"]: energy.raw_energy(unpack_vector(row["audio_vec"]), calm, energetic)
+           for row in rows}
+    result = energy.to_unit(raw)
+    _energy_cache["entry"] = (key, result)
+    return result

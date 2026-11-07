@@ -269,7 +269,7 @@ CONSTRAINTS: WCAG AA; all buttons 44px min height, visible `:focus-visible`; loa
 **Why:** spec:147. Red first so Task 12 cannot quietly narrow the contract.
 
 ### Task 12: Ship migration 23, radio state, prompt store and CLAP energy
-- [ ] status
+- [x] status
 **Objective:** Task 11's tests pass: columns dropped, `radio_pos`/`radio_lift` stored, prompt vectors cached, arc `sound` reads CLAP energy in even thirds.
 **Write-scope:** `muse/library/schema.py`, `muse/library/state.py`, `muse/library/prompts.py` (new), `muse/library/embeddings.py`, `muse/arc.py`, `muse/arc_engine.py`, `muse/api.py`, `tests/test_m022_schema.py`, `tests/test_migrations.py`, `tests/test_embeddings_arousal.py`
 **Read-context:** `muse/library/schema.py:685-726`, `muse/library/state.py:17-105`, `muse/api.py:159-190`, `muse/api.py:1473-1493`, `muse/library/embeddings.py:196-241`, `muse/arc_engine.py:120-130`, `muse/arc.py:39`, `muse/recommend.py:154-173`

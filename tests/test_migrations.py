@@ -82,10 +82,8 @@ def test_migrate_creates_the_embeddings_table(raw):
         row["name"] for row in raw.execute("PRAGMA table_info(embeddings)")
     }
     assert columns == {
-        "track_rowid", "audio_vec", "feature_vec", "lyrics_vec",
-        "audio_model", "lyrics_model", "lyrics_hash", "indexed_at",
-        "audio_va", "lyrics_va", "emotion_vec", "audio_va_model",
-        "lyrics_va_model",
+        "track_rowid", "audio_vec", "feature_vec", "audio_model",
+        "lyrics_hash", "indexed_at",
     }
 
 

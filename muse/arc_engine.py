@@ -123,7 +123,7 @@ def plan(
         return None
     tags = tag_index(conn)
     seed_tags = tags.get(seed) if seed is not None else None
-    arousal = library_embeddings.audio_arousal(conn)
+    arousal = library_embeddings.audio_energy(conn)
 
     start, goal = spec["start"], spec["goal"]
     d0 = start["darkness"] if start["darkness"] is not None else (
