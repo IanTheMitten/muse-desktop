@@ -149,15 +149,15 @@
   "workers": {
     "aarch64-apple-darwin": {
       "path": "muse-worker-aarch64-apple-darwin.zip",
-      "url": "https://github.com/IanTheMitten/muse-desktop/releases/download/worker-v1/muse-worker-aarch64-apple-darwin.zip",
-      "sha256": "e0a2a39a8b8b4a76e24f04e6f979e793515042c27dade5d0c5f0a59c8ae0ca2a",
-      "size": 410153097
+      "url": "https://github.com/IanTheMitten/muse-desktop/releases/download/worker-v2/muse-worker-aarch64-apple-darwin.zip",
+      "sha256": "27e844a68087e9c666d3a5c64e699f3398ccbd7a089da02adfe97fd6ed6dba19",
+      "size": 400556471
     },
     "x86_64-pc-windows-msvc": {
       "path": "muse-worker-x86_64-pc-windows-msvc.zip",
-      "url": "https://github.com/IanTheMitten/muse-desktop/releases/download/worker-v1/muse-worker-x86_64-pc-windows-msvc.zip",
-      "sha256": "da50429b1d7d2847d625e5ddd4cd450d3d26e9053eb39e2cefec2c6cf66a81c6",
-      "size": 287738343
+      "url": "https://github.com/IanTheMitten/muse-desktop/releases/download/worker-v2/muse-worker-x86_64-pc-windows-msvc.zip",
+      "sha256": "09ff77bf61564bdf89401bee118e1a31fe1326ad4acfbc9e8c9669c78ea9fcb5",
+      "size": 278181748
     }
   }
 }
