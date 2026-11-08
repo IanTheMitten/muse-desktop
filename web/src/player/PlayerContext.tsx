@@ -222,6 +222,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seen = useRef<number[]>([]);
   /* One append in flight at a time. */
   const filling = useRef(false);
+  /* Which selection and request own `filling`: a reply from an older seed or
+   * selection is dropped, and its settle must not clear the newer one's flag. */
+  const selection = useRef(0);
+  const fillToken = useRef(0);
+  const fillKey = useRef("");
+  /* Bumped when a request settles, so a fill that bailed on `filling` runs again. */
+  const [fillTick, setFillTick] = useState(0);
   /* The anchor an append last failed to extend. A seed with no vectors 404s
    * and a dry library returns nothing, and in both cases the queue does not
    * grow -- so without this the effect would re-fire on its own output
@@ -338,6 +345,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playQueue = useCallback(
     (tracks: Track[], startIndex: number, from?: PlayingFrom) => {
       closingReason.current = "new_selection";
+      selection.current += 1;
       autoplay.current = true;
       resumeAt.current = null;
       // A new selection starts with no Muse picks; a jump within the live queue keeps them.
@@ -505,7 +513,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (radioSeed == null || anchor == null) return;
     const seedId = radioSeed;
     if (ahead >= RADIO_LOOKAHEAD) return;
-    if (filling.current) return;
+    const key = `${seedId}:${selection.current}`;
+    if (filling.current && fillKey.current === key) return;
 
     /* Moving through the queue clears a stall. The listener pressing next is
      * the one signal that something might have changed -- the network came
@@ -522,6 +531,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (stalledAt.current === anchor.track_rowid) return;
 
     filling.current = true;
+    fillKey.current = key;
+    const mine = ++fillToken.current;
+    const sel = selection.current;
+    const outdated = () => radioSeedRef.current !== seedId || selection.current !== sel;
     setRadioBusy(true);
 
     const exclude = seen.current.slice(-RADIO_EXCLUDE_CAP);
@@ -545,6 +558,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     request
       .then((response) => {
+        if (outdated()) return;
         setRadioReason(response.reason != null ? "untagged" : null);
         const pick = response.results[0];
         if (!pick) {
@@ -583,6 +597,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setRadioNote(note ? { text: note, failed: false } : null);
       })
       .catch((cause: unknown) => {
+        if (outdated()) return;
         stalledAt.current = anchor.track_rowid;
         setRadioReason(null);
         setRadioNote({
@@ -597,10 +612,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       })
       .finally(() => {
-        filling.current = false;
-        setRadioBusy(false);
+        if (fillToken.current === mine) {
+          filling.current = false;
+          setRadioBusy(false);
+        }
+        setFillTick((t) => t + 1);
       });
-  }, [radioSeed, anchor, ahead, queue, index, remember, radioPos, radioLift, energyReady]);
+  }, [radioSeed, anchor, ahead, queue, index, remember, radioPos, radioLift, energyReady, fillTick]);
 
   /* The other half of the limit. The append above refuses to grow the queue
    * past eight ahead; this cuts it back when something else already has. The
@@ -671,6 +689,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     const target = moodRef.current;
     const seedId = radioSeedRef.current;
+    const sel = selection.current;
+    const outdated = () => radioSeedRef.current !== seedId || selection.current !== sel;
     const start = Math.max(0, radioPosRef.current - stale.size);
     const request = target
       ? postArcRadio({
@@ -690,6 +710,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
     request
       .then((response) => {
+        if (outdated()) return;
         if (response.results.length === 0) return fail();
         moodFailed.current = false;
         setRadioPos(start + response.results.length);
@@ -705,14 +726,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
         setQueue((existing) => {
           const cut = indexRef.current + 1;
-          return [
+          const kept = [
             ...existing.slice(0, cut),
             ...existing.slice(cut).filter((t) => !stale.has(t.track_rowid)),
-            ...response.results.map((r) => r.track),
+          ];
+          return [
+            ...kept,
+            ...response.results
+              .filter((r) => !kept.some((t) => t.track_rowid === r.track_rowid))
+              .map((r) => r.track),
           ];
         });
       })
-      .catch(fail);
+      .catch(() => {
+        if (!outdated()) fail();
+      });
   }, [remember]);
 
   const setMood = useCallback((p: MoodPoint | null) => setMoodState(p), []);

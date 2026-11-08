@@ -196,6 +196,7 @@ def test_full_install(tmp_path):
         assert os.access(exe, os.X_OK)
     assert (tmp_path / "worker/muse-worker/_internal/lib.txt").read_bytes() == b"lib"
     assert not (tmp_path / f"muse-worker-{TRIPLE}.zip").exists()
+    assert (tmp_path / "worker/.worker-sha256").read_text() == _sha(bodies["https://x/worker.zip"])
     assert json.loads((tmp_path / "installed.json").read_text()) == {
         "manifest_version": 1,
         "triple": TRIPLE,

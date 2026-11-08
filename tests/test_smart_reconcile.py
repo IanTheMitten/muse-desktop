@@ -105,3 +105,42 @@ def test_unsupported_triple(tmp_path):
     assert reconcile(tmp_path, new, "riscv-unknown") is False
     assert reconcile(tmp_path, new, None) is False
     assert _version(tmp_path) == 2
+
+
+def _marker(models, sha):
+    (models / "worker").mkdir(parents=True, exist_ok=True)
+    (models / "worker" / ".worker-sha256").write_text(sha)
+
+
+def _upgradable(tmp_path, worker=True):
+    new = _manifest(3, ["weights/mert/a.bin"])
+    _disk(tmp_path, ["weights/mert/a.bin"], worker=worker)
+    _record(tmp_path, 2)
+    return new
+
+
+def test_zip_only_worker_does_not_count(tmp_path):
+    new = _upgradable(tmp_path, worker=False)
+    (tmp_path / f"muse-worker-{TRIPLE}.zip").write_bytes(b"x")
+    assert reconcile(tmp_path, new, TRIPLE) is False
+    assert _version(tmp_path) == 2
+
+
+def test_matching_marker_upgrades(tmp_path):
+    new = _upgradable(tmp_path)
+    _marker(tmp_path, "0" * 64)
+    assert reconcile(tmp_path, new, TRIPLE) is True
+    assert _version(tmp_path) == 3
+
+
+def test_stale_marker_counts_as_missing(tmp_path):
+    new = _upgradable(tmp_path)
+    _marker(tmp_path, "1" * 64)
+    assert reconcile(tmp_path, new, TRIPLE) is False
+    assert _version(tmp_path) == 2
+
+
+def test_absent_marker_accepts_executable(tmp_path):
+    new = _upgradable(tmp_path)
+    assert not (tmp_path / "worker" / ".worker-sha256").exists()
+    assert reconcile(tmp_path, new, TRIPLE) is True
