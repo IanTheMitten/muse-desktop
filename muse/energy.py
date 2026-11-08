@@ -9,8 +9,8 @@ import math
 
 CALM = "calm"
 ENERGETIC = "energetic"
-CALM_PROMPT = "calm, quiet, gentle music"
-ENERGETIC_PROMPT = "energetic, loud, intense music"
+CALM_PROMPT = "a calm, relaxing song"
+ENERGETIC_PROMPT = "an upbeat, high-energy song"
 GATE_RHO = 0.5
 
 

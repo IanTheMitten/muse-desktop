@@ -49,8 +49,8 @@ def test_spearman_constant_input_is_none():
 
 
 def test_constants():
-    assert energy.CALM_PROMPT == "calm, quiet, gentle music"
-    assert energy.ENERGETIC_PROMPT == "energetic, loud, intense music"
+    assert energy.CALM_PROMPT == "a calm, relaxing song"
+    assert energy.ENERGETIC_PROMPT == "an upbeat, high-energy song"
     assert energy.CALM == "calm"
     assert energy.ENERGETIC == "energetic"
     assert energy.GATE_RHO == 0.5
