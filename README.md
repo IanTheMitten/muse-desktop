@@ -93,10 +93,13 @@ window to watch it, or a song to add it in place.
 
 ## How Radio picks the next song
 
-With smart features installed, Muse listens to each song and reads its lyrics,
-on your computer. Each kind of evidence is a leg; each leg's similarity is
-put on the same scale before they are added up, so a song missing a leg (an
-instrumental has no lyrics) is not pushed down for it.
+With smart features installed, Muse listens to each song, on your computer.
+Radio plans the next songs with the same arc engine that builds playlists,
+so the queue moves along a curve instead of drifting. The legs that rank
+candidates are audio and taste; each leg's similarity is put on the same scale before they are
+added up, so a song missing a leg is not pushed down for it. Lyric tags from
+Laya steer the theme, and the **Lift** switch on the Muse page makes Radio
+climb gradually toward lighter songs.
 
 ```mermaid
 flowchart LR
@@ -104,26 +107,26 @@ flowchart LR
   subgraph legs ["Legs (weight)"]
     direction TB
     audio["Audio: CLAP + MERT<br>how it sounds (0.35)"]
-    lyr["Lyrics: MiniLM<br>what it says (0.25)"]
     taste["Taste<br>what you play together (0.20)"]
-    emo["Emotion<br>valence and arousal (0.05)"]
   end
   cdf["Each leg mapped through<br>its own calibration curve"]
-  rank["rank()"]
+  arc["Arc engine<br>curve, theme from lyric tags,<br>energy from CLAP"]
   rules["Your ratings, artist spacing,<br>freshness"]
   next(["Next song"])
-  seed --> legs --> cdf --> rank --> rules --> next
+  seed --> legs --> cdf --> arc --> rules --> next
 ```
 
-The fifth weight, Spotify-style audio features (0.15), has no data in this
-app and drops out. Without smart features, Radio still works from your play
-history. Details: [ADR 0003](docs/adrs/0003-emotion-and-taste-legs-in-the-recommender.md),
-[ADR 0008](docs/adrs/0008-per-leg-calibration-and-the-offline-harness.md).
+Spotify-style audio features (0.15) have no data in this app and drop out.
+Energy (calm, mid, energetic) is measured from the sound with CLAP, so it
+works for songs without lyrics. Without smart features, Radio still works from
+your play history. Details: [ADR 0003](docs/adrs/0003-emotion-and-taste-legs-in-the-recommender.md),
+[ADR 0008](docs/adrs/0008-per-leg-calibration-and-the-offline-harness.md),
+[ADR 0009](docs/adrs/0009-the-arc-engine.md).
 
 ## Smart features
 
-An optional download (about 5 GB; the banner shows the exact size) that
-powers Radio's listening, vibe search, lyric tags and lyric timing. Install it
+An optional download (about 4 GB; the banner shows the exact size) that
+powers Radio's listening, energy, vibe search, lyric tags and lyric timing. Install it
 from the banner or Settings > Smart features. Files are checked against a
 hash list, and a dropped download resumes where it stopped. Nothing leaves
 your computer except the download.
@@ -181,7 +184,7 @@ flowchart LR
     api["/api + React UI<br>127.0.0.1, per-launch token"]
     chain["Launch chain: scan, lyrics,<br>art, embeddings, taste"]
   end
-  worker["ML worker<br>CLAP, MERT, MiniLM,<br>emotion, Laya, aligners"]
+  worker["ML worker<br>CLAP, MERT,<br>Laya, aligners"]
   data[("Data folder<br>library.sqlite3,<br>lyrics/, art/")]
   music[("Your music folders<br>read only")]
   win -- "spawns, then loads<br>http://127.0.0.1:port" --> api
@@ -223,15 +226,12 @@ listed with its licences in [docs/readme/CREDITS.md](docs/readme/CREDITS.md).
 Smart features download models that are free for non-commercial use only:
 
 - MERT-v1-95M (CC-BY-NC-4.0)
-- audeering wav2vec2 emotion model (CC-BY-NC-SA-4.0)
 - MMS-FA aligner (CC-BY-NC-4.0)
 - schufo aligner, trained on MUSDB18 (`other-nc`)
 
 Other models and components:
 
 - CLAP larger_clap_music_and_speech (Apache-2.0)
-- all-MiniLM-L6-v2 (Apache-2.0)
-- j-hartmann emotion-english-distilroberta-base: its model card states no licence
 - Laya, `convaiinnovations/laya` and the finetune built on it (Apache-2.0)
   (downloaded from the owner's Hugging Face repo)
 - PyAV decodes audio. PyAV is BSD; its wheels bundle FFmpeg's LGPL libraries.
