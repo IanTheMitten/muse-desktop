@@ -1,6 +1,6 @@
 {
   "productName": "Muse",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "identifier": "io.github.ianthemitten.muse",
   "build": {
     "frontendDist": "boot"
