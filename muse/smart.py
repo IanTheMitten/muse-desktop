@@ -189,6 +189,7 @@ def install(
     zip_path = models_dir / worker.path
     if zip_path.exists():
         _extract(zip_path, models_dir / "worker")
+        (models_dir / "worker" / ".worker-sha256").write_text(worker.sha256)
         zip_path.unlink()
     tmp = models_dir / "installed.json.tmp"
     tmp.write_text(json.dumps({"manifest_version": manifest["version"], "triple": triple}))
@@ -213,10 +214,17 @@ def reconcile(models_dir: Path, manifest: dict | None = None, triple: str | None
         files = files_for(manifest, triple)
     except Unsupported:
         return False
-    # install() extracts the worker zip and deletes it, so the worker counts as
-    # present when the zip or the extracted executable is there.
+    # The worker counts as present only when extracted, and (if install() left a
+    # marker) only when the marker names the manifest's zip. No marker: an install
+    # from before the marker existed, accepted as is.
     exe = "muse-worker.exe" if os.name == "nt" else "muse-worker"
-    worker_ok = (models_dir / files[-1].path).exists() or (models_dir / "worker" / "muse-worker" / exe).exists()
+    worker_ok = (models_dir / "worker" / "muse-worker" / exe).exists()
+    try:
+        marker = (models_dir / "worker" / ".worker-sha256").read_text().strip()
+    except OSError:
+        marker = None
+    if marker is not None and marker != files[-1].sha256:
+        worker_ok = False
     if _missing(models_dir, files[:-1]) or not worker_ok:
         return False
     tmp = models_dir / "installed.json.tmp"
